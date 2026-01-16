@@ -1,0 +1,18 @@
+{
+  "tasks": [
+    {
+      "name": "backup-documents-interval",
+      "interval_seconds": 3600,
+      "source_path": "/data/documents",
+      "s3_bucket": "my-backups",
+      "s3_prefix": "documents/"
+    },
+    {
+      "name": "backup-daily-cron",
+      "cron_expression": "0 3 * * *",
+      "source_path": "/data/work",
+      "s3_bucket": "my-backups",
+      "s3_prefix": "work-daily/"
+    }
+  ]
+}
