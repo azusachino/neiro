@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Chain } from "../src/chain.ts";
-import { UnsupportedError, Vault } from "../src/index.ts";
-import { parseToml } from "../src/providers.ts";
+import { splitFrontmatter, UnsupportedError, Vault } from "../src/index.ts";
+import { parseToml, parseYaml } from "../src/providers.ts";
+import { FIXTURE } from "./vault.test.ts";
 
 /** Run `read` with each provider of `chain` forced in turn, and return every output by provider name. */
 async function eachProvider<T, R>(chain: Chain<T>, read: () => R | Promise<R>): Promise<Record<string, R>> {
@@ -49,6 +50,33 @@ describe("a chain", () => {
 });
 
 describe("every provider returns the same result", () => {
+  test("parse YAML, on the fixture vault", async () => {
+    expectIdentical(await eachProvider(parseYaml, () => new Vault(FIXTURE).notes()));
+  });
+
+  const kepano = join(import.meta.dir, "vaults", "kepano-obsidian");
+  test.skipIf(!existsSync(kepano) || readdirSync(kepano).length === 0)("parse YAML, on kepano-obsidian", async () => {
+    expectIdentical(await eachProvider(parseYaml, () => new Vault(kepano).notes()));
+  });
+
+  test("parse YAML, where Bun.YAML alone would differ", async () => {
+    const blocks = [
+      "created: {{date}}\ntitle: {{title}}",
+      "a: {b: 1, b: 2}",
+      "a: 1\na: 2",
+      '"a": 1\na: 2',
+      "a:\n  b: 1\n  b: 2",
+      "base: &b {k: 1}\nc:\n  <<: *b",
+      "a: !!int '3'",
+      "? a\n: 1",
+      "%YAML 1.1\n---\na: yes",
+      "a: yes\nb: 2026-09-24\nc: 0o17\nd: .inf\ne: ~",
+    ];
+    for (const block of blocks) {
+      expectIdentical(await eachProvider(parseYaml, () => splitFrontmatter(`---\n${block}\n---\nbody`).data));
+    }
+  });
+
   test("parse TOML, for neiro.toml and its title allowlist", async () => {
     const root = mkdtempSync(join(tmpdir(), "neiro-toml-"));
     writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI", "iPhone"]\nmore = { names = ["GitHub"] }\n');
