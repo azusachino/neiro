@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0
+
+- A `History` interface with `GitHistory` through the git CLI; `history`, `show --rev`, and `diff` read a note's revisions. Without Git, history raises `UnsupportedError` and every read still works; `capture --commit` then fails before writing.
+- Targeted writes: `append` (to a note or a section), `journal append`, `section put`, `prop set` (comments and key order kept), `put` (create, or replace only with `--if-hash`), and `new` from the vault's templates.
+- Every write previews with `--dry-run` as a unified diff, refuses a stale `--if-hash`, changes only its target range, and commits that note alone with `--commit`. Nothing deletes.
+- Bullets and negative numbers on the command line are text, not options. Emoji tags are valid.
+
 ## 0.2.0
 
 - The SDK runs on Bun and Node. Bun-only APIs sit behind fallback chains (TOML, then YAML frontmatter with `Bun.YAML` first) whose providers return identical results.

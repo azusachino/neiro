@@ -13,6 +13,22 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 
 ## shipped
 
+### 0.3.0: history and targeted writes
+
+Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
+
+- **A `History` interface** with `commit`, `log`, `show`, `diff`, and `sync`. `GitHistory` implements it through the git CLI; in a folder without Git, the history chain raises `UnsupportedError` instead of pretending to record anything. Capture's Git calls move behind it. ([#12](https://github.com/azusachino/neiro/issues/12))
+- **History commands:** `history <note>`, `show <note> --rev <rev>`, and `diff <note>`. Restoring is an ordinary write: read an old revision and `put` it with `--if-hash`, which makes a new revision instead of rewriting history. ([#12](https://github.com/azusachino/neiro/issues/12))
+- **`append <note> <text> [--heading H]`**: at the end of the note, or at the end of section H. A missing heading fails unless `--create-heading` is given. ([#14](https://github.com/azusachino/neiro/issues/14))
+- **`section put <note> --heading H`**: replace section H's body, or create the section. ([#15](https://github.com/azusachino/neiro/issues/15))
+- **`prop set <note> <key> <value>`**: upsert one frontmatter key, keeping comments and key order. ([#16](https://github.com/azusachino/neiro/issues/16))
+- **`put <path>`**: create a note, or replace it only with a matching `--if-hash`. Replacing without the hash is refused. ([#17](https://github.com/azusachino/neiro/issues/17))
+- **`journal append <week|month> <text> --heading <h>`**: `append` on the note for a date. ([#14](https://github.com/azusachino/neiro/issues/14))
+- **`new <type> <title>`** from the vault's templates. ([#18](https://github.com/azusachino/neiro/issues/18))
+
+Which of these an agent may call is decided in 0.4, not by this milestone.
+- Also: an argument starting with a dash and a space, or a negative number, is text rather than an option, so bullets and values such as `-428` reach a write unchanged; a capture keeps a template's empty properties as `key:`; emoji tags such as `0🌲` are valid, as in Obsidian.
+
 ### 0.2.0: portable core and reads that agents can aim
 
 - **Portable core.** Replace the eight Bun-only calls with `node:` modules or a fallback chain, and add a Node run to CI next to Bun. The [fallback chains](#capabilities-and-fallback-chains) start here. ([#2](https://github.com/azusachino/neiro/issues/2))
@@ -39,21 +55,6 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 - Measured on a real vault of 1,837 notes and 8.3 M characters: 18 ms process start-up, about 10 ms to find files, 25 ms to read them, and **100 ms to parse YAML frontmatter**. After loading, `list` takes 0.5 ms, `search` 17–33 ms, and `backlinks` 25 ms.
 
 ## next
-
-### 0.3: history and targeted writes
-
-Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
-
-- **A `History` interface** with `commit`, `log`, `show`, `diff`, and `sync`. `GitHistory` implements it through the git CLI; in a folder without Git, the history chain raises `UnsupportedError` instead of pretending to record anything. Capture's Git calls move behind it. ([#12](https://github.com/azusachino/neiro/issues/12))
-- **History commands:** `history <note>`, `show <note> --rev <rev>`, and `diff <note>`. Restoring is an ordinary write: read an old revision and `put` it with `--if-hash`, which makes a new revision instead of rewriting history. ([#12](https://github.com/azusachino/neiro/issues/12))
-- **`append <note> <text> [--heading H]`**: at the end of the note, or at the end of section H. A missing heading fails unless `--create-heading` is given. ([#14](https://github.com/azusachino/neiro/issues/14))
-- **`section put <note> --heading H`**: replace section H's body, or create the section. ([#15](https://github.com/azusachino/neiro/issues/15))
-- **`prop set <note> <key> <value>`**: upsert one frontmatter key, keeping comments and key order. ([#16](https://github.com/azusachino/neiro/issues/16))
-- **`put <path>`**: create a note, or replace it only with a matching `--if-hash`. Replacing without the hash is refused. ([#17](https://github.com/azusachino/neiro/issues/17))
-- **`journal append <week|month> <text> --heading <h>`**: `append` on the note for a date. ([#14](https://github.com/azusachino/neiro/issues/14))
-- **`new <type> <title>`** from the vault's templates. ([#18](https://github.com/azusachino/neiro/issues/18))
-
-Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ### 0.4: agent integration
 
