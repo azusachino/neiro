@@ -28,5 +28,18 @@
     "@biomejs/biome": "2.5.14",
     "@types/bun": "1.4.2",
     "typescript": "7.0.2"
-  }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/azusachino/neiro.git"
+  },
+  "keywords": [
+    "obsidian",
+    "markdown",
+    "notes",
+    "cli",
+    "sdk",
+    "bun"
+  ]
 }
