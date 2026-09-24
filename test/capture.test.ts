@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   CaptureError,
+  captureInputFromMarkdown,
   type NeiroConfig,
   renderCapture,
   resolveSettings,
@@ -224,5 +225,50 @@ describe("capture", () => {
     const root = copyVault();
     expect(new Vault(root).capture({ text: "No repo" }, { commit: true })).rejects.toThrow("git add failed");
     expect(readdirSync(join(root, "Inbox"))).toContain("No repo.md");
+  });
+});
+
+describe("captureInputFromMarkdown", () => {
+  const draft = [
+    "---",
+    "title: A drafted idea",
+    "tags:",
+    "  - learning",
+    "source: https://example.com/post",
+    "author: Someone",
+    "kind: draft",
+    "rating: 4",
+    "---",
+    "",
+    "# A heading that is not the title",
+    "",
+    "Body text.",
+    "",
+  ].join("\n");
+
+  test("takes title, tags, and source from the file's properties and keeps the body", () => {
+    const input = captureInputFromMarkdown(draft, "tmp/draft.md");
+    expect(input).toMatchObject({
+      title: "A drafted idea",
+      tags: ["learning"],
+      source: "https://example.com/post",
+      properties: { author: "Someone", kind: "draft", rating: 4 },
+    });
+    expect(input.text).toBe("\n# A heading that is not the title\n\nBody text.\n");
+  });
+
+  test("falls back to the first heading, then the file name", () => {
+    expect(captureInputFromMarkdown("## First heading ##\n\ntext\n", "x.md").title).toBe("First heading");
+    expect(captureInputFromMarkdown("plain text\n", "tmp/My draft.md").title).toBe("My draft");
+    expect(captureInputFromMarkdown("plain text\n").title).toBeUndefined();
+  });
+
+  test("keeps the file's other properties after the declared ones, never duplicating a declared key", () => {
+    const strict = resolveSettings(FIXTURE, STRICT).capture;
+    const { content } = renderCapture({ ...captureInputFromMarkdown(draft, "draft.md"), now: NOW }, strict);
+    const { data } = splitFrontmatter(content);
+    expect(data).toMatchObject({ title: "a drafted idea", kind: "capture", author: "Someone", rating: 4 });
+    expect(content.match(/^kind:/gm)).toHaveLength(1);
+    expect(content.indexOf("author:")).toBeGreaterThan(content.indexOf("source:"));
   });
 });

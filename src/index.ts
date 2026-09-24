@@ -4,6 +4,7 @@ export {
   type CaptureOptions,
   type CaptureResult,
   canonicalTag,
+  captureInputFromMarkdown,
   fileStem,
   renderCapture,
 } from "./capture.ts";

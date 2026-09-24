@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { FIXTURE } from "./vault.test.ts";
 
@@ -41,5 +43,22 @@ describe("cli", () => {
     expect(run("list", "--bogus").code).toBe(2);
     expect(run("search").code).toBe(2);
     expect(run("search", "x", "--limit", "0").code).toBe(2);
+  });
+});
+
+describe("cli capture --file", () => {
+  const draft = join(mkdtempSync(join(tmpdir(), "neiro-draft-")), "Weekend plan.md");
+  writeFileSync(draft, "---\ntags:\n  - planning\n---\n\n- buy tea\n- read a book\n");
+
+  test("imports a Markdown file, merging --tag", () => {
+    const { code, stdout } = run("capture", "--file", draft, "--tag", "home", "--dry-run", "--json");
+    expect(code).toBe(0);
+    const result = JSON.parse(stdout);
+    expect(result.path).toBe("Inbox/Weekend plan.md");
+    expect(result.content).toBe("---\ntags:\n  - planning\n  - home\n---\n\n- buy tea\n- read a book\n");
+  });
+
+  test("refuses text and --file together", () => {
+    expect(run("capture", "--file", draft, "extra text").code).toBe(2);
   });
 });

@@ -71,9 +71,10 @@ Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `
 neiro capture --tag llm --source https://example.com/post "Read: how agents plan"
 printf -- '- white miso\n- red miso\n' | neiro capture --tag cooking --title "Miso to try"
 neiro capture -- "- text starting with a dash goes after --"
+neiro capture --file tmp/draft.md --tag reading     # a whole Markdown file, frontmatter included
 ```
 
-- The title is the first line of the text unless `--title` is given, with Markdown markers removed.
+- The title is the first line of the text unless `--title` is given, with Markdown markers removed. With `--file`, the file's `title` property comes first, then its first heading, then its file name, and its `tags`, `source`, and other properties carry over; `--tag` adds to its tags. Properties the vault declares are always filled by capture itself.
 - By default the note's frontmatter holds only its tags and source, when given; the note has no frontmatter at all without them. `properties` and `[capture.values]` in `neiro.toml` declare more.
 - By default the file is named after the title, with characters Obsidian refuses in file names removed, and a taken name gets a number, as in `Idea 2.md`. The `slug` style uses an ASCII kebab-case stem with a `-2` suffix, falling back to `capture-YYYYMMDD-HHmm` for a title with no ASCII letters.
 - Tags must use Obsidian's tag syntax: letters, numbers, `_`, `-`, and `/` for nesting, with at least one non-digit.

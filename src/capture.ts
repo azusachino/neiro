@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
+import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
 import type { CaptureSettings } from "./settings.ts";
@@ -12,6 +13,8 @@ export interface CaptureInput {
   title?: string;
   tags?: string[];
   source?: string;
+  /** Other frontmatter to keep, written after the vault's declared properties. Declared keys are always filled by capture. */
+  properties?: Record<string, unknown>;
   now?: Date;
 }
 
@@ -128,6 +131,11 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
       if (source) lines.push(`source: ${yamlScalar(source)}`);
     } else if (settings.values[key] !== undefined) lines.push(`${key}: ${yamlScalar(settings.values[key] as string)}`);
   }
+  const filled = new Set([...settings.properties, "title", "tags", "source"]);
+  for (const [key, value] of Object.entries(input.properties ?? {})) {
+    if (!filled.has(key) && value !== undefined && value !== null)
+      lines.push(stringify({ [key]: value }, { lineWidth: 0 }).trimEnd());
+  }
   const body = `${input.text.trim()}\n`;
   const content = lines.length > 0 ? `---\n${lines.join("\n")}\n---\n\n${body}` : body;
 
@@ -195,4 +203,24 @@ export async function capture(
   }
   if (options.push) git(root, ["push", "--quiet"]);
   return { path, content, written: true, committed: commit, pushed: options.push ?? false };
+}
+
+/**
+ * Capture input from a whole Markdown document, such as a draft file. Its `title`, `tags`, and `source` properties
+ * become capture inputs and its other properties are kept. Without a `title` property, the title is the first
+ * heading, then the file name. The body is unchanged. This parses text only; reading files is the caller's choice.
+ */
+export function captureInputFromMarkdown(raw: string, fileName?: string): CaptureInput {
+  const { data, body } = splitFrontmatter(raw);
+  const { title, tags, source, ...properties } = data;
+  const firstLine = body.split("\n").find((line) => line.trim() !== "");
+  const heading = firstLine?.match(/^#{1,6}\s+(.+?)\s*#*\s*$/)?.[1];
+  const named = fileName ? posix.basename(fileName.replaceAll("\\", "/")).replace(/\.md$/i, "") : undefined;
+  return {
+    text: body,
+    title: (typeof title === "string" && title.trim()) || heading || named,
+    tags: stringList(tags),
+    source: typeof source === "string" ? source : undefined,
+    properties,
+  };
 }

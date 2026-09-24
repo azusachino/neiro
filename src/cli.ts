@@ -1,9 +1,11 @@
 #!/usr/bin/env bun
+import { readFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
 import {
   CaptureError,
+  captureInputFromMarkdown,
   type Filter,
   NotFoundError,
   PERIODS,
@@ -26,7 +28,7 @@ commands:
   backlinks <note>             notes that link to a note
   unresolved                   links pointing at no note, or at several
   journal <period>             the day, week, month, quarter, or year note for a date
-  capture [text...]            create a new note (text from stdin when omitted)
+  capture [text...]            create a new note from text, --file, or stdin
 
 options:
   --vault <dir>                vault root (default: $NEIRO_VAULT, then the current directory)
@@ -37,6 +39,7 @@ options:
   --max-chars <n>              truncate a note body in get
   --date <YYYY-MM-DD>          date for journal (default: today)
   --title, --source <value>    capture metadata; --tag may repeat
+  --file <path>                capture: a Markdown file, keeping its title, tags, source, and other properties
   --dry-run                    capture: show the note without writing
   --commit                     capture: commit the new note
   --push                       capture: pull --rebase, commit, and push
@@ -65,6 +68,7 @@ function parse() {
         title: { type: "string" },
         source: { type: "string" },
         "dry-run": { type: "boolean" },
+        file: { type: "string" },
         commit: { type: "boolean" },
         push: { type: "boolean" },
         author: { type: "string" },
@@ -166,9 +170,17 @@ async function main(): Promise<void> {
       return emit(found, () => (found.note ? `${found.path}\n\n${found.note.body}` : `${found.path}\tnot written yet`));
     }
     case "capture": {
-      const text = args.length > 0 ? args.join(" ") : await Bun.stdin.text();
+      if (opts.file && args.length > 0) throw new UsageError("capture takes text or --file, not both");
+      const base = opts.file
+        ? captureInputFromMarkdown(readFileSync(opts.file, "utf8"), opts.file)
+        : { text: args.length > 0 ? args.join(" ") : await Bun.stdin.text() };
       const result = await vault.capture(
-        { text, title: opts.title, tags: opts.tag ?? [], source: opts.source },
+        {
+          ...base,
+          title: opts.title ?? base.title,
+          tags: [...(base.tags ?? []), ...(opts.tag ?? [])],
+          source: opts.source ?? base.source,
+        },
         { dryRun: opts["dry-run"], commit: opts.commit, push: opts.push, author: opts.author },
       );
       return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
