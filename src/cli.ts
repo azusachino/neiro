@@ -16,9 +16,14 @@ import {
   PERIODS,
   type Period,
   parseDate,
+  SectionError,
+  type SectionWriteOptions,
   SORT_KEYS,
   UnsupportedError,
   Vault,
+  WriteConflictError,
+  type WriteOptions,
+  type WriteResult,
 } from "./index.ts";
 
 const USAGE = `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault
@@ -46,6 +51,12 @@ commands:
   journal <period>             the day, week, month, quarter, or year note for a date
   capture [text...]            create a new note from text, --file, or stdin
 
+writes (each takes --dry-run for a diff, --if-hash <hash>, --commit, and --author):
+  append <note> [text...]      add text at the end, or at the end of --heading H (--create-heading, --level)
+  section put <note> [text...] replace the body of section --heading H, or add the section
+  journal append <period> [text...]
+                               append to the period's note for --date (default: today)
+
 options:
   --vault <dir>                vault root (default: $NEIRO_VAULT, then the current directory)
   --json                       machine-readable output, the same as --format json
@@ -66,19 +77,24 @@ options:
   --date <YYYY-MM-DD>          date for journal (default: today)
   --title, --source <value>    capture metadata; --tag may repeat
   --file <path>                capture: a Markdown file, keeping its title, tags, source, and other properties
-  --dry-run                    capture: show the note without writing
-  --commit                     capture: commit the new note
+  --dry-run                    capture and writes: show the result without writing
+  --commit                     capture and writes: commit the note, and only it
+  --if-hash <sha256>           writes: refuse unless the note still has the hash get returned
   --push                       capture: pull --rebase, commit, and push
-  --author <"Name <email>">    capture: commit author
+  --author <"Name <email>">    capture and writes: commit author
   -h, --help                   show this help
   -v, --version                show the version`;
 
 class UsageError extends Error {}
 
+// A Markdown bullet such as "- read the paper" is text to write, not an option; parseArgs would read it as one.
+const BULLET = "\u0000";
+const argv = process.argv.slice(2).map((arg) => (/^-\s/.test(arg) ? `${BULLET}${arg}` : arg));
+
 function parse() {
   try {
     return parseArgs({
-      args: process.argv.slice(2),
+      args: argv,
       allowPositionals: true,
       strict: true,
       options: {
@@ -109,6 +125,10 @@ function parse() {
         commit: { type: "boolean" },
         push: { type: "boolean" },
         author: { type: "string" },
+        heading: { type: "string" },
+        "create-heading": { type: "boolean" },
+        level: { type: "string" },
+        "if-hash": { type: "string" },
         help: { type: "boolean", short: "h" },
         version: { type: "boolean", short: "v" },
       },
@@ -119,13 +139,39 @@ function parse() {
   }
 }
 
-const { values: opts, positionals } = parse();
+const parsed = parse();
+const opts = parsed.values;
+const positionals = parsed.positionals.map((arg) => (arg.startsWith(BULLET) ? arg.slice(BULLET.length) : arg));
 
 function count(name: string, value: string | undefined): number | undefined {
   if (value === undefined) return undefined;
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) throw new UsageError(`--${name} must be a positive integer`);
   return parsed;
+}
+
+/** Text for a write: the arguments joined, or stdin when there are none. */
+async function inputText(words: string[]): Promise<string> {
+  const value = words.length > 0 ? words.join(" ") : await text(process.stdin);
+  if (value.trim() === "") throw new UsageError("nothing to write: give text or pipe it on stdin");
+  return value;
+}
+
+function writeOptions(): WriteOptions {
+  return { dryRun: opts["dry-run"], ifHash: opts["if-hash"], commit: opts.commit, author: opts.author };
+}
+
+function sectionOptions(): SectionWriteOptions {
+  const level = opts.level === undefined ? undefined : count("level", opts.level);
+  if (level !== undefined && level > 6) throw new UsageError("--level must be 1 to 6");
+  return { ...writeOptions(), heading: opts.heading, createHeading: opts["create-heading"], level };
+}
+
+/** A write's result: the diff on a dry run, else the path and the new hash for a following --if-hash. */
+function emitWrite(result: WriteResult): void {
+  emit(result, () =>
+    result.written ? `${result.path}\t${result.hash}` : result.diff.trim() === "" ? "no change" : result.diff.trimEnd(),
+  );
 }
 
 /** `key=value` requires that value; a bare `key` requires only that the property be present. */
@@ -350,7 +396,27 @@ async function main(): Promise<void> {
         links.map((link) => `${link.from}\t${link.target}\t${link.resolution.status}`).join("\n"),
       );
     }
+    case "append": {
+      const [ref, ...words] = args;
+      if (!ref) throw new UsageError("append needs a note");
+      return emitWrite(await vault.append(ref, await inputText(words), sectionOptions()));
+    }
+    case "section": {
+      const [action, ref, ...words] = args;
+      if (action !== "put" || !ref || !opts.heading)
+        throw new UsageError("usage: section put <note> --heading H [text]");
+      return emitWrite(await vault.putSection(ref, opts.heading, await inputText(words), sectionOptions()));
+    }
     case "journal": {
+      if (args[0] === "append") {
+        const [, period = "", ...words] = args;
+        if (!(PERIODS as readonly string[]).includes(period))
+          throw new UsageError(`journal append takes ${PERIODS.join(", ")}`);
+        const date = opts.date ? parseDate(opts.date) : new Date();
+        return emitWrite(
+          await vault.appendJournal(period as Period, await inputText(words), { ...sectionOptions(), date }),
+        );
+      }
       const period = one(args, `period (${PERIODS.join(", ")})`);
       if (!(PERIODS as readonly string[]).includes(period)) throw new UsageError(`journal takes ${PERIODS.join(", ")}`);
       const found = await vault.journalFor(period as Period, opts.date ? parseDate(opts.date) : new Date());
@@ -388,6 +454,8 @@ try {
     error instanceof NotFoundError ||
     error instanceof LineRangeError ||
     error instanceof HistoryError ||
+    error instanceof SectionError ||
+    error instanceof WriteConflictError ||
     error instanceof CaptureError ||
     error instanceof UnsupportedError
   ) {

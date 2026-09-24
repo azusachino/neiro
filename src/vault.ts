@@ -11,9 +11,10 @@ import { type History, historyChain } from "./history.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
+import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
-import { contentHash } from "./write.ts";
+import { contentHash, splice, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -105,6 +106,15 @@ export interface Heading {
   text: string;
   /** Counted from the top of the file, frontmatter included. */
   line: number;
+}
+
+export interface SectionWriteOptions extends WriteOptions {
+  /** A section to write in, by heading text; without it, `append` writes at the end of the note. */
+  heading?: string;
+  /** Add a missing heading at the end of the note instead of refusing. */
+  createHeading?: boolean;
+  /** The level of a created heading; 2 by default. */
+  level?: number;
 }
 
 export interface NavEntry {
@@ -256,21 +266,67 @@ export class Vault {
   /** A note's ATX headings with their line numbers, counted as `get --lines` counts; fenced code is skipped. */
   async outline(ref: string): Promise<Heading[]> {
     const note = await this.find(ref);
-    const headings: Heading[] = [];
-    let fence: string | undefined;
-    const lines = note.raw.split(/\r?\n/);
-    const bodyStart = lines.length - note.body.split(/\r?\n/).length;
-    lines.forEach((text, index) => {
-      if (index < bodyStart) return;
-      const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(text)?.[1];
-      if (marker && (!fence || (marker[0] === fence[0] && marker.length >= fence.length))) {
-        fence = fence ? undefined : marker;
-        return;
-      }
-      const heading = fence ? null : /^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(text);
-      if (heading) headings.push({ level: heading[1]?.length ?? 1, text: heading[2] as string, line: index + 1 });
+    return headingsOf(note.raw).map(({ level, text, line }) => ({ level, text, line }));
+  }
+
+  /**
+   * Add text to the end of a note, or to the end of section `heading`. A missing heading is an error unless
+   * `createHeading` is set, which adds it at the end of the note.
+   */
+  async append(ref: string, text: string, options: SectionWriteOptions = {}): Promise<WriteResult> {
+    const note = await this.find(ref);
+    return this.change(note.path, `docs: append to ${note.path}`, options, (current) => {
+      const addition = text.replace(/\s+$/, "");
+      if (options.heading === undefined) return `${withNewline(current)}${addition}\n`;
+      const section = findSection(current, options.heading);
+      if (!section) return createSection(current, options, addition);
+      // After the section's last character, on a line of its own; an empty section keeps its blank line below.
+      const at = sectionContentEnd(current, section);
+      const lead = current[at - 1] === "\n" ? "" : "\n";
+      const tail = at === current.length || at === section.heading.bodyStart ? "\n" : "";
+      return splice(current, at, at, `${lead}${addition}${tail}`);
     });
-    return headings;
+  }
+
+  /** Replace section `heading`'s body, or add the section at the end of the note when it is missing. */
+  async putSection(ref: string, heading: string, text: string, options: WriteOptions & { level?: number } = {}) {
+    const note = await this.find(ref);
+    return this.change(note.path, `docs: set section ${heading} of ${note.path}`, options, (current) => {
+      const body = text.replace(/^\s+|\s+$/g, "");
+      const section = findSection(current, heading);
+      if (!section) return createSection(current, { ...options, heading, createHeading: true }, body);
+      const old = current.slice(section.heading.bodyStart, section.end);
+      const atEnd = section.end === current.length;
+      const lead = /^\s*/.exec(old)?.[0] ?? "";
+      const trail = /\s*$/.exec(old)?.[0] ?? "";
+      const blank = old.trim() === "";
+      const replacement = blank ? `\n${body}\n${atEnd ? "" : "\n"}` : `${lead}${body}${trail === "" ? "\n" : trail}`;
+      return splice(current, section.heading.bodyStart, section.end, replacement);
+    });
+  }
+
+  /** The periodic note for `date`'s day, week, month, quarter, or year, with `text` appended as `append` does. */
+  async appendJournal(period: Period, text: string, options: SectionWriteOptions & { date?: Date } = {}) {
+    const { path, note } = await this.journalFor(period, options.date);
+    if (!note) throw new NotFoundError(`${path} is not written yet; the ${period} note must exist to append to it`);
+    return this.append(path, text, options);
+  }
+
+  /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
+  private change(path: string, message: string, options: WriteOptions, next: (current: string) => string): WriteResult {
+    const result = writeNote(
+      this.root,
+      path,
+      (current) => {
+        if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
+        return next(current);
+      },
+      message,
+      options,
+      () => this.history,
+    );
+    if (result.written) this.reload();
+    return result;
   }
 
   /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
@@ -486,6 +542,20 @@ function propertyMatches(actual: unknown, wanted: string | null): boolean {
   if (wanted === null) return true;
   if (Array.isArray(actual)) return actual.some((item) => propertyMatches(item, wanted));
   return actual !== null && typeof actual !== "object" && String(actual) === wanted;
+}
+
+function withNewline(text: string): string {
+  return text === "" || text.endsWith("\n") ? text : `${text}\n`;
+}
+
+/** Add `## heading` and its body at the end of the note, or refuse when `createHeading` is not set. */
+function createSection(current: string, options: SectionWriteOptions, body: string): string {
+  if (!options.createHeading) {
+    throw new SectionError(`no section "${options.heading}"; pass createHeading to add it at the end`);
+  }
+  const heading = `${"#".repeat(options.level ?? 2)} ${options.heading}`;
+  const gap = current.trim() === "" ? "" : "\n";
+  return `${withNewline(current)}${gap}${heading}\n\n${body}\n`;
 }
 
 function summarize(note: Note): NoteSummary {
