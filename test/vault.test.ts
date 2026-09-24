@@ -132,6 +132,7 @@ describe("nav", () => {
       "Inbox",
       "Notes",
       "People",
+      "Templates",
       "Topics",
       "Weekly",
     ]);

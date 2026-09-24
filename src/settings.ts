@@ -35,9 +35,20 @@ export interface CaptureSettings {
   rejectTags: string[];
 }
 
+/** Where note templates live and how their `{{date}}` and `{{time}}` placeholders are written. */
+export interface TemplateSettings {
+  folder: string;
+  dateFormat: string;
+  timeFormat: string;
+  /** Which settings source supplied the folder. */
+  source: string;
+}
+
 export interface VaultSettings {
   capture: CaptureSettings;
   journal: Partial<Record<Period, PeriodicSetting>>;
+  /** Unset when no source names a template folder; `new` then raises `UnsupportedError`. */
+  templates?: TemplateSettings;
 }
 
 /** The shape of `neiro.toml`, also accepted in code. Every key is optional. */
@@ -56,6 +67,7 @@ export interface NeiroConfig {
     reject_tags?: string[];
   };
   journal?: Partial<Record<Period, { folder?: string; format?: string }>>;
+  templates?: { folder?: string; date_format?: string; time_format?: string };
 }
 
 const DEFAULT_CAPTURE: Omit<CaptureSettings, "folder"> = {
@@ -140,6 +152,7 @@ export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSett
       : obsidianJournal(root, period);
     if (setting) journal[period] = setting;
   }
+  const template = templates(root, file, code);
 
   return {
     capture: {
@@ -155,5 +168,23 @@ export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSett
       rejectTags: capture.reject_tags ?? DEFAULT_CAPTURE.rejectTags,
     },
     journal,
+    ...(template ? { templates: template } : {}),
+  };
+}
+
+/** `[templates]` in code options or `neiro.toml`, then Obsidian's core Templates setting; no folder is assumed. */
+function templates(root: string, file: NeiroConfig, code: NeiroConfig): TemplateSettings | undefined {
+  const obsidian = readJson(root, ".obsidian/templates.json");
+  const configured = code.templates?.folder ?? file.templates?.folder;
+  const source = code.templates?.folder ? "options" : file.templates?.folder ? CONFIG_FILE : "Templates";
+  const folder = configured ?? text(obsidian?.folder);
+  if (folder === undefined || folder.trim() === "") return undefined;
+  return {
+    folder: folder.replace(/^\/+|\/+$/g, ""),
+    // Obsidian's own defaults for a template's {{date}} and {{time}}.
+    dateFormat:
+      code.templates?.date_format ?? file.templates?.date_format ?? (text(obsidian?.dateFormat) || "YYYY-MM-DD"),
+    timeFormat: code.templates?.time_format ?? file.templates?.time_format ?? (text(obsidian?.timeFormat) || "HH:mm"),
+    source,
   };
 }

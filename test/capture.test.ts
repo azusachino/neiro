@@ -54,6 +54,8 @@ describe("default capture settings", () => {
     expect(content).toContain("tags:\n  - Area/Sub_topic\n  - 2026-plans\n");
     expect(() => renderCapture({ text: "x", tags: ["two words"] }, defaults)).toThrow("not a valid tag");
     expect(() => renderCapture({ text: "x", tags: ["2026"] }, defaults)).toThrow("not a valid tag");
+    expect(() => renderCapture({ text: "x", tags: ["a,b"] }, defaults)).toThrow("not a valid tag");
+    expect(renderCapture({ text: "x", tags: ["0🌲", "日本語"] }, defaults).content).toContain("  - 0🌲\n  - 日本語\n");
   });
 
   test("fall back to the vault root without Obsidian settings", () => {

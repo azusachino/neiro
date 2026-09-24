@@ -3,7 +3,13 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import ignore from "ignore";
 import { parseDocument, stringify } from "yaml";
-import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
+import {
+  type CaptureInput,
+  type CaptureOptions,
+  type CaptureResult,
+  capture,
+  captureInputFromMarkdown,
+} from "./capture.ts";
 import type { Chain } from "./chain.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
@@ -13,8 +19,9 @@ import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
-import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
+import { type NeiroConfig, type Period, resolveSettings, UnsupportedError, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
+import { renderTemplate, templateFor, templateNames } from "./templates.ts";
 import { contentHash, splice, WriteConflictError, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
 
 export interface Note {
@@ -436,6 +443,35 @@ export class Vault {
     const path = journalPath(period, date, this.settings.journal[period]);
     const exists = (await this.notes()).some((note) => note.path === path);
     return { path, note: exists ? await this.get(path) : null };
+  }
+
+  /**
+   * Create a note from the vault's template for `type`, through `capture`: the template's placeholders are filled,
+   * its properties and tags kept, and the note placed and styled by the vault's capture settings.
+   */
+  async create(
+    type: string,
+    title: string,
+    options: CaptureOptions & { tags?: string[]; now?: Date } = {},
+  ): Promise<CaptureResult> {
+    const settings = this.settings.templates;
+    if (!settings) {
+      throw new UnsupportedError(
+        "no template folder: set [templates] folder in neiro.toml, or Obsidian's Templates folder",
+      );
+    }
+    const paths = (await this.notes()).map((note) => note.path);
+    const path = templateFor(paths, settings.folder, type);
+    if (!path) {
+      const names = templateNames(paths, settings.folder);
+      throw new NotFoundError(
+        `no template for "${type}" in ${settings.folder}; there are: ${names.join(", ") || "none"}`,
+      );
+    }
+    const now = options.now ?? new Date();
+    const template = (await this.find(path)).raw;
+    const input = captureInputFromMarkdown(renderTemplate(template, title, now, settings), path);
+    return this.capture({ ...input, title, tags: [...(input.tags ?? []), ...(options.tags ?? [])], now }, options);
   }
 
   /** The vault's revisions: Git when the root is inside a work tree, otherwise this raises `UnsupportedError`. */
