@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { NotFoundError, parseDate, UnsupportedError, Vault } from "../src/index.ts";
+import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "../src/index.ts";
 
 export const FIXTURE = join(import.meta.dir, "fixtures", "vault");
 const vault = new Vault(FIXTURE);
@@ -19,6 +19,43 @@ describe("scanning", () => {
 
   test("rejects a missing vault", () => {
     expect(() => new Vault(join(FIXTURE, "nowhere"))).toThrow(NotFoundError);
+  });
+});
+
+describe("get by line", () => {
+  const ref = "Topics/Cognitive load.md";
+
+  test("counts lines from the top of the file, frontmatter included", async () => {
+    const slice = await vault.get(ref, { lines: { start: 7, end: 9 } });
+    expect(slice).toMatchObject({ start: 7, end: 9, total: 27 });
+    expect(slice.body).toBe("---\n\nCognitive load theory explains why working memory limits learning.");
+    expect((await vault.get(ref, { lines: { start: 1, end: 1 } })).body).toBe("---");
+  });
+
+  test("runs an open-ended range to the first or last line", async () => {
+    expect(await vault.get(ref, { lines: { start: 26 } })).toMatchObject({ start: 26, end: 27 });
+    expect(await vault.get(ref, { lines: { end: 2 } })).toMatchObject({ start: 1, end: 2, body: "---\naliases:" });
+    expect(await vault.get(ref, { lines: { start: 20, end: 500 } })).toMatchObject({ start: 20, end: 27 });
+  });
+
+  test("reads around a line, clipped at either end of the file", async () => {
+    expect(await vault.get(ref, { around: { line: 9, context: 1 } })).toMatchObject({ start: 8, end: 10 });
+    expect(await vault.get(ref, { around: { line: 2 } })).toMatchObject({ start: 1, end: 7 });
+    expect(await vault.get(ref, { around: { line: 27, context: 0 } })).toMatchObject({ start: 27, end: 27 });
+  });
+
+  test("refuses a range the note cannot serve, naming its length", async () => {
+    expect(vault.get(ref, { lines: { start: 28 } })).rejects.toThrow("has 27 lines");
+    expect(vault.get(ref, { lines: { start: 9, end: 3 } })).rejects.toThrow(LineRangeError);
+    expect(vault.get(ref, { lines: { start: 0 } })).rejects.toThrow(LineRangeError);
+    expect(vault.get(ref, { around: { line: 40 } })).rejects.toThrow(LineRangeError);
+    expect(vault.get(ref, { lines: { start: 1 }, around: { line: 2 } })).rejects.toThrow("not both");
+  });
+
+  test("leaves a plain get without line fields", async () => {
+    const whole = await vault.get(ref);
+    expect(whole.start).toBeUndefined();
+    expect(whole.body.startsWith("\nCognitive load theory")).toBe(true);
   });
 });
 

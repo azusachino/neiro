@@ -46,6 +46,31 @@ describe("cli", () => {
   });
 });
 
+describe("cli get by line", () => {
+  test("takes an rg -n result for --around unchanged", () => {
+    const hit = "Topics/Cognitive load.md:9:Cognitive load theory explains why working memory limits learning.";
+    const { code, stdout } = run("get", "--around", hit, "--context", "0", "--json");
+    expect(code).toBe(0);
+    const slice = JSON.parse(stdout);
+    expect(slice).toMatchObject({ path: "Topics/Cognitive load.md", start: 9, end: 9, total: 27 });
+    expect(slice.body).toBe(hit.split(":").slice(2).join(":"));
+  });
+
+  test("reads --lines ranges, open-ended or one line", () => {
+    expect(run("get", "clt", "--lines", "1:2").stdout).toBe("Topics/Cognitive load.md:1-2 of 27\n\n---\naliases:\n");
+    expect(JSON.parse(run("get", "clt", "--lines", "26:", "--json").stdout)).toMatchObject({ start: 26, end: 27 });
+    expect(JSON.parse(run("get", "clt", "--lines", "9", "--json").stdout)).toMatchObject({ start: 9, end: 9 });
+  });
+
+  test("exits 1 for a range past the note and 2 for malformed options", () => {
+    expect(run("get", "clt", "--lines", "99").code).toBe(1);
+    expect(run("get", "clt", "--lines", "a:b").code).toBe(2);
+    expect(run("get", "clt", "--context", "3").code).toBe(2);
+    expect(run("get", "clt", "--around", "Topics/Cognitive load.md:9").code).toBe(2);
+    expect(run("get", "--around", "nowhere").code).toBe(2);
+  });
+});
+
 describe("cli output shapes", () => {
   test("--fields keeps the named fields, in JSON or as tab-separated text", () => {
     const json = run("list", "--type", "person", "--fields", "path,born", "--json");

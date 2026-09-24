@@ -25,6 +25,8 @@ export {
 } from "./settings.ts";
 export {
   type Filter,
+  type GetOptions,
+  LineRangeError,
   type NavEntry,
   type NavView,
   type Note,
@@ -32,6 +34,7 @@ export {
   type NoteSummary,
   NotFoundError,
   type OutgoingLink,
+  type SearchHit,
   Vault,
   type VaultOptions,
 } from "./vault.ts";

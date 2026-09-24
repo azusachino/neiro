@@ -18,7 +18,7 @@ neiro journal <period>        the day, week, month, quarter, or year note for --
 neiro capture [text...]       create a new note
 ```
 
-Every command accepts `--json`. Commands that return notes (`get`, `search`, `list`, `nav`, `backlinks`) share one summary (path, title, type, status, tags, created, modified), accept `--fields a,b` to keep named fields or any frontmatter key, and `--format paths` to print one path per line for `xargs` or `fzf`. The vault is `--vault <dir>`, else `$NEIRO_VAULT`, else the current directory. Run `neiro --help` for every option.
+Every command accepts `--json`. Commands that return notes (`get`, `search`, `list`, `nav`, `backlinks`) share one summary (path, title, type, status, tags, created, modified), accept `--fields a,b` to keep named fields or any frontmatter key, and `--format paths` to print one path per line for `xargs` or `fzf`. `get` reads part of a note by line, counted from the top of the file as `rg -n` counts: `--lines 20:60`, or `--around <line|path:line> --context <n>`, which takes an `rg -n` result unchanged. The vault is `--vault <dir>`, else `$NEIRO_VAULT`, else the current directory. Run `neiro --help` for every option.
 
 Wikilinks resolve the way Obsidian resolves them: a vault-root path, a path relative to the linking note's folder, a unique path suffix, then a unique filename stem, preferring the linking note's own folder. A link that still matches several notes is reported as ambiguous rather than guessed. A note without a `title` property takes its title from its file name, as in Obsidian.
 

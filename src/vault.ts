@@ -44,6 +44,22 @@ export interface NoteContent extends NoteSummary {
   /** SHA-256 of the file's bytes, for detecting a concurrent change. */
   hash: string;
   truncated: boolean;
+  /** With `lines` or `around`: the first and last line returned and the file's line count; `body` holds those lines. */
+  start?: number;
+  end?: number;
+  total?: number;
+}
+
+/**
+ * Options for `get`. Line numbers count from 1 at the top of the file, frontmatter included, as `rg -n`, editors,
+ * and Git diffs count them.
+ */
+export interface GetOptions {
+  maxChars?: number;
+  /** An inclusive range; a missing `start` or `end` runs to the first or last line. */
+  lines?: { start?: number; end?: number };
+  /** One line and `context` lines either side, 5 by default. */
+  around?: { line: number; context?: number };
 }
 
 export interface Filter {
@@ -82,6 +98,9 @@ export interface VaultOptions {
 
 export class NotFoundError extends Error {}
 
+/** A line range that does not fit the note; the message gives the note's line count. */
+export class LineRangeError extends Error {}
+
 export class Vault {
   readonly root: string;
   /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
@@ -106,16 +125,19 @@ export class Vault {
     return (await this.load()).notes;
   }
 
-  async get(ref: string, options: { maxChars?: number } = {}): Promise<NoteContent> {
+  async get(ref: string, options: GetOptions = {}): Promise<NoteContent> {
     const note = await this.find(ref);
+    const range = lineRange(note, options);
+    const text = range ? range.text : note.body;
     const max = options.maxChars;
-    const truncated = max !== undefined && note.body.length > max;
+    const truncated = max !== undefined && text.length > max;
     return {
       ...summarize(note),
       frontmatter: note.frontmatter,
-      body: truncated ? note.body.slice(0, max) : note.body,
+      body: truncated ? text.slice(0, max) : text,
       hash: createHash("sha256").update(note.raw).digest("hex"),
       truncated,
+      ...(range ? { start: range.start, end: range.end, total: range.total } : {}),
     };
   }
 
@@ -293,6 +315,34 @@ function parseNote(path: string, raw: string): Note {
     body,
     raw,
   };
+}
+
+/** The requested lines of the file; a range may run past either end, but its anchor line must exist. */
+function lineRange(note: Note, options: GetOptions) {
+  if (!options.lines && !options.around) return undefined;
+  if (options.lines && options.around) throw new LineRangeError("give lines or around, not both");
+  const lines = note.raw.split(/\r?\n/);
+  if (lines.at(-1) === "") lines.pop();
+  const total = lines.length;
+  let start: number;
+  let end: number;
+  if (options.around) {
+    const { line, context = 5 } = options.around;
+    if (!Number.isInteger(line) || line < 1 || line > total || !Number.isInteger(context) || context < 0) {
+      throw new LineRangeError(`${note.path} has ${total} lines; cannot read around line ${line}`);
+    }
+    start = line - context;
+    end = line + context;
+  } else {
+    start = options.lines?.start ?? 1;
+    end = options.lines?.end ?? total;
+    if (!Number.isInteger(start) || !Number.isInteger(end) || start < 1 || start > total || end < start) {
+      throw new LineRangeError(`${note.path} has ${total} lines; cannot read lines ${start}:${end}`);
+    }
+  }
+  start = Math.max(1, start);
+  end = Math.min(total, end);
+  return { start, end, total, text: lines.slice(start - 1, end).join("\n") };
 }
 
 function summarize(note: Note): NoteSummary {

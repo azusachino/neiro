@@ -70,17 +70,22 @@ An agent reaches neiro in one of two ways: a coding agent shells out to the CLI 
 
 ### A2. Answer a question from the vault, citing notes
 
-`search <question> --limit 5 --json`, then `get <path> --max-chars <n>` on the best hits, answering with their paths. A hit carries the same summary as `list` (type, status, tags, dates), and `--fields` adds any frontmatter key, so the agent can choose between hits without another call. Partial: reading only the relevant lines of a long note is [#5](https://github.com/azusachino/neiro/issues/5).
+`search <question> --limit 5 --json`, then `get <path> --max-chars <n>` on the best hits, answering with their paths. A hit carries the same summary as `list` (type, status, tags, dates), and `--fields` adds any frontmatter key, so the agent can choose between hits without another call. In a long note, `get <path> --lines a:b` reads only the part it needs. Shipped.
 
 - `vault.test › ranks a title match first`
 - `vault.test › returns a content hash and marks truncation`
 - `vault.test › returns the same summary as list, plus score and snippet`
 - `vault.test › selects summary fields and frontmatter keys, null when absent`
 - `cli.test › emits JSON with --json`
+- `vault.test › counts lines from the top of the file, frontmatter included`
 
 ### A3. Locate an exact phrase, then read around it
 
-`grep <pattern>` for `path:line:text`, then `get <path> --around <line> --context 10`. Planned: [#6](https://github.com/azusachino/neiro/issues/6), [#5](https://github.com/azusachino/neiro/issues/5).
+`grep <pattern>` for `path:line:text`, then `get --around <path:line> --context 10`, which takes a grep or `rg -n` result unchanged. Partial: `get --around` ships, and until `grep` ([#6](https://github.com/azusachino/neiro/issues/6)) an agent runs `rg -n` in the vault.
+
+- `cli.test › takes an rg -n result for --around unchanged`
+- `vault.test › reads around a line, clipped at either end of the file`
+- `vault.test › refuses a range the note cannot serve, naming its length`
 
 ### A4. Resolve a loose reference from a user's message
 
