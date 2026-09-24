@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
+import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
@@ -101,7 +102,21 @@ export interface VaultOptions {
   exclude?: string[];
 }
 
-export class NotFoundError extends Error {}
+export class NotFoundError extends Error {
+  /** The closest notes by fuzzy match, when a reference resolved to none. */
+  readonly suggestions: string[];
+
+  constructor(message: string, suggestions: string[] = []) {
+    super(suggestions.length > 0 ? `${message}; closest: ${suggestions.join(", ")}` : message);
+    this.suggestions = suggestions;
+  }
+}
+
+/** A fuzzy `suggest` result: the note's summary, its fzf-style score, and the path, title, or alias that matched. */
+export interface Suggestion extends NoteSummary {
+  score: number;
+  matched: string;
+}
 
 /** A line range that does not fit the note; the message gives the note's line count. */
 export class LineRangeError extends Error {}
@@ -286,7 +301,27 @@ export class Vault {
         throw new NotFoundError(`"${ref}" matches ${found.length} notes: ${found.map((note) => note.path).join(", ")}`);
       }
     }
-    throw new NotFoundError(`no note matches "${ref}"`);
+    // A typo can break one word's subsequence; then any word that still matches is enough to suggest.
+    let closest = await this.suggest(wanted, { limit: 3 });
+    if (closest.length === 0) closest = await this.suggest(wanted, { limit: 3, anyTerm: true });
+    throw new NotFoundError(
+      `no note matches "${ref}"`,
+      closest.map((hit) => hit.path),
+    );
+  }
+
+  /** Notes ranked by fuzzy match of the query over their path, title, and aliases, with fzf's scoring rules. */
+  async suggest(query: string, options: Filter & { limit?: number; anyTerm?: boolean } = {}): Promise<Suggestion[]> {
+    const candidates = (await this.filtered(options)).map((note) => ({
+      item: note,
+      texts: [note.path, note.title, ...note.aliases],
+    }));
+    const ranked = fuzzyRank(query, candidates, options.limit ?? 10, { anyTerm: options.anyTerm });
+    return ranked.map(({ item, score, matched }) => ({
+      ...summarize(item),
+      score,
+      matched,
+    }));
   }
 
   private async filtered(filter: Filter): Promise<Note[]> {
