@@ -2,10 +2,31 @@ import { describe, expect, test } from "bun:test";
 import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CaptureError, renderCapture, splitFrontmatter, Vault } from "../src/index.ts";
+import {
+  CaptureError,
+  type NeiroConfig,
+  renderCapture,
+  resolveSettings,
+  splitFrontmatter,
+  Vault,
+} from "../src/index.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
+
+/** A vault that declares a strict house style, the way a vault's own neiro.toml would. */
+const STRICT: NeiroConfig = {
+  capture: {
+    folder: "queue",
+    filename: "slug",
+    properties: ["title", "created", "modified", "kind", "tags", "source"],
+    values: { kind: "capture" },
+    title_style: "lowercase",
+    tag_style: "kebab",
+    require_tags: true,
+    reject_tags: ["todo"],
+  },
+};
 
 function copyVault(): string {
   const root = mkdtempSync(join(tmpdir(), "neiro-vault-"));
@@ -33,105 +54,145 @@ function gitVault(): { root: string; remote: string } {
   return { root, remote };
 }
 
-describe("renderCapture", () => {
-  test("writes frontmatter in the vault's canonical order", () => {
-    const { content } = renderCapture({ text: "Body line", title: "a title", tags: ["learning"], now: NOW });
+describe("default capture settings", () => {
+  const defaults = resolveSettings(FIXTURE).capture;
+
+  test("follow Obsidian: new-note folder from app.json, title as file name, only tags", () => {
+    expect(defaults).toMatchObject({ folder: "Inbox", filename: "title", properties: ["tags", "source"] });
+    const { content } = renderCapture({ text: "Body line", title: "A Title", tags: ["learning"], now: NOW }, defaults);
+    expect(content).toBe("---\ntags:\n  - learning\n---\n\nBody line\n");
+  });
+
+  test("write no frontmatter when there is nothing to record", () => {
+    expect(renderCapture({ text: "Just text", now: NOW }, defaults).content).toBe("Just text\n");
+  });
+
+  test("keep titles and tags as written, checking Obsidian's tag syntax", () => {
+    const { title, content } = renderCapture(
+      { text: "Using the API", tags: ["#Area/Sub_topic", "2026-plans"] },
+      defaults,
+    );
+    expect(title).toBe("Using the API");
+    expect(content).toContain("tags:\n  - Area/Sub_topic\n  - 2026-plans\n");
+    expect(() => renderCapture({ text: "x", tags: ["two words"] }, defaults)).toThrow("not a valid tag");
+    expect(() => renderCapture({ text: "x", tags: ["2026"] }, defaults)).toThrow("not a valid tag");
+  });
+
+  test("fall back to the vault root without Obsidian settings", () => {
+    expect(resolveSettings(join(FIXTURE, "People")).capture.folder).toBe("");
+  });
+});
+
+describe("configured capture settings", () => {
+  const strict = resolveSettings(FIXTURE, STRICT).capture;
+
+  test("write the declared properties in order", () => {
+    const { content } = renderCapture({ text: "Body", title: "An Idea", tags: ["Agent_Harness"], now: NOW }, strict);
     expect(content).toBe(
       [
         "---",
-        "title: a title",
+        "title: an idea",
         "created: 2026-09-24 19:05",
         "modified: 2026-09-24 19:05",
-        "type: inbox",
-        "status: inbox",
-        "maturity: seed",
+        "kind: capture",
         "tags:",
-        "  - learning",
+        "  - agent-harness",
         "---",
         "",
-        "Body line",
+        "Body",
         "",
       ].join("\n"),
     );
   });
 
-  test("quotes values YAML would misread, and they round-trip", () => {
-    const { content } = renderCapture({ text: "x", title: "read: this", tags: ["2026"], source: "a #b", now: NOW });
+  test("quote values YAML would misread, and they round-trip", () => {
+    const { content } = renderCapture(
+      { text: "x", title: "read: this", tags: ["x"], source: "a #b", now: NOW },
+      strict,
+    );
     expect(content).toContain('title: "read: this"');
-    expect(content).toContain('  - "2026"');
-    const { data } = splitFrontmatter(content);
-    expect(data).toMatchObject({ title: "read: this", tags: ["2026"], source: "a #b" });
+    expect(splitFrontmatter(content).data).toMatchObject({ title: "read: this", source: "a #b" });
   });
 
-  test("takes the title from the first line, without Markdown syntax", () => {
-    expect(renderCapture({ text: "\n## Some Heading\nmore", tags: ["x"], now: NOW }).title).toBe("some heading");
-    expect(renderCapture({ text: "- a list item", tags: ["x"], now: NOW }).title).toBe("a list item");
-    expect(renderCapture({ text: "x".repeat(100), tags: ["x"], now: NOW }).title).toHaveLength(81);
+  test("take the title from the first line, without Markdown syntax", () => {
+    expect(renderCapture({ text: "\n## Some Heading\nmore", tags: ["x"] }, strict).title).toBe("some heading");
+    expect(renderCapture({ text: "- a list item", tags: ["x"] }, strict).title).toBe("a list item");
+    expect(renderCapture({ text: "x".repeat(100), tags: ["x"] }, strict).title).toHaveLength(81);
   });
 
-  test("lowercases title words outside the allowlist and spaces CJK", () => {
-    const allow = new Set(["API", "iPhone"]);
-    expect(renderCapture({ text: "Using the API on iPhone", tags: ["x"] }, { titleAllow: allow }).title).toBe(
+  test("lowercase titles except allowlisted words, and space CJK", () => {
+    const allow = { ...strict, titleAllow: ["API", "iPhone"] };
+    expect(renderCapture({ text: "Using the API on iPhone", tags: ["x"] }, allow).title).toBe(
       "using the API on iPhone",
     );
-    expect(renderCapture({ text: "Two APIs", tags: ["x"] }, { titleAllow: allow }).title).toBe("two APIs");
-    expect(renderCapture({ text: "Using the LLM API", tags: ["x"] }).title).toBe("using the LLM API");
-    expect(renderCapture({ text: "学习Kafka原理", tags: ["x"] }).title).toBe("学习 kafka 原理");
+    expect(renderCapture({ text: "Two APIs", tags: ["x"] }, allow).title).toBe("two APIs");
+    expect(renderCapture({ text: "学习Kafka原理", tags: ["x"] }, allow).title).toBe("学习 kafka 原理");
   });
 
-  test("canonicalizes tags and rejects bad ones", () => {
-    expect(renderCapture({ text: "x", tags: [" Agent_Harness ", "agent-harness", "分布式"] }).content).toContain(
-      "tags:\n  - agent-harness\n  - 分布式\n",
-    );
-    expect(() => renderCapture({ text: "x", tags: [] })).toThrow(CaptureError);
-    expect(() => renderCapture({ text: "x", tags: ["inbox"] })).toThrow("workflow state");
-    expect(() => renderCapture({ text: "x", tags: ["c++"] })).toThrow("punctuation");
-    expect(() => renderCapture({ text: "  ", tags: ["x"] })).toThrow("needs text or a title");
+  test("enforce required, kebab-case, and rejected tags", () => {
+    expect(
+      renderCapture({ text: "x", tags: [" Agent_Harness ", "agent-harness", "分布式"] }, strict).content,
+    ).toContain("tags:\n  - agent-harness\n  - 分布式\n");
+    expect(() => renderCapture({ text: "x", tags: [] }, strict)).toThrow("requires at least one tag");
+    expect(() => renderCapture({ text: "x", tags: ["todo"] }, strict)).toThrow('does not allow the tag "todo"');
+    expect(() => renderCapture({ text: "x", tags: ["c++"] }, strict)).toThrow("not a valid tag");
+    expect(() => renderCapture({ text: "  ", tags: ["x"] }, strict)).toThrow(CaptureError);
+  });
+
+  test("read the title allowlist named in neiro.toml", async () => {
+    const root = copyVault();
+    writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI"]\n');
+    writeFileSync(join(root, "neiro.toml"), '[capture]\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n');
+    const result = await new Vault(root).capture({ text: "Trying OpenAI Tools" }, { dryRun: true });
+    expect(result.path).toBe("Inbox/trying OpenAI tools.md");
   });
 });
 
 describe("capture", () => {
   test("dry run writes nothing", async () => {
     const root = copyVault();
-    const result = await new Vault(root).capture({ text: "An idea", tags: ["learning"], now: NOW }, { dryRun: true });
-    expect(result).toMatchObject({ path: "inbox/an-idea.md", written: false, committed: false, pushed: false });
+    const result = await new Vault(root).capture({ text: "An idea", now: NOW }, { dryRun: true });
+    expect(result).toMatchObject({ path: "Inbox/An idea.md", written: false, committed: false, pushed: false });
     expect(existsSync(join(root, result.path))).toBe(false);
   });
 
   test("creates a new file, never overwriting one", async () => {
     const root = copyVault();
     const vault = new Vault(root);
-    const first = await vault.capture({ text: "An existing idea", tags: ["learning"], now: NOW });
-    const second = await vault.capture({ text: "An existing idea", tags: ["learning"], now: NOW });
-    expect([first.path, second.path]).toEqual(["inbox/an-existing-idea.md", "inbox/an-existing-idea-2.md"]);
-    expect(readFileSync(join(root, "inbox/existing-idea.md"), "utf8")).toContain("Captured earlier.");
-    expect((await vault.list({ status: "inbox" })).length).toBe(3);
+    const first = await vault.capture({ text: "Existing idea", now: NOW });
+    const slugged = await new Vault(root, { config: STRICT }).capture({ text: "Existing idea", tags: ["x"], now: NOW });
+    const again = await new Vault(root, { config: STRICT }).capture({ text: "Existing idea", tags: ["x"], now: NOW });
+    expect([first.path, slugged.path, again.path]).toEqual([
+      "Inbox/Existing idea 2.md",
+      "queue/existing-idea.md",
+      "queue/existing-idea-2.md",
+    ]);
+    expect(readFileSync(join(root, "Inbox/Existing idea.md"), "utf8")).toContain("Captured earlier.");
   });
 
-  test("falls back to a timestamp filename for a title without ASCII", async () => {
-    const result = await new Vault(copyVault()).capture({ text: "乌龙茶", tags: ["tea"], now: NOW }, { dryRun: true });
-    expect(result.path).toBe("inbox/capture-20260924-1905.md");
-  });
-
-  test("applies the vault's title allowlist from neiro.toml", async () => {
-    const root = copyVault();
-    writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI"]\n');
-    writeFileSync(join(root, "neiro.toml"), '[capture]\ntitle_allowlist = "casing.toml"\n');
-    const result = await new Vault(root).capture({ text: "Trying OpenAI Tools", tags: ["x"] }, { dryRun: true });
-    expect(splitFrontmatter(result.content).data.title).toBe("trying OpenAI tools");
+  test("makes file names safe, falling back to a timestamp", async () => {
+    const vault = new Vault(copyVault());
+    expect((await vault.capture({ text: 'What is "a/b"? [draft]', now: NOW }, { dryRun: true })).path).toBe(
+      "Inbox/What is a b draft.md",
+    );
+    expect((await vault.capture({ text: "乌龙茶笔记", now: NOW }, { dryRun: true })).path).toBe("Inbox/乌龙茶笔记.md");
+    const strict = new Vault(copyVault(), { config: STRICT });
+    expect((await strict.capture({ text: "乌龙茶", tags: ["tea"], now: NOW }, { dryRun: true })).path).toBe(
+      "queue/capture-20260924-1905.md",
+    );
   });
 
   test("commits only the new note, as the given author", async () => {
     const { root } = gitVault();
-    writeFileSync(join(root, "note/life/tea.md"), "an unrelated owner edit\n");
+    writeFileSync(join(root, "Notes/乌龙茶.md"), "an unrelated owner edit\n");
     const result = await new Vault(root).capture(
-      { text: "Committed idea", tags: ["learning"], now: NOW },
+      { text: "Committed idea", now: NOW },
       { commit: true, author: "bot <bot@example.com>" },
     );
     expect(result).toMatchObject({ written: true, committed: true, pushed: false });
-    expect(git(root, "log", "-1", "--format=%an|%s")).toBe("bot|chore: capture inbox/committed-idea.md");
-    expect(git(root, "show", "--name-only", "--format=", "HEAD")).toBe("inbox/committed-idea.md");
-    expect(git(root, "status", "--short")).toBe("M note/life/tea.md");
+    expect(git(root, "log", "-1", "--format=%an|%s")).toBe("bot|chore: capture Inbox/Committed idea.md");
+    expect(git(root, "show", "--name-only", "--format=", "HEAD")).toBe("Inbox/Committed idea.md");
+    expect(git(root, "status", "--short")).toContain("Notes/");
   });
 
   test("pulls, commits, and pushes", async () => {
@@ -152,18 +213,16 @@ describe("capture", () => {
     );
     git(other, "push", "--quiet");
 
-    await new Vault(root).capture({ text: "Pushed idea", tags: ["learning"], now: NOW }, { push: true });
+    await new Vault(root).capture({ text: "Pushed idea", now: NOW }, { push: true });
     expect(git(remote, "log", "-2", "--format=%s", "main").split("\n")).toEqual([
-      "chore: capture inbox/pushed-idea.md",
+      "chore: capture Inbox/Pushed idea.md",
       "elsewhere",
     ]);
   });
 
   test("reports a Git failure", async () => {
     const root = copyVault();
-    expect(new Vault(root).capture({ text: "No repo", tags: ["x"] }, { commit: true })).rejects.toThrow(
-      "git add failed",
-    );
-    expect(readdirSync(join(root, "inbox"))).toContain("no-repo.md");
+    expect(new Vault(root).capture({ text: "No repo" }, { commit: true })).rejects.toThrow("git add failed");
+    expect(readdirSync(join(root, "Inbox"))).toContain("No repo.md");
   });
 });

@@ -2,7 +2,16 @@
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
-import { CaptureError, type Filter, NotFoundError, parseDate, Vault } from "./index.ts";
+import {
+  CaptureError,
+  type Filter,
+  NotFoundError,
+  PERIODS,
+  type Period,
+  parseDate,
+  UnsupportedError,
+  Vault,
+} from "./index.ts";
 
 const USAGE = `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault
 
@@ -16,8 +25,8 @@ commands:
   links <note>                 outgoing wikilinks and how each resolves
   backlinks <note>             notes that link to a note
   unresolved                   links pointing at no note, or at several
-  journal <week|month>         the journal note for a date (default: today)
-  capture [text...]            create a new inbox note (text from stdin when omitted)
+  journal <period>             the day, week, month, quarter, or year note for a date
+  capture [text...]            create a new note (text from stdin when omitted)
 
 options:
   --vault <dir>                vault root (default: $NEIRO_VAULT, then the current directory)
@@ -26,8 +35,8 @@ options:
                                filters for search and list
   --limit <n>                  search results (default 10)
   --max-chars <n>              truncate a note body in get
-  --date <YYYY-MM-DD>          date for journal
-  --title, --source <value>    capture metadata; --tag may repeat and is required
+  --date <YYYY-MM-DD>          date for journal (default: today)
+  --title, --source <value>    capture metadata; --tag may repeat
   --dry-run                    capture: show the note without writing
   --commit                     capture: commit the new note
   --push                       capture: pull --rebase, commit, and push
@@ -151,9 +160,9 @@ async function main(): Promise<void> {
       );
     }
     case "journal": {
-      const period = one(args, "period (week or month)");
-      if (period !== "week" && period !== "month") throw new UsageError("journal takes week or month");
-      const found = await vault.journalFor(period, opts.date ? parseDate(opts.date) : new Date());
+      const period = one(args, `period (${PERIODS.join(", ")})`);
+      if (!(PERIODS as readonly string[]).includes(period)) throw new UsageError(`journal takes ${PERIODS.join(", ")}`);
+      const found = await vault.journalFor(period as Period, opts.date ? parseDate(opts.date) : new Date());
       return emit(found, () => (found.note ? `${found.path}\n\n${found.note.body}` : `${found.path}\tnot written yet`));
     }
     case "capture": {
@@ -176,7 +185,7 @@ try {
     console.error(`neiro: ${error.message}\n\n${USAGE}`);
     process.exit(2);
   }
-  if (error instanceof NotFoundError || error instanceof CaptureError) {
+  if (error instanceof NotFoundError || error instanceof CaptureError || error instanceof UnsupportedError) {
     console.error(`neiro: ${error.message}`);
     process.exit(1);
   }

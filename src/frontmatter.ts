@@ -10,7 +10,8 @@ export function splitFrontmatter(raw: string): { data: Frontmatter; body: string
   if (!match) return { data: {}, body: raw };
   let data: unknown;
   try {
-    data = parse(match[1] ?? "");
+    // Templates often hold unquoted placeholders such as `{{date}}`, which YAML reads as mappings; parse them quietly.
+    data = parse(match[1] ?? "", { logLevel: "error" });
   } catch {
     data = null;
   }

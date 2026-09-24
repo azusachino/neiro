@@ -1,16 +1,11 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join, posix, resolve } from "node:path";
-import {
-  type CaptureConventions,
-  type CaptureInput,
-  type CaptureOptions,
-  type CaptureResult,
-  capture,
-} from "./capture.ts";
+import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
-import { DEFAULT_JOURNAL_LAYOUT, type JournalLayout, journalPath, type Period } from "./journal.ts";
+import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank, type SearchHit } from "./search.ts";
+import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -69,11 +64,9 @@ export interface NavView {
   notes: NavEntry[];
 }
 
-/** Settings a vault declares in its own `neiro.toml`; options passed in code take precedence. */
 export interface VaultOptions {
-  journal?: JournalLayout;
-  /** Title words a capture keeps as written, such as `API` or `iPhone`. */
-  titleAllow?: string[];
+  /** Settings in the shape of `neiro.toml`, taking precedence over the vault's own `neiro.toml` and Obsidian settings. */
+  config?: NeiroConfig;
   /** Folder prefixes never scanned. Paths from the vault's `.gitmodules` are always excluded. */
   exclude?: string[];
 }
@@ -82,8 +75,8 @@ export class NotFoundError extends Error {}
 
 export class Vault {
   readonly root: string;
-  private readonly journal: JournalLayout;
-  private readonly conventions: CaptureConventions;
+  /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
+  readonly settings: VaultSettings;
   private readonly exclude: string[];
   private cache?: { notes: Note[]; index: LinkIndex };
 
@@ -91,10 +84,7 @@ export class Vault {
     this.root = resolve(root);
     if (!existsSync(this.root) || !statSync(this.root).isDirectory())
       throw new NotFoundError(`no vault at ${this.root}`);
-    const config = readConfig(this.root);
-    this.journal = options.journal ?? { ...DEFAULT_JOURNAL_LAYOUT, ...config.journal };
-    const allow = options.titleAllow ?? config.titleAllow;
-    this.conventions = { titleAllow: allow ? new Set(allow) : null };
+    this.settings = resolveSettings(this.root, options.config);
     this.exclude = ["node_modules", ...submodulePaths(this.root), ...(options.exclude ?? [])].map(folderPrefix);
   }
 
@@ -198,15 +188,15 @@ export class Vault {
     };
   }
 
-  /** The journal note for the week or month containing `date`, or `null` with the path it would have. */
+  /** The periodic note for the day, week, month, quarter, or year containing `date`, or `null` with the path it would have. */
   async journalFor(period: Period, date: Date = new Date()): Promise<{ path: string; note: NoteContent | null }> {
-    const path = journalPath(period, date, this.journal);
+    const path = journalPath(period, date, this.settings.journal[period]);
     const exists = (await this.notes()).some((note) => note.path === path);
     return { path, note: exists ? await this.get(path) : null };
   }
 
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    const result = await capture(this.root, input, options, this.conventions);
+    const result = await capture(this.root, input, this.settings.capture, options);
     if (result.written) this.reload();
     return result;
   }
@@ -300,40 +290,4 @@ function submodulePaths(root: string): string[] {
   const file = join(root, ".gitmodules");
   if (!existsSync(file)) return [];
   return [...readFileSync(file, "utf8").matchAll(/^\s*path\s*=\s*(.+?)\s*$/gm)].map((match) => match[1] as string);
-}
-
-export const CONFIG_FILE = "neiro.toml";
-
-/**
- * `neiro.toml` at the vault root, all keys optional:
- *
- *   [journal]
- *   week = "journal/{isoYear}/weekly/{isoYear}-w{ww}.md"
- *   month = "journal/{yyyy}/monthly/{yyyy}-{mm}.md"
- *
- *   [capture]
- *   title_allowlist = "path/to/allowlist.toml"   # every string in its arrays is allowed
- */
-function readConfig(root: string): { journal: Partial<JournalLayout>; titleAllow?: string[] } {
-  const file = join(root, CONFIG_FILE);
-  if (!existsSync(file)) return { journal: {} };
-  const config = Bun.TOML.parse(readFileSync(file, "utf8")) as {
-    journal?: Partial<JournalLayout>;
-    capture?: { title_allowlist?: string };
-  };
-  const journal = Object.fromEntries(
-    Object.entries(config.journal ?? {}).filter(
-      ([key, value]) => (key === "week" || key === "month") && typeof value === "string",
-    ),
-  ) as Partial<JournalLayout>;
-  const allowFile = config.capture?.title_allowlist;
-  if (typeof allowFile !== "string") return { journal };
-  return { journal, titleAllow: stringsIn(Bun.TOML.parse(readFileSync(join(root, allowFile), "utf8"))) };
-}
-
-function stringsIn(value: unknown): string[] {
-  if (typeof value === "string") return [value];
-  if (Array.isArray(value)) return value.flatMap(stringsIn);
-  if (typeof value === "object" && value !== null) return Object.values(value).flatMap(stringsIn);
-  return [];
 }

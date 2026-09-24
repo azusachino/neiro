@@ -29,5 +29,8 @@
         "organizeImports": "on"
       }
     }
+  },
+  "files": {
+    "includes": ["**", "!test/vaults"]
   }
 }
