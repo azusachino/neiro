@@ -2,7 +2,13 @@
 # Prose uses semantic lines; wrapping is left to the renderer.
 disable = ["MD013"]
 respect-gitignore = true
+# Corpus vaults are third-party test data, not this project's docs.
+exclude = ["test/vaults"]
 
 [per-file-ignores]
 # The agent redirect does not need a standalone document title.
 "CLAUDE.md" = ["MD041"]
+# The pull request template is a fragment of a pull request body.
+".github/PULL_REQUEST_TEMPLATE.md" = ["MD041"]
+# Obsidian notes take their title from the file name and rarely start with a heading.
+"test/fixtures/**" = ["MD041"]
