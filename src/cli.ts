@@ -8,6 +8,7 @@ import {
   CaptureError,
   captureInputFromMarkdown,
   type Filter,
+  LineRangeError,
   NotFoundError,
   PERIODS,
   type Period,
@@ -40,6 +41,9 @@ options:
                                filters for search and list
   --limit <n>                  search results (default 10)
   --max-chars <n>              truncate a note body in get
+  --lines <a:b>                get: lines a to b, counted from the top of the file (a:, :b, or one line)
+  --around <line|path:line>    get: a line and --context lines either side; accepts rg -n output
+  --context <n>                lines either side for --around (default 5)
   --date <YYYY-MM-DD>          date for journal (default: today)
   --title, --source <value>    capture metadata; --tag may repeat
   --file <path>                capture: a Markdown file, keeping its title, tags, source, and other properties
@@ -69,6 +73,9 @@ function parse() {
         under: { type: "string" },
         limit: { type: "string" },
         "max-chars": { type: "string" },
+        lines: { type: "string" },
+        around: { type: "string" },
+        context: { type: "string" },
         date: { type: "string" },
         title: { type: "string" },
         source: { type: "string" },
@@ -94,6 +101,28 @@ function count(name: string, value: string | undefined): number | undefined {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) throw new UsageError(`--${name} must be a positive integer`);
   return parsed;
+}
+
+function lineCount(value: string): number {
+  if (!/^\d+$/.test(value)) throw new UsageError("--context must be a whole number");
+  return Number(value);
+}
+
+/** `a:b`, `a:`, `:b`, or one line `a`. */
+function lineSpan(value: string): { start?: number; end?: number } {
+  const match = /^(\d*):(\d*)$/.exec(value) ?? /^(\d+)()$/.exec(value);
+  if (!match || (match[1] === "" && match[2] === "")) throw new UsageError("--lines takes a:b, a:, :b, or a line");
+  const start = match[1] ? Number(match[1]) : undefined;
+  const end = match[2] ? Number(match[2]) : value.includes(":") ? undefined : start;
+  return { start, end };
+}
+
+/** A line, `path:line`, or a whole `rg -n` result `path:line:text`. */
+function aroundTarget(value: string): { ref?: string; line: number } {
+  if (/^\d+$/.test(value)) return { line: Number(value) };
+  const match = /^(.+?):(\d+)(?::.*)?$/s.exec(value);
+  if (!match) throw new UsageError("--around takes a line or path:line");
+  return { ref: match[1], line: Number(match[2]) };
 }
 
 function one(args: string[], what: string): string {
@@ -136,13 +165,20 @@ async function main(): Promise<void> {
 
   switch (command) {
     case "get": {
-      const note = await vault.get(one(args, "note"), { maxChars: count("max-chars", opts["max-chars"]) });
-      return emitNotes(
-        vault,
-        [note],
-        note,
-        () => `${note.path}\n\n${note.body}${note.truncated ? "\n[truncated]" : ""}`,
-      );
+      const around = opts.around === undefined ? undefined : aroundTarget(opts.around);
+      if (around?.ref && args.length > 0)
+        throw new UsageError("give the note once: as <note> or in --around path:line");
+      if (opts.context !== undefined && !around) throw new UsageError("--context needs --around");
+      const note = await vault.get(around?.ref ?? one(args, "note"), {
+        maxChars: count("max-chars", opts["max-chars"]),
+        lines: opts.lines === undefined ? undefined : lineSpan(opts.lines),
+        around: around && {
+          line: around.line,
+          context: opts.context === undefined ? undefined : lineCount(opts.context),
+        },
+      });
+      const where = note.start === undefined ? note.path : `${note.path}:${note.start}-${note.end} of ${note.total}`;
+      return emitNotes(vault, [note], note, () => `${where}\n\n${note.body}${note.truncated ? "\n[truncated]" : ""}`);
     }
     case "search": {
       if (args.length === 0) throw new UsageError("search needs a query");
@@ -229,7 +265,12 @@ try {
     console.error(`neiro: ${error.message}\n\n${USAGE}`);
     process.exit(2);
   }
-  if (error instanceof NotFoundError || error instanceof CaptureError || error instanceof UnsupportedError) {
+  if (
+    error instanceof NotFoundError ||
+    error instanceof LineRangeError ||
+    error instanceof CaptureError ||
+    error instanceof UnsupportedError
+  ) {
     console.error(`neiro: ${error.message}`);
     process.exit(1);
   }
