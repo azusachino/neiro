@@ -22,13 +22,15 @@ src/frontmatter.ts   YAML frontmatter parsing and scalar quoting
 src/cli.ts           The CLI, a thin front end over src/index.ts
 test/fixtures/vault  A small synthetic vault for edge cases; never copy personal notes into it
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
+docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
 ```
 
 ## Toolchain and tasks
 
 - **mise first:** Bun is pinned in `.mise.toml`; run `mise install`.
 - **make is the task runner:** `make check` (lint, typecheck, test) before every commit; `make validate` (check, build, and run the binary) before a PR. CI runs `make validate`.
-- Prefer Bun and Web APIs (`Bun.Glob`, `Bun.file`, `Bun.spawnSync`, `Bun.TOML`, `Bun.CryptoHasher`); use `node:` modules where Bun has no equivalent.
+- **Portable by default:** new code uses standard `node:` modules and Web APIs that both Bun and Node provide. A Bun-only API belongs in a provider of a [fallback chain](docs/roadmap.md#capabilities-and-fallback-chains), with a portable provider that returns identical results.
+- **Dependencies:** add a library only when it has released within the past year, has few or no dependencies of its own, and does something hard to get right. Otherwise implement the part neiro needs.
 
 ## Rules
 

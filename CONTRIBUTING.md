@@ -1,6 +1,6 @@
 # Contributing
 
-neiro is a personal project shared publicly. Issues, fixes, and honest disagreement with a design decision are welcome. Read [AGENTS.md](AGENTS.md) first: most non-obvious choices are recorded there with their reasons, and a pull request that contradicts one should say so rather than silently reverting it.
+neiro is a personal project shared publicly. Issues, fixes, and honest disagreement with a design decision are welcome. Read [AGENTS.md](AGENTS.md) and the [roadmap](docs/roadmap.md) first: most non-obvious choices are recorded there with their reasons, and a pull request that contradicts one should say so rather than silently reverting it.
 
 ## Setup
 
@@ -28,7 +28,7 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 - Biome formats and lints TypeScript and JSON; rumdl formats and lints Markdown. Do not hand-format around them.
 - Comments explain a non-obvious why, never restate what the code does.
-- Prefer standard `node:` modules that both Bun and Node provide over runtime-specific APIs.
+- New code uses standard `node:` modules that both Bun and Node provide. A Bun-only API belongs in a provider of a [fallback chain](docs/roadmap.md#capabilities-and-fallback-chains).
 - Add a dependency only when it has released within the past year, has few or no dependencies of its own, and does something hard to get right.
 
 ## Reporting a security issue

@@ -109,6 +109,8 @@ make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the
 
 Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `test/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+See the [roadmap](docs/roadmap.md) for what comes next.
+
 ## License
 
 [MIT](LICENSE).
