@@ -1,6 +1,7 @@
 ---
 tags:
-  - history
+  - history/timeline
+  - "#overview"
 ---
 
 History of the topic.

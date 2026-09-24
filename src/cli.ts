@@ -27,6 +27,7 @@ commands:
   get <note>                   print one note (path, filename, title, or alias)
   search <query...>            rank notes by relevance
   grep <pattern>               matching lines as path:line:text, like rg -n (smart case)
+  tags                         every tag with its note count, parents of nested tags included
   list                         list notes matching the filters
   nav [folder]                 a folder's index, subfolders, and notes
   links <note>                 outgoing wikilinks and how each resolves
@@ -41,7 +42,8 @@ options:
   --format <text|json|paths>   paths prints one path per line, for xargs and fzf
   --fields <a,b,...>           only these fields: summary fields such as score, or any frontmatter key
   --type, --tag, --status, --under <value>
-                               filters for search, list, and grep
+                               filters for search, list, grep, and tags; --tag may repeat,
+                               matches case-insensitively, and area matches area/sub
   --limit <n>                  search results (default 10)
   --max-chars <n>              truncate a note body in get
   --lines <a:b>                get: lines a to b, counted from the top of the file (a:, :b, or one line)
@@ -166,7 +168,13 @@ async function main(): Promise<void> {
 
   if (!FORMATS.includes(format)) throw new UsageError(`--format takes ${FORMATS.join(", ")}`);
   const vault = new Vault(opts.vault ?? process.env.NEIRO_VAULT ?? process.cwd());
-  const filter: Filter = { type: opts.type, tag: opts.tag?.[0], status: opts.status, under: opts.under };
+  // capture reads --tag itself, as tags to write; everywhere else every --tag must match.
+  const filter: Filter = {
+    type: opts.type,
+    tags: command === "capture" ? undefined : opts.tag,
+    status: opts.status,
+    under: opts.under,
+  };
 
   switch (command) {
     case "get": {
@@ -207,6 +215,11 @@ async function main(): Promise<void> {
           ? "no matches"
           : hits.map((hit) => `${hit.score}\t${hit.path}\t${hit.title}\n\t${hit.snippet}`).join("\n"),
       );
+    }
+    case "tags": {
+      if (args.length > 0) throw new UsageError("tags takes no arguments; narrow it with the filters");
+      const counts = await vault.tags(filter);
+      return emit(counts, () => counts.map(({ tag, notes }) => `${notes}\t${tag}`).join("\n"));
     }
     case "list": {
       const notes = await vault.list(filter);
