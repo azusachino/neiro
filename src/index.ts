@@ -10,6 +10,7 @@ export {
 } from "./capture.ts";
 export { formatDate, isoWeek, localeWeek, parseDate } from "./dateformat.ts";
 export { type Frontmatter, splitFrontmatter } from "./frontmatter.ts";
+export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern } from "./grep.ts";
 export { journalPath } from "./journal.ts";
 export { extractLinks, type Resolution, type WikiLink } from "./links.ts";
 export {

@@ -4,6 +4,7 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
+import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
@@ -151,6 +152,11 @@ export class Vault {
       score,
       snippet,
     }));
+  }
+
+  /** Lines matching a regular expression (or literal text with `fixed`), with ripgrep's smart case. */
+  async grep(pattern: string, options: Filter & GrepOptions = {}): Promise<GrepHit[]> {
+    return grep(await this.filtered(options), pattern, options);
   }
 
   async links(ref: string): Promise<OutgoingLink[]> {
