@@ -81,8 +81,10 @@ An agent reaches neiro in one of two ways: a coding agent shells out to the CLI 
 
 ### A3. Locate an exact phrase, then read around it
 
-`grep <pattern>` for `path:line:text`, then `get --around <path:line> --context 10`, which takes a grep or `rg -n` result unchanged. Partial: `get --around` ships, and until `grep` ([#6](https://github.com/azusachino/neiro/issues/6)) an agent runs `rg -n` in the vault.
+`grep <pattern>` for `path:line:text`, then `get --around <path:line> --context 10`, which takes a grep or `rg -n` result unchanged. Shipped.
 
+- `grep.test › numbers lines from the top of the file, frontmatter included`
+- `grep.test › uses smart case, ignoring escapes`
 - `cli.test › takes an rg -n result for --around unchanged`
 - `vault.test › reads around a line, clipped at either end of the file`
 - `vault.test › refuses a range the note cannot serve, naming its length`

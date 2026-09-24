@@ -8,6 +8,8 @@ import {
   CaptureError,
   captureInputFromMarkdown,
   type Filter,
+  formatGrep,
+  type GrepHit,
   LineRangeError,
   NotFoundError,
   PERIODS,
@@ -24,6 +26,7 @@ usage: neiro <command> [options]
 commands:
   get <note>                   print one note (path, filename, title, or alias)
   search <query...>            rank notes by relevance
+  grep <pattern>               matching lines as path:line:text, like rg -n (smart case)
   list                         list notes matching the filters
   nav [folder]                 a folder's index, subfolders, and notes
   links <note>                 outgoing wikilinks and how each resolves
@@ -38,12 +41,13 @@ options:
   --format <text|json|paths>   paths prints one path per line, for xargs and fzf
   --fields <a,b,...>           only these fields: summary fields such as score, or any frontmatter key
   --type, --tag, --status, --under <value>
-                               filters for search and list
+                               filters for search, list, and grep
   --limit <n>                  search results (default 10)
   --max-chars <n>              truncate a note body in get
   --lines <a:b>                get: lines a to b, counted from the top of the file (a:, :b, or one line)
   --around <line|path:line>    get: a line and --context lines either side; accepts rg -n output
-  --context <n>                lines either side for --around (default 5)
+  -C, --context <n>            lines either side: for get --around (default 5), and for grep
+  -F, --fixed-strings          grep: match the pattern as literal text
   --date <YYYY-MM-DD>          date for journal (default: today)
   --title, --source <value>    capture metadata; --tag may repeat
   --file <path>                capture: a Markdown file, keeping its title, tags, source, and other properties
@@ -75,7 +79,8 @@ function parse() {
         "max-chars": { type: "string" },
         lines: { type: "string" },
         around: { type: "string" },
-        context: { type: "string" },
+        context: { type: "string", short: "C" },
+        "fixed-strings": { type: "boolean", short: "F" },
         date: { type: "string" },
         title: { type: "string" },
         source: { type: "string" },
@@ -146,7 +151,7 @@ const cell = (value: unknown) =>
 
 /** Emit notes: one path per line with `--format paths`, only the named fields with `--fields`, else `value`. */
 async function emitNotes(vault: Vault, notes: { path: string }[], value: unknown, human: () => string): Promise<void> {
-  if (format === "paths") return console.log(notes.map((note) => note.path).join("\n"));
+  if (format === "paths") return console.log([...new Set(notes.map((note) => note.path))].join("\n"));
   if (!fields) return emit(value, human);
   const rows = await vault.select(notes, fields);
   const selected = Array.isArray(value) ? rows : rows[0];
@@ -179,6 +184,20 @@ async function main(): Promise<void> {
       });
       const where = note.start === undefined ? note.path : `${note.path}:${note.start}-${note.end} of ${note.total}`;
       return emitNotes(vault, [note], note, () => `${where}\n\n${note.body}${note.truncated ? "\n[truncated]" : ""}`);
+    }
+    case "grep": {
+      let hits: GrepHit[];
+      try {
+        hits = await vault.grep(one(args, "pattern"), {
+          ...filter,
+          fixed: opts["fixed-strings"],
+          context: opts.context === undefined ? undefined : lineCount(opts.context),
+        });
+      } catch (error) {
+        if (error instanceof SyntaxError) throw new UsageError(`invalid pattern: ${error.message}`);
+        throw error;
+      }
+      return emitNotes(vault, hits, hits, () => formatGrep(hits));
     }
     case "search": {
       if (args.length === 0) throw new UsageError("search needs a query");
