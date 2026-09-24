@@ -29,11 +29,12 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T4. Check the vault's links
 
-`unresolved` for links pointing at nothing or at several notes, `backlinks <note>` before renaming or archiving. Shipped; notes nothing links to (`orphans`) is [#11](https://github.com/azusachino/neiro/issues/11).
+`unresolved` for links pointing at nothing or at several notes, `backlinks <note>` before renaming or archiving. `orphans` lists notes nothing links to or embeds. Shipped.
 
 - `vault.test › resolves each wikilink form the way Obsidian does`
 - `vault.test › finds backlinks and unresolved links`
 - `corpus.test › resolves links consistently`
+- `reads.test › counts embeds as links and self-links as nothing, narrowed by the filters`
 
 ### T5. Open today's or this week's journal
 
