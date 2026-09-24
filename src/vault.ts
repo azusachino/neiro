@@ -9,6 +9,7 @@ import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
 import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
+import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -65,7 +66,10 @@ export interface GetOptions {
 
 export interface Filter {
   type?: string;
+  /** Matches Obsidian's way: case-insensitive, and `area` also matches `area/sub`. */
   tag?: string;
+  /** Every one of these tags must match, each as `tag` does. */
+  tags?: string[];
   status?: string;
   /** A folder prefix such as `note/tech`. */
   under?: string;
@@ -157,6 +161,11 @@ export class Vault {
   /** Lines matching a regular expression (or literal text with `fixed`), with ripgrep's smart case. */
   async grep(pattern: string, options: Filter & GrepOptions = {}): Promise<GrepHit[]> {
     return grep(await this.filtered(options), pattern, options);
+  }
+
+  /** Every tag in the filtered notes with its note count, so a writer can reuse a tag instead of inventing one. */
+  async tags(filter: Filter = {}): Promise<TagCount[]> {
+    return countTags(await this.filtered(filter));
   }
 
   async links(ref: string): Promise<OutgoingLink[]> {
@@ -287,7 +296,7 @@ export class Vault {
         note.path.startsWith(prefix) &&
         (!filter.type || note.type === filter.type) &&
         (!filter.status || note.status === filter.status) &&
-        (!filter.tag || note.tags.includes(filter.tag)),
+        [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)),
     );
   }
 
@@ -315,7 +324,7 @@ function parseNote(path: string, raw: string): Note {
     title: text(data.title) ?? posix.basename(path, ".md"),
     type: text(data.type),
     status: text(data.status),
-    tags: stringList(data.tags),
+    tags: noteTags(data.tags),
     aliases: stringList(data.aliases),
     frontmatter: data,
     body,

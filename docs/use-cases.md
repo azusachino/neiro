@@ -106,10 +106,12 @@ A bot receives a message, previews it with `capture(…, { dryRun: true })`, and
 
 ### A6. Tag a capture with the vault's own tags
 
-The agent lists existing tags with their counts and picks from them instead of inventing a near-duplicate. Partial: capture already enforces the vault's required, rejected, and kebab-case tag rules; listing tags is [#8](https://github.com/azusachino/neiro/issues/8).
+The agent lists existing tags with their counts and picks from them instead of inventing a near-duplicate. `tags --json` gives each tag with its note count, parents of nested tags included, and capture enforces the vault's required, rejected, and kebab-case rules. Shipped.
 
 - `capture.test › enforce required, kebab-case, and rejected tags`
 - `capture.test › keep titles and tags as written, checking Obsidian's tag syntax`
+- `tags.test › counts notes per tag, parents of nested tags included, case variants merged`
+- `tags.test › prints counts from the CLI, and --tag may repeat`
 
 ### A7. Summarize the week, then record the summary
 

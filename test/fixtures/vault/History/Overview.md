@@ -1,6 +1,5 @@
 ---
-tags:
-  - history
+tags: "#History, overview"
 ---
 
 History in general.

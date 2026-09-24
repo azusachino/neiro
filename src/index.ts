@@ -24,6 +24,7 @@ export {
   UnsupportedError,
   type VaultSettings,
 } from "./settings.ts";
+export { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 export {
   type Filter,
   type GetOptions,
