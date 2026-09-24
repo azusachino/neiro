@@ -25,6 +25,7 @@ src/cli.ts           The CLI, a thin front end over src/index.ts
 test/fixtures/vault  A small synthetic vault for edge cases; never copy personal notes into it
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
+docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
 ```
 
 ## Toolchain and tasks
