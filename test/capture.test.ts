@@ -93,8 +93,8 @@ describe("configured capture settings", () => {
       [
         "---",
         "title: an idea",
-        "created: 2026-09-24 19:05",
-        "modified: 2026-09-24 19:05",
+        "created: 2026-09-24",
+        "modified: 2026-09-24",
         "kind: capture",
         "tags:",
         "  - agent-harness",
@@ -104,6 +104,14 @@ describe("configured capture settings", () => {
         "",
       ].join("\n"),
     );
+  });
+
+  test("write created and modified in the configured timestamp format", () => {
+    const timed = resolveSettings(FIXTURE, {
+      capture: { ...STRICT.capture, timestamp_format: "YYYY-MM-DD HH:mm" },
+    }).capture;
+    const { content } = renderCapture({ text: "Body", title: "An Idea", tags: ["x"], now: NOW }, timed);
+    expect(content).toContain("created: 2026-09-24 19:05\nmodified: 2026-09-24 19:05\n");
   });
 
   test("quote values YAML would misread, and they round-trip", () => {

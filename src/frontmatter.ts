@@ -25,9 +25,10 @@ export function stringList(value: unknown): string[] {
   return value.filter((item): item is string => typeof item === "string");
 }
 
-const NEEDS_QUOTES = /: |\s#|^[\s\-?:,[\]{}#&*!|>'"%@`]|\s$|^(?:true|false|null|yes|no|on|off|~)$|^[\d.+-]+$/i;
+const NEEDS_QUOTES =
+  /: |\s#|^[\s\-?:,[\]{}#&*!|>'"%@`]|\s$|^(?:true|false|null|yes|no|on|off|~)$|^(?!\d{4}-\d{2}-\d{2}$)[\d.+-]+$/i;
 
-/** A YAML scalar, double-quoted only when plain style would change its meaning. */
+/** A YAML scalar, double-quoted only when plain style would change its meaning. An ISO date stays plain, as Obsidian writes a Date property. */
 export function yamlScalar(value: string): string {
   return value === "" || NEEDS_QUOTES.test(value) ? JSON.stringify(value) : value;
 }
