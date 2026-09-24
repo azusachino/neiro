@@ -13,17 +13,7 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 
 ## shipped
 
-### 0.1.0
-
-- Reads: `get`, `search`, `list`, `nav`, `links`, `backlinks`, `unresolved`, and `journal` for day, week, month, quarter, and year. Every command supports `--json`.
-- The one write: `capture`, which creates a new note from text, stdin, or a Markdown file (`--file`) and can commit and push only that file.
-- No layout or house style is assumed. Settings resolve from code options, then `neiro.toml`, then the vault's Obsidian settings (new-note location, Daily Notes, Periodic Notes), then neutral defaults or `UnsupportedError`. Journal paths use Obsidian's moment-style formats.
-- Tests run against a synthetic fixture and real public vaults pinned as submodules: kepano-obsidian in CI and Obsidian's help vault, 6,386 notes in about 30 languages, on request.
-- Measured on a real vault of 1,837 notes and 8.3 M characters: 18 ms process start-up, about 10 ms to find files, 25 ms to read them, and **100 ms to parse YAML frontmatter**. After loading, `list` takes 0.5 ms, `search` 17–33 ms, and `backlinks` 25 ms.
-
-## next
-
-### 0.2: portable core, then reads that agents can aim
+### 0.2.0: portable core and reads that agents can aim
 
 - **Portable core.** Replace the eight Bun-only calls with `node:` modules or a fallback chain, and add a Node run to CI next to Bun. The [fallback chains](#capabilities-and-fallback-chains) start here. ([#2](https://github.com/azusachino/neiro/issues/2))
 - **Parse frontmatter through the YAML chain, `Bun.YAML` first.** It parses that vault's 1,837 frontmatter blocks in 12 ms instead of 53 ms. `Bun.YAML` alone disagrees with `yaml` on unquoted `{{placeholders}}`, repeated keys, merge keys, tags, and directives, so a block containing any of them goes to `yaml`; the two then agree on all 8,049 blocks of the corpora and that vault. ([#3](https://github.com/azusachino/neiro/issues/3))
@@ -37,6 +27,18 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 - **Honor the vault's `.gitignore`**, as ripgrep does, using [`ignore`](https://www.npmjs.com/package/ignore). ([#10](https://github.com/azusachino/neiro/issues/10))
 - **`--format paths`**: one path per line, for `xargs` and `fzf`. ([#4](https://github.com/azusachino/neiro/issues/4))
 - **More reads:** `orphans` (notes nothing links to), `outline <note>` (headings), and `prop get <note> <key>`. ([#11](https://github.com/azusachino/neiro/issues/11))
+- Decided by measurement: file listing is a plain `node:fs` walk rather than a `Bun.Glob` chain, and `grep` scans in process rather than behind an `rg -l` prefilter. See [capabilities and fallback chains](#capabilities-and-fallback-chains).
+- Still open: whether Obsidian resolves a bare alias link needs a check in the app ([#24](https://github.com/azusachino/neiro/issues/24)).
+
+### 0.1.0
+
+- Reads: `get`, `search`, `list`, `nav`, `links`, `backlinks`, `unresolved`, and `journal` for day, week, month, quarter, and year. Every command supports `--json`.
+- The one write: `capture`, which creates a new note from text, stdin, or a Markdown file (`--file`) and can commit and push only that file.
+- No layout or house style is assumed. Settings resolve from code options, then `neiro.toml`, then the vault's Obsidian settings (new-note location, Daily Notes, Periodic Notes), then neutral defaults or `UnsupportedError`. Journal paths use Obsidian's moment-style formats.
+- Tests run against a synthetic fixture and real public vaults pinned as submodules: kepano-obsidian in CI and Obsidian's help vault, 6,386 notes in about 30 languages, on request.
+- Measured on a real vault of 1,837 notes and 8.3 M characters: 18 ms process start-up, about 10 ms to find files, 25 ms to read them, and **100 ms to parse YAML frontmatter**. After loading, `list` takes 0.5 ms, `search` 17–33 ms, and `backlinks` 25 ms.
+
+## next
 
 ### 0.3: history and targeted writes
 
