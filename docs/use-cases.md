@@ -53,10 +53,12 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T7. Recently touched notes, latest in a category
 
-`list --where type=book --sort modified --desc --limit 10`. `--format paths` pipes the result to `xargs` or `fzf`. Partial: `list` filters by type, status, tag, and folder today; any key and sorting are [#9](https://github.com/azusachino/neiro/issues/9).
+`list --where type=book --sort modified --desc --limit 10`. `--format paths` pipes the result to `xargs` or `fzf`. `--where` takes any frontmatter property, and notes without the sort value come last. Shipped.
 
 - `vault.test › filters by property, tag, and folder`
 - `cli.test › --format paths prints one path per line`
+- `list.test › give the ten most recently modified books in one call`
+- `list.test › matches any frontmatter property as text, and list properties by any item`
 
 ## from an agent
 

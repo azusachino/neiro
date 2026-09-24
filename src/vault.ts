@@ -74,6 +74,20 @@ export interface Filter {
   status?: string;
   /** A folder prefix such as `note/tech`. */
   under?: string;
+  /**
+   * Frontmatter conditions that must all hold: a value compares as text, a list property matches when any item does,
+   * and `null` means the property only has to be present.
+   */
+  where?: Record<string, string | null>;
+}
+
+export const SORT_KEYS = ["modified", "created", "title", "path"] as const;
+
+export interface ListOptions {
+  /** Dates sort as written, so ISO dates sort in time order. */
+  sort?: (typeof SORT_KEYS)[number];
+  desc?: boolean;
+  limit?: number;
 }
 
 export interface OutgoingLink {
@@ -161,8 +175,20 @@ export class Vault {
     };
   }
 
-  async list(filter: Filter = {}): Promise<NoteSummary[]> {
-    return (await this.filtered(filter)).map(summarize);
+  async list(filter: Filter & ListOptions = {}): Promise<NoteSummary[]> {
+    const notes = (await this.filtered(filter)).map(summarize);
+    if (filter.sort) {
+      const key = filter.sort;
+      const direction = filter.desc ? -1 : 1;
+      notes.sort((a, b) => {
+        const left = a[key];
+        const right = b[key];
+        // Notes without the value sort last in either direction, as a spreadsheet does.
+        if (left === undefined || right === undefined) return left === right ? 0 : left === undefined ? 1 : -1;
+        return direction * left.localeCompare(right) || a.path.localeCompare(b.path);
+      });
+    }
+    return filter.limit === undefined ? notes : notes.slice(0, filter.limit);
   }
 
   async search(query: string, filter: Filter & { limit?: number } = {}): Promise<SearchHit[]> {
@@ -331,7 +357,8 @@ export class Vault {
         note.path.startsWith(prefix) &&
         (!filter.type || note.type === filter.type) &&
         (!filter.status || note.status === filter.status) &&
-        [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)),
+        [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)) &&
+        Object.entries(filter.where ?? {}).every(([key, value]) => propertyMatches(note.frontmatter[key], value)),
     );
   }
 
@@ -393,6 +420,14 @@ function lineRange(note: Note, options: GetOptions) {
   start = Math.max(1, start);
   end = Math.min(total, end);
   return { start, end, total, text: lines.slice(start - 1, end).join("\n") };
+}
+
+/** A frontmatter value against a `where` condition; `null` asks only that the property be present. */
+function propertyMatches(actual: unknown, wanted: string | null): boolean {
+  if (actual === undefined) return false;
+  if (wanted === null) return true;
+  if (Array.isArray(actual)) return actual.some((item) => propertyMatches(item, wanted));
+  return actual !== null && typeof actual !== "object" && String(actual) === wanted;
 }
 
 function summarize(note: Note): NoteSummary {
