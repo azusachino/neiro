@@ -15,6 +15,7 @@ import {
   PERIODS,
   type Period,
   parseDate,
+  SORT_KEYS,
   UnsupportedError,
   Vault,
 } from "./index.ts";
@@ -45,7 +46,10 @@ options:
   --type, --tag, --status, --under <value>
                                filters for search, list, grep, and tags; --tag may repeat,
                                matches case-insensitively, and area matches area/sub
-  --limit <n>                  search results (default 10)
+  --where <key=value|key>      filter on any frontmatter property; may repeat; a bare key means present
+  --sort <modified|created|title|path>, --desc
+                               list order; notes without the value sort last
+  --limit <n>                  results for search and find (default 10), or list (default all)
   --max-chars <n>              truncate a note body in get
   --lines <a:b>                get: lines a to b, counted from the top of the file (a:, :b, or one line)
   --around <line|path:line>    get: a line and --context lines either side; accepts rg -n output
@@ -79,6 +83,9 @@ function parse() {
         status: { type: "string" },
         under: { type: "string" },
         limit: { type: "string" },
+        where: { type: "string", multiple: true },
+        sort: { type: "string" },
+        desc: { type: "boolean" },
         "max-chars": { type: "string" },
         lines: { type: "string" },
         around: { type: "string" },
@@ -109,6 +116,19 @@ function count(name: string, value: string | undefined): number | undefined {
   const parsed = Number(value);
   if (!Number.isInteger(parsed) || parsed < 1) throw new UsageError(`--${name} must be a positive integer`);
   return parsed;
+}
+
+/** `key=value` requires that value; a bare `key` requires only that the property be present. */
+function whereConditions(values: string[] | undefined): Record<string, string | null> | undefined {
+  if (!values) return undefined;
+  const conditions: Record<string, string | null> = {};
+  for (const value of values) {
+    const at = value.indexOf("=");
+    const key = (at === -1 ? value : value.slice(0, at)).trim();
+    if (key === "") throw new UsageError("--where takes key=value or key");
+    conditions[key] = at === -1 ? null : value.slice(at + 1);
+  }
+  return conditions;
 }
 
 function lineCount(value: string): number {
@@ -175,6 +195,7 @@ async function main(): Promise<void> {
     tags: command === "capture" ? undefined : opts.tag,
     status: opts.status,
     under: opts.under,
+    where: whereConditions(opts.where),
   };
 
   switch (command) {
@@ -230,7 +251,16 @@ async function main(): Promise<void> {
       return emit(counts, () => counts.map(({ tag, notes }) => `${notes}\t${tag}`).join("\n"));
     }
     case "list": {
-      const notes = await vault.list(filter);
+      const sort = opts.sort;
+      if (sort !== undefined && !(SORT_KEYS as readonly string[]).includes(sort)) {
+        throw new UsageError(`--sort takes ${SORT_KEYS.join(", ")}`);
+      }
+      const notes = await vault.list({
+        ...filter,
+        sort: sort as (typeof SORT_KEYS)[number] | undefined,
+        desc: opts.desc,
+        limit: count("limit", opts.limit),
+      });
       return emitNotes(vault, notes, notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
     }
     case "nav": {
