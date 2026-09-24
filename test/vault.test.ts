@@ -98,13 +98,13 @@ describe("nav", () => {
       "Topics",
       "Weekly",
     ]);
-    expect(root.notes).toEqual([{ path: "Home.md", title: "Home" }]);
+    expect(root.notes).toMatchObject([{ path: "Home.md", title: "Home" }]);
   });
 
   test("shows a folder's index note and headings", async () => {
     const topics = await vault.nav("Topics/");
     expect(topics.folder).toBe("Topics");
-    expect(topics.index).toEqual({ path: "Topics/index.md", title: "index", headings: ["reading order"] });
+    expect(topics.index).toMatchObject({ path: "Topics/index.md", title: "index", headings: ["reading order"] });
     expect(topics.folders).toEqual([{ path: "Topics/History", title: "History", notes: 1 }]);
     expect(topics.notes.map((note) => note.path)).toEqual(["Topics/Cognitive load.md", "Topics/Working memory.md"]);
   });
@@ -121,6 +121,20 @@ describe("search", () => {
     const hits = await vault.search("乌龙茶");
     expect(hits.map((hit) => hit.path)).toEqual(["Notes/乌龙茶.md"]);
     expect(hits[0]?.snippet).toContain("乌龙茶");
+  });
+
+  test("returns the same summary as list, plus score and snippet", async () => {
+    const [hit] = await vault.search("student of Socrates", { type: "person" });
+    const [listed] = (await vault.list({ type: "person" })).filter((note) => note.path === hit?.path);
+    expect(hit).toMatchObject({ ...listed, snippet: expect.stringContaining("Socrates") });
+    expect(hit).toMatchObject({ created: "2026-09-01 10:00", modified: "2026-09-20 08:30", tags: ["philosophy"] });
+  });
+
+  test("selects summary fields and frontmatter keys, null when absent", async () => {
+    const hits = await vault.search("student of Socrates");
+    expect(await vault.select(hits.slice(0, 1), ["path", "score", "born", "rating"])).toEqual([
+      { path: "People/Plato.md", score: hits[0]?.score, born: -428, rating: null },
+    ]);
   });
 
   test("matches Latin words on word boundaries and honours filters", async () => {

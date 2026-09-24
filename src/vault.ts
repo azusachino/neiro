@@ -6,7 +6,7 @@ import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } f
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
-import { rank, type SearchHit } from "./search.ts";
+import { rank } from "./search.ts";
 import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
 
 export interface Note {
@@ -28,7 +28,14 @@ export interface NoteSummary {
   type?: string;
   status?: string;
   tags: string[];
+  created?: string;
   modified?: string;
+}
+
+/** A search result: the note's summary, its BM25 score, and the text around the first match. */
+export interface SearchHit extends NoteSummary {
+  score: number;
+  snippet: string;
 }
 
 export interface NoteContent extends NoteSummary {
@@ -61,9 +68,9 @@ export interface NavEntry {
 
 export interface NavView {
   folder: string;
-  index?: NavEntry & { headings: string[] };
+  index?: NoteSummary & { headings: string[] };
   folders: (NavEntry & { notes: number })[];
-  notes: NavEntry[];
+  notes: NoteSummary[];
 }
 
 export interface VaultOptions {
@@ -117,7 +124,11 @@ export class Vault {
   }
 
   async search(query: string, filter: Filter & { limit?: number } = {}): Promise<SearchHit[]> {
-    return rank(await this.filtered(filter), query, filter.limit ?? 10);
+    return rank(await this.filtered(filter), query, filter.limit ?? 10).map(({ note, score, snippet }) => ({
+      ...summarize(note),
+      score,
+      snippet,
+    }));
   }
 
   async links(ref: string): Promise<OutgoingLink[]> {
@@ -156,12 +167,12 @@ export class Vault {
     const notes = (await this.notes()).filter((note) => note.path.startsWith(prefix));
     const indexNote = notes.find((note) => note.path === `${prefix}index.md`);
     const folders = new Map<string, number>();
-    const direct: NavEntry[] = [];
+    const direct: NoteSummary[] = [];
     for (const note of notes) {
       const rest = note.path.slice(prefix.length);
       const slash = rest.indexOf("/");
       if (slash === -1) {
-        if (note !== indexNote) direct.push({ path: note.path, title: note.title });
+        if (note !== indexNote) direct.push(summarize(note));
       } else {
         const child = `${prefix}${rest.slice(0, slash)}`;
         folders.set(child, (folders.get(child) ?? 0) + 1);
@@ -173,8 +184,7 @@ export class Vault {
       ...(indexNote
         ? {
             index: {
-              path: indexNote.path,
-              title: indexNote.title,
+              ...summarize(indexNote),
               headings: [...indexNote.body.matchAll(/^#{1,6}\s+(.+?)\s*$/gm)].map((match) => match[1] as string),
             },
           }
@@ -201,6 +211,23 @@ export class Vault {
     const result = await capture(this.root, input, this.settings.capture, options);
     if (result.written) this.reload();
     return result;
+  }
+
+  /**
+   * Keep only the named fields of each result, in order: the result's own field, such as `score`, or else the note's
+   * frontmatter key. A field neither has is `null`.
+   */
+  async select(items: { path: string }[], fields: string[]): Promise<Record<string, unknown>[]> {
+    const byPath = new Map((await this.notes()).map((note) => [note.path, note]));
+    return items.map((item) =>
+      Object.fromEntries(
+        fields.map((field) => [
+          field,
+          (field in item ? (item as Record<string, unknown>)[field] : byPath.get(item.path)?.frontmatter[field]) ??
+            null,
+        ]),
+      ),
+    );
   }
 
   /** Resolve a reference: a vault path (with or without `.md`), a unique filename stem, title, or alias. */
@@ -269,13 +296,14 @@ function parseNote(path: string, raw: string): Note {
 }
 
 function summarize(note: Note): NoteSummary {
-  const modified = note.frontmatter.modified;
+  const { created, modified } = note.frontmatter;
   return {
     path: note.path,
     title: note.title,
     ...(note.type ? { type: note.type } : {}),
     ...(note.status ? { status: note.status } : {}),
     tags: note.tags,
+    ...(created !== undefined ? { created: String(created) } : {}),
     ...(modified !== undefined ? { modified: String(modified) } : {}),
   };
 }

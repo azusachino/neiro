@@ -52,9 +52,10 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T7. Recently touched notes, latest in a category
 
-`list --where type=book --sort modified --desc --limit 10`. Partial: `list` filters by type, status, tag, and folder today; any key and sorting are [#9](https://github.com/azusachino/neiro/issues/9).
+`list --where type=book --sort modified --desc --limit 10`. `--format paths` pipes the result to `xargs` or `fzf`. Partial: `list` filters by type, status, tag, and folder today; any key and sorting are [#9](https://github.com/azusachino/neiro/issues/9).
 
 - `vault.test › filters by property, tag, and folder`
+- `cli.test › --format paths prints one path per line`
 
 ## from an agent
 
@@ -69,10 +70,12 @@ An agent reaches neiro in one of two ways: a coding agent shells out to the CLI 
 
 ### A2. Answer a question from the vault, citing notes
 
-`search <question> --limit 5 --json`, then `get <path> --max-chars <n>` on the best hits, answering with their paths. Partial: a hit carries only its path, title, score, and snippet, so choosing between hits takes another call until [#4](https://github.com/azusachino/neiro/issues/4); reading only the relevant lines of a long note is [#5](https://github.com/azusachino/neiro/issues/5).
+`search <question> --limit 5 --json`, then `get <path> --max-chars <n>` on the best hits, answering with their paths. A hit carries the same summary as `list` (type, status, tags, dates), and `--fields` adds any frontmatter key, so the agent can choose between hits without another call. Partial: reading only the relevant lines of a long note is [#5](https://github.com/azusachino/neiro/issues/5).
 
 - `vault.test › ranks a title match first`
 - `vault.test › returns a content hash and marks truncation`
+- `vault.test › returns the same summary as list, plus score and snippet`
+- `vault.test › selects summary fields and frontmatter keys, null when absent`
 - `cli.test › emits JSON with --json`
 
 ### A3. Locate an exact phrase, then read around it

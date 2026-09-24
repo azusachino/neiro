@@ -46,6 +46,32 @@ describe("cli", () => {
   });
 });
 
+describe("cli output shapes", () => {
+  test("--fields keeps the named fields, in JSON or as tab-separated text", () => {
+    const json = run("list", "--type", "person", "--fields", "path,born", "--json");
+    expect(JSON.parse(json.stdout)).toEqual([
+      { path: "People/Greek/Plato.md", born: null },
+      { path: "People/Plato.md", born: -428 },
+    ]);
+    expect(run("get", "People/Plato.md", "--fields", "title,tags").stdout).toBe('Plato\t["philosophy"]\n');
+  });
+
+  test("--format paths prints one path per line", () => {
+    expect(run("list", "--type", "person", "--format", "paths").stdout).toBe(
+      "People/Greek/Plato.md\nPeople/Plato.md\n",
+    );
+    expect(run("nav", "Topics", "--format", "paths").stdout).toBe(
+      "Topics/index.md\nTopics/Cognitive load.md\nTopics/Working memory.md\n",
+    );
+  });
+
+  test("refuses a shape a command cannot produce", () => {
+    expect(run("unresolved", "--format", "paths").code).toBe(2);
+    expect(run("links", "clt", "--fields", "path").code).toBe(2);
+    expect(run("list", "--format", "yaml").code).toBe(2);
+  });
+});
+
 describe("cli capture --file", () => {
   const draft = join(mkdtempSync(join(tmpdir(), "neiro-draft-")), "Weekend plan.md");
   writeFileSync(draft, "---\ntags:\n  - planning\n---\n\n- buy tea\n- read a book\n");
