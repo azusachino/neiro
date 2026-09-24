@@ -11,7 +11,7 @@ describe("scanning", () => {
   test("skips dot folders and submodule paths", async () => {
     const paths = (await vault.notes()).map((note) => note.path);
     expect(paths).toContain("note/tech/cognitive-load.md");
-    expect(paths.some((path) => path.startsWith(".foam/") || path.startsWith("vendor/"))).toBe(false);
+    expect(paths.some((path) => path.startsWith(".trash/") || path.startsWith("vendor/"))).toBe(false);
   });
 
   test("rejects a missing vault", () => {
