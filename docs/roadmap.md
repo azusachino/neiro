@@ -26,7 +26,7 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 ### 0.2: portable core, then reads that agents can aim
 
 - **Portable core.** Replace the eight Bun-only calls with `node:` modules or a fallback chain, and add a Node run to CI next to Bun. The [fallback chains](#capabilities-and-fallback-chains) start here. ([#2](https://github.com/azusachino/neiro/issues/2))
-- **Parse frontmatter through the YAML chain, `Bun.YAML` first.** It parses that vault's 1,837 frontmatter blocks in 6 ms instead of 100 ms, with identical results on every block. That brings a full cold load from about 150 ms to about 50 ms. ([#3](https://github.com/azusachino/neiro/issues/3))
+- **Parse frontmatter through the YAML chain, `Bun.YAML` first.** It parses that vault's 1,837 frontmatter blocks in 12 ms instead of 53 ms. `Bun.YAML` alone disagrees with `yaml` on unquoted `{{placeholders}}`, repeated keys, merge keys, tags, and directives, so a block containing any of them goes to `yaml`; the two then agree on all 8,049 blocks of the corpora and that vault. ([#3](https://github.com/azusachino/neiro/issues/3))
 - **Return the same metadata from every command.** Search hits gain `type`, `status`, `tags`, `created`, and `modified`, alongside `score` and `snippet`. `--fields` limits the output to named fields, including any frontmatter key, like the `select` clause in SilverBullet's queries. ([#4](https://github.com/azusachino/neiro/issues/4))
 - **Read by line.** `get <note> --lines 20:60` and `--around <line> --context <n>` return a slice plus `start`, `end`, and `total`. Line numbers count from the top of the file, frontmatter included, so they match `rg -n`, editors, and Git diffs. ([#5](https://github.com/azusachino/neiro/issues/5))
 - **`grep <pattern>`**, printing `path:line:text` like `rg -n`, with `-F` for literal text and ripgrep's smart case: case-insensitive unless the pattern contains a capital. Grep to find, then read the lines around a hit. ([#6](https://github.com/azusachino/neiro/issues/6))
@@ -66,7 +66,7 @@ Each capability has a chain of providers, and the first one available in the cur
 
 | Capability | Chain, first available wins | Notes |
 | --- | --- | --- |
-| parse YAML | `Bun.YAML` → [`yaml`](https://www.npmjs.com/package/yaml) | `Bun.YAML` measured 6 ms against 100 ms, identical on all 1,837 blocks of a real vault |
+| parse YAML | `Bun.YAML` → [`yaml`](https://www.npmjs.com/package/yaml) | `Bun.YAML` takes a block only without flow mappings, merge keys, tags, explicit keys, directives, or a repeated key, where the two parsers disagree; identical on 8,049 blocks from the corpora and a real vault |
 | parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `neiro.toml` and the allowlist it names |
 | content search | `rg -l` prefilter → in-process scan | ripgrep only narrows the candidate files; matching and ranking always run in-process, so results cannot differ |
 | settings | code options → `neiro.toml` → `.obsidian/` settings → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |

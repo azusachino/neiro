@@ -1,4 +1,4 @@
-import { parse } from "yaml";
+import { parseYaml } from "./providers.ts";
 
 export type Frontmatter = Record<string, unknown>;
 
@@ -10,8 +10,7 @@ export function splitFrontmatter(raw: string): { data: Frontmatter; body: string
   if (!match) return { data: {}, body: raw };
   let data: unknown;
   try {
-    // Templates often hold unquoted placeholders such as `{{date}}`, which YAML reads as mappings; parse them quietly.
-    data = parse(match[1] ?? "", { logLevel: "error" });
+    data = parseYaml.get()(match[1] ?? "");
   } catch {
     data = null;
   }
