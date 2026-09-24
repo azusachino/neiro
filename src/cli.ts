@@ -16,6 +16,7 @@ import {
   PERIODS,
   type Period,
   parseDate,
+  propertyValue,
   SectionError,
   type SectionWriteOptions,
   SORT_KEYS,
@@ -54,6 +55,9 @@ commands:
 writes (each takes --dry-run for a diff, --if-hash <hash>, --commit, and --author):
   append <note> [text...]      add text at the end, or at the end of --heading H (--create-heading, --level)
   section put <note> [text...] replace the body of section --heading H, or add the section
+  prop set <note> <key> <value>
+                               set one frontmatter key (value read as YAML), keeping comments and order
+  put <path> [text...]         create a note, or replace it only with --if-hash (text, --file, or stdin)
   journal append <period> [text...]
                                append to the period's note for --date (default: today)
 
@@ -87,9 +91,10 @@ options:
 
 class UsageError extends Error {}
 
-// A Markdown bullet such as "- read the paper" is text to write, not an option; parseArgs would read it as one.
+// A Markdown bullet such as "- read the paper", or a negative number such as -428, is text to write, not an option;
+// parseArgs would read either as one.
 const BULLET = "\u0000";
-const argv = process.argv.slice(2).map((arg) => (/^-\s/.test(arg) ? `${BULLET}${arg}` : arg));
+const argv = process.argv.slice(2).map((arg) => (/^-(\s|\d|\.\d)/.test(arg) ? `${BULLET}${arg}` : arg));
 
 function parse() {
   try {
@@ -382,9 +387,21 @@ async function main(): Promise<void> {
     }
     case "prop": {
       const [action, ref, key, ...rest] = args;
-      if (action !== "get" || !ref || !key || rest.length > 0) throw new UsageError("usage: prop get <note> <key>");
+      if (action === "set" && ref && key && rest.length > 0) {
+        return emitWrite(await vault.setProperty(ref, key, propertyValue(rest.join(" ")), writeOptions()));
+      }
+      if (action !== "get" || !ref || !key || rest.length > 0) {
+        throw new UsageError("usage: prop get <note> <key>, or prop set <note> <key> <value>");
+      }
       const value = await vault.property(ref, key);
       return emit(value, () => (typeof value === "string" ? value : JSON.stringify(value)));
+    }
+    case "put": {
+      const [path, ...words] = args;
+      if (!path) throw new UsageError("put needs a vault path");
+      if (opts.file && words.length > 0) throw new UsageError("put takes text or --file, not both");
+      const content = opts.file ? readFileSync(opts.file, "utf8") : await inputText(words);
+      return emitWrite(await vault.put(path, content, writeOptions()));
     }
     case "backlinks": {
       const notes = await vault.backlinks(one(args, "note"));

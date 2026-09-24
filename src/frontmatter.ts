@@ -4,6 +4,23 @@ export type Frontmatter = Record<string, unknown>;
 
 const FENCE = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
 
+/** A property value written as text, read as YAML reads it: `4` is a number, `[a, b]` a list, other text stays text. */
+export function propertyValue(text: string): unknown {
+  try {
+    return parseYaml.get()(text) ?? text;
+  } catch {
+    return text;
+  }
+}
+
+/** Where the YAML between a note's `---` fences sits, as character offsets, or undefined without frontmatter. */
+export function frontmatterRange(raw: string): { start: number; end: number } | undefined {
+  const match = FENCE.exec(raw);
+  if (!match) return undefined;
+  const start = raw.startsWith("---\r\n") ? 5 : 4;
+  return { start, end: start + (match[1] ?? "").length };
+}
+
 /** Split a note into its YAML frontmatter and body. Malformed YAML yields an empty object, never a throw. */
 export function splitFrontmatter(raw: string): { data: Frontmatter; body: string } {
   const match = FENCE.exec(raw);

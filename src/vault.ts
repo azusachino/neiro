@@ -2,9 +2,10 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import ignore from "ignore";
+import { parseDocument, stringify } from "yaml";
 import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
 import type { Chain } from "./chain.ts";
-import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
+import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { type History, historyChain } from "./history.ts";
@@ -14,7 +15,7 @@ import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
-import { contentHash, splice, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
+import { contentHash, splice, WriteConflictError, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -310,6 +311,51 @@ export class Vault {
     const { path, note } = await this.journalFor(period, options.date);
     if (!note) throw new NotFoundError(`${path} is not written yet; the ${period} note must exist to append to it`);
     return this.append(path, text, options);
+  }
+
+  /**
+   * Set one frontmatter key, adding it after the others when new. Comments, key order, quoting, and every other
+   * line of the frontmatter are kept; a note without frontmatter gains a block.
+   */
+  async setProperty(ref: string, key: string, value: unknown, options: WriteOptions = {}): Promise<WriteResult> {
+    const note = await this.find(ref);
+    return this.change(note.path, `docs: set ${key} of ${note.path}`, options, (current) => {
+      const range = frontmatterRange(current);
+      if (!range) return `---\n${stringify({ [key]: value }, { lineWidth: 0 })}---\n${current}`;
+      const doc = parseDocument(current.slice(range.start, range.end));
+      if (doc.errors.length > 0) {
+        throw new WriteConflictError(`${note.path} has frontmatter YAML cannot parse: ${doc.errors[0]?.message}`);
+      }
+      doc.set(key, value);
+      const yaml = doc.toString({ flowCollectionPadding: false, lineWidth: 0 }).replace(/\n$/, "");
+      return splice(current, range.start, range.end, yaml);
+    });
+  }
+
+  /**
+   * Write a whole note at a vault path: create it, or replace it only when `ifHash` matches its current content.
+   * Replacing without the hash is refused. Restoring an old revision is a put of its content, a new revision.
+   */
+  async put(path: string, content: string, options: WriteOptions = {}): Promise<WriteResult> {
+    const target = posix.normalize(path.replaceAll("\\", "/")).replace(/^\.\//, "");
+    if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
+      throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
+    }
+    const result = writeNote(
+      this.root,
+      target,
+      (current) => {
+        if (current !== undefined && options.ifHash === undefined) {
+          throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
+        }
+        return content;
+      },
+      `docs: put ${target}`,
+      options,
+      () => this.history,
+    );
+    if (result.written) this.reload();
+    return result;
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
