@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
@@ -14,6 +13,7 @@ import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
 import { type NeiroConfig, type Period, resolveSettings, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
+import { contentHash } from "./write.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -180,7 +180,7 @@ export class Vault {
       ...summarize(note),
       frontmatter: note.frontmatter,
       body: truncated ? text.slice(0, max) : text,
-      hash: createHash("sha256").update(note.raw).digest("hex"),
+      hash: contentHash(note.raw),
       truncated,
       ...(range ? { start: range.start, end: range.end, total: range.total } : {}),
     };
