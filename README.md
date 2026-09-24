@@ -61,7 +61,7 @@ folder = "journal"
 format = "GGGG/[weekly]/GGGG-[W]WW"
 ```
 
-Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `.trash`, and `node_modules` are never scanned.
+Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `.trash`, `node_modules`, and anything the vault root's `.gitignore` ignores are never scanned, as ripgrep skips them.
 
 ## Capture
 
