@@ -1,11 +1,12 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { parseToml } from "./providers.ts";
 
 export const CONFIG_FILE = "neiro.toml";
 export const PERIODS = ["day", "week", "month", "quarter", "year"] as const;
 export type Period = (typeof PERIODS)[number];
 
-export class UnsupportedError extends Error {}
+export { UnsupportedError } from "./chain.ts";
 
 /** Where the notes of one period live: `folder` plus a moment-style `format`, which may contain `/`. */
 export interface PeriodicSetting {
@@ -89,7 +90,7 @@ function readJson(root: string, path: string): Record<string, unknown> | undefin
 }
 
 function readToml(root: string, path: string): unknown {
-  return Bun.TOML.parse(readFileSync(join(root, path), "utf8"));
+  return parseToml.get()(readFileSync(join(root, path), "utf8"));
 }
 
 function stringsIn(value: unknown): string[] {

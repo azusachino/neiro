@@ -31,3 +31,21 @@ jobs:
 
       - name: Run the pre-PR gate
         run: make validate
+
+  node:
+    name: make node-smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run the read commands on Node
+        run: make node-smoke

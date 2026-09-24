@@ -97,13 +97,14 @@ A `Vault` scans once and caches the notes. Call `vault.reload()` after the files
 
 ## Development
 
-Bun, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then:
+Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then:
 
 ```sh
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build dist/neiro and run it against the fixture vault
 make build      # compile the CLI into a single binary at dist/neiro
+make node-smoke # run the read commands on Node and compare their output with Bun's
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
