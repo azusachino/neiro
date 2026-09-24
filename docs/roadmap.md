@@ -25,9 +25,9 @@ Every write in this milestone previews as a unified diff with `--dry-run`, refus
 - **`put <path>`**: create a note, or replace it only with a matching `--if-hash`. Replacing without the hash is refused. ([#17](https://github.com/azusachino/neiro/issues/17))
 - **`journal append <week|month> <text> --heading <h>`**: `append` on the note for a date. ([#14](https://github.com/azusachino/neiro/issues/14))
 - **`new <type> <title>`** from the vault's templates. ([#18](https://github.com/azusachino/neiro/issues/18))
+- Also: an argument starting with a dash and a space, or a negative number, is text rather than an option, so bullets and values such as `-428` reach a write unchanged; a capture keeps a template's empty properties as `key:`; emoji tags such as `0🌲` are valid, as in Obsidian.
 
 Which of these an agent may call is decided in 0.4, not by this milestone.
-- Also: an argument starting with a dash and a space, or a negative number, is text rather than an option, so bullets and values such as `-428` reach a write unchanged; a capture keeps a template's empty properties as `key:`; emoji tags such as `0🌲` are valid, as in Obsidian.
 
 ### 0.2.0: portable core and reads that agents can aim
 
