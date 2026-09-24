@@ -145,10 +145,12 @@ When the vault does not say where something lives, neiro raises `UnsupportedErro
 
 ### A10. Serve a long-running bot from a Git clone
 
-A bot in a container with no GUI keeps one `Vault`, pulls the clone, and calls `vault.reload()` so reads see the new files. It runs on Bun or Node. Partial: `reload()` and Node support ship; a refresh policy is [#20](https://github.com/azusachino/neiro/issues/20), and the container recipe is [#21](https://github.com/azusachino/neiro/issues/21).
+A bot in a container with no GUI keeps one `Vault` over its own clone, with `watch` so edits are seen without a rescan on every read, and `vault.sync()` to pull before reads and push after writes. It runs on Bun or Node. [running neiro in a container](container.md) is the recipe, deploy key included. Shipped.
 
 - `make node-smoke`, which runs the read commands on Node and requires Bun's output
 - `chain.test › parse TOML, for neiro.toml and its title allowlist`
+- `refresh.test › a live vault sees a changed and a new file on its next read`
+- `container.test › pulls the owner's edits before reading, and pushes one commit per write`
 
 ### A11. Hand an agent framework neiro's tools
 

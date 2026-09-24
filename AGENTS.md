@@ -26,6 +26,7 @@ test/fixtures/vault  A small synthetic vault for edge cases; never copy personal
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
 docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
+docs/container.md    Running neiro against a Git clone of a vault in a container
 ```
 
 ## Toolchain and tasks
