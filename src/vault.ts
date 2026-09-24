@@ -4,9 +4,11 @@ import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import ignore from "ignore";
 import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
+import type { Chain } from "./chain.ts";
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
+import { type History, historyChain } from "./history.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
 import { rank } from "./search.ts";
@@ -149,6 +151,7 @@ export class Vault {
   readonly settings: VaultSettings;
   private readonly exclude: string[];
   private cache?: { notes: Note[]; index: LinkIndex };
+  private historyChain?: Chain<History>;
 
   constructor(root: string, options: VaultOptions = {}) {
     this.root = resolve(root);
@@ -333,8 +336,14 @@ export class Vault {
     return { path, note: exists ? await this.get(path) : null };
   }
 
+  /** The vault's revisions: Git when the root is inside a work tree, otherwise this raises `UnsupportedError`. */
+  get history(): History {
+    this.historyChain ??= historyChain(this.root);
+    return this.historyChain.get();
+  }
+
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    const result = await capture(this.root, input, this.settings.capture, options);
+    const result = await capture(this.root, input, this.settings.capture, options, () => this.history);
     if (result.written) this.reload();
     return result;
   }

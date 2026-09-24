@@ -1,9 +1,9 @@
-import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
+import { type History, historyChain } from "./history.ts";
 import type { CaptureSettings } from "./settings.ts";
 import { lowercaseTitle } from "./title.ts";
 
@@ -148,14 +148,6 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
   return { title, content };
 }
 
-function git(root: string, args: string[]): void {
-  const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
-  if (result.status !== 0) {
-    const reason = result.error?.message ?? (result.stderr.trim() || `exit ${result.status}`);
-    throw new CaptureError(`git ${args[0]} failed: ${reason}`);
-  }
-}
-
 function freePath(root: string, folder: string, stem: string, filename: CaptureSettings["filename"]): string {
   const separator = filename === "title" ? " " : "-";
   for (let n = 1; ; n++) {
@@ -170,6 +162,8 @@ export async function capture(
   input: CaptureInput,
   settings: CaptureSettings,
   options: CaptureOptions = {},
+  /** The vault's history, asked for only when committing, so a vault without one fails before anything is written. */
+  history: () => History = () => historyChain(root).get(),
 ): Promise<CaptureResult> {
   const now = input.now ?? new Date();
   const { title, content } = renderCapture({ ...input, now }, settings);
@@ -185,25 +179,16 @@ export async function capture(
       pushed: false,
     };
   }
-  if (options.push) git(root, ["pull", "--rebase", "--quiet"]);
+  const store = commit ? history() : undefined;
+  // Take others' captures first, so the free file name is free on the remote too.
+  if (options.push) store?.sync();
 
   const path = freePath(root, settings.folder, stem, settings.filename);
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), content, { flag: "wx" });
 
-  if (commit) {
-    git(root, ["add", "--", path]);
-    git(root, [
-      "commit",
-      "--quiet",
-      "-m",
-      `chore: capture ${path}`,
-      ...(options.author ? ["--author", options.author] : []),
-      "--",
-      path,
-    ]);
-  }
-  if (options.push) git(root, ["push", "--quiet"]);
+  store?.commit([path], `chore: capture ${path}`, options.author);
+  if (options.push) store?.sync();
   return { path, content, written: true, committed: commit, pushed: options.push ?? false };
 }
 
