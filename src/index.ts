@@ -24,10 +24,12 @@ export {
   type Period,
   type PeriodicSetting,
   resolveSettings,
+  type TemplateSettings,
   UnsupportedError,
   type VaultSettings,
 } from "./settings.ts";
 export { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
+export { renderTemplate, templateFor, templateNames } from "./templates.ts";
 export {
   type Filter,
   type GetOptions,

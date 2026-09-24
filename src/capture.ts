@@ -64,7 +64,9 @@ function validTags(tags: string[], settings: CaptureSettings): string[] {
   const shape =
     settings.tagStyle === "kebab"
       ? /^[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*(?:\/[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*)*$/u
-      : /^[\p{L}\p{N}_\-/]+$/u;
+      : // Obsidian allows any character in a tag except whitespace and punctuation such as # , . : ; ! ? and brackets;
+        // letters, digits, _, -, /, and emoji are all fine.
+        /^[^\s#,.:;!?'"`()[\]{}<>|@$%^&*=+~\\]+$/u;
   const rejected = new Set(settings.rejectTags.map((tag) => tag.toLowerCase()));
   for (const tag of unique) {
     // Obsidian requires a tag to contain at least one character that is not a digit.
@@ -134,11 +136,13 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
   }
   const filled = new Set([...settings.properties, "title", "tags", "source"]);
   for (const [key, value] of Object.entries(input.properties ?? {})) {
-    if (!filled.has(key) && value !== undefined && value !== null)
-      lines.push(stringify({ [key]: value }, { lineWidth: 0 }).trimEnd());
+    if (filled.has(key) || value === undefined) continue;
+    // An empty property is kept as Obsidian writes it, `key:`, such as a template's blank to fill in later.
+    lines.push(value === null ? `${key}:` : stringify({ [key]: value }, { lineWidth: 0 }).trimEnd());
   }
-  const body = `${input.text.trim()}\n`;
-  const content = lines.length > 0 ? `---\n${lines.join("\n")}\n---\n\n${body}` : body;
+  const text = input.text.trim();
+  const block = lines.length > 0 ? `---\n${lines.join("\n")}\n---\n` : "";
+  const content = text === "" ? block : `${block}${block ? "\n" : ""}${text}\n`;
 
   const { data } = splitFrontmatter(content);
   const wroteTitle = settings.properties.includes("title");

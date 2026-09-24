@@ -44,13 +44,21 @@ describe("where", () => {
 
 describe("sort and limit", () => {
   test("give the ten most recently modified books in one call", async () => {
-    const latest = await withBooks().list({ where: { type: "book" }, sort: "modified", desc: true, limit: 10 });
+    const latest = await withBooks().list({
+      where: { type: "book" },
+      under: "Notes",
+      sort: "modified",
+      desc: true,
+      limit: 10,
+    });
     expect(paths(latest)).toEqual(["Notes/Hyperion.md", "Notes/Dune.md", "Notes/Emma.md", "Notes/Unread.md"]);
   });
 
   test("sort notes without the value last in either direction", async () => {
     const books = withBooks();
-    expect(paths(await books.list({ where: { type: "book" }, sort: "modified" })).at(-1)).toBe("Notes/Unread.md");
+    expect(paths(await books.list({ where: { type: "book" }, under: "Notes", sort: "modified" })).at(-1)).toBe(
+      "Notes/Unread.md",
+    );
     const byCreated = paths(await vault.list({ sort: "created" }));
     expect(byCreated.slice(0, 2)).toEqual(["People/Plato.md", "People/Greek/Plato.md"]);
   });

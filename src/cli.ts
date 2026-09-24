@@ -51,6 +51,7 @@ commands:
   unresolved                   links pointing at no note, or at several
   journal <period>             the day, week, month, quarter, or year note for a date
   capture [text...]            create a new note from text, --file, or stdin
+  new <type> <title...>        create a note from the vault's template for type, placed as capture places it
 
 writes (each takes --dry-run for a diff, --if-hash <hash>, --commit, and --author):
   append <note> [text...]      add text at the end, or at the end of --heading H (--create-heading, --level)
@@ -438,6 +439,18 @@ async function main(): Promise<void> {
       if (!(PERIODS as readonly string[]).includes(period)) throw new UsageError(`journal takes ${PERIODS.join(", ")}`);
       const found = await vault.journalFor(period as Period, opts.date ? parseDate(opts.date) : new Date());
       return emit(found, () => (found.note ? `${found.path}\n\n${found.note.body}` : `${found.path}\tnot written yet`));
+    }
+    case "new": {
+      const [type, ...words] = args;
+      if (!type || words.length === 0) throw new UsageError("usage: new <type> <title>");
+      const result = await vault.create(type, words.join(" "), {
+        tags: opts.tag,
+        dryRun: opts["dry-run"],
+        commit: opts.commit,
+        push: opts.push,
+        author: opts.author,
+      });
+      return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
     }
     case "capture": {
       if (opts.file && args.length > 0) throw new UsageError("capture takes text or --file, not both");
