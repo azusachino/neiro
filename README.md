@@ -96,7 +96,7 @@ const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json 
 await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
 ```
 
-A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, for example after a `git pull`.
+A `Vault` scans once and caches the notes. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `vault.sync()` pulls and pushes through `History`, then reloads. Otherwise call `vault.reload()` after the files change underneath it.
 
 ## Development
 

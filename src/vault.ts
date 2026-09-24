@@ -1,5 +1,5 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { readdir, readFile } from "node:fs/promises";
+import { readdir, readFile, stat } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
 import ignore from "ignore";
 import { parseDocument, stringify } from "yaml";
@@ -142,6 +142,12 @@ export interface VaultOptions {
   config?: NeiroConfig;
   /** Folder prefixes never scanned. Paths from the vault's `.gitmodules` are always excluded. */
   exclude?: string[];
+  /**
+   * For a long-running process: at most once per this many milliseconds, a read compares the notes' paths,
+   * modification times, and sizes with the last scan and rescans when they changed. Unset, the scan is kept until
+   * `reload()` or `sync()`; 0 checks on every read.
+   */
+  watch?: number;
 }
 
 export class NotFoundError extends Error {
@@ -168,7 +174,9 @@ export class Vault {
   /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
   readonly settings: VaultSettings;
   private readonly exclude: string[];
-  private cache?: { notes: Note[]; index: LinkIndex };
+  private cache?: { notes: Note[]; index: LinkIndex; fingerprint: string };
+  private readonly watch?: number;
+  private checked = 0;
   private historyChain?: Chain<History>;
 
   constructor(root: string, options: VaultOptions = {}) {
@@ -177,6 +185,7 @@ export class Vault {
       throw new NotFoundError(`no vault at ${this.root}`);
     this.settings = resolveSettings(this.root, options.config);
     this.exclude = ["node_modules", ...submodulePaths(this.root), ...(options.exclude ?? [])].map(folderPrefix);
+    this.watch = options.watch;
   }
 
   /** Forget the scanned notes, e.g. after a `git pull`. */
@@ -557,20 +566,43 @@ export class Vault {
     );
   }
 
+  /** Take others' revisions and publish this one's through `History`, then reload so reads see what arrived. */
+  sync(): void {
+    this.history.sync();
+    this.reload();
+  }
+
   private async load(): Promise<{ notes: Note[]; index: LinkIndex }> {
+    if (this.cache && this.watch !== undefined && Date.now() - this.checked >= this.watch) {
+      this.checked = Date.now();
+      if ((await this.fingerprint()) !== this.cache.fingerprint) this.cache = undefined;
+    }
     if (this.cache) return this.cache;
-    const ignored = gitignore(this.root);
-    const paths = (await markdownFiles(this.root)).filter(
-      (path) => !this.exclude.some((prefix) => path.startsWith(prefix)) && !ignored(path),
-    );
-    paths.sort();
+    const paths = await this.paths();
     // TextDecoder drops a leading byte order mark, so frontmatter after one is still found.
     const decoder = new TextDecoder();
     const notes = await Promise.all(
       paths.map(async (path) => parseNote(path, decoder.decode(await readFile(join(this.root, path))))),
     );
-    this.cache = { notes, index: new LinkIndex(paths) };
+    const fingerprint = this.watch === undefined ? "" : await this.fingerprint(paths);
+    this.checked = Date.now();
+    this.cache = { notes, index: new LinkIndex(paths), fingerprint };
     return this.cache;
+  }
+
+  private async paths(): Promise<string[]> {
+    const ignored = gitignore(this.root);
+    const paths = (await markdownFiles(this.root)).filter(
+      (path) => !this.exclude.some((prefix) => path.startsWith(prefix)) && !ignored(path),
+    );
+    return paths.sort();
+  }
+
+  /** Every note's path, modification time, and size: a change to any of them means the files changed. */
+  private async fingerprint(paths?: string[]): Promise<string> {
+    const current = paths ?? (await this.paths());
+    const stats = await Promise.all(current.map((path) => stat(join(this.root, path))));
+    return current.map((path, i) => `${path}\0${stats[i]?.mtimeMs}\0${stats[i]?.size}`).join("\n");
   }
 }
 
