@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { readFileSync } from "node:fs";
+import { text } from "node:stream/consumers";
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
@@ -52,7 +53,7 @@ class UsageError extends Error {}
 function parse() {
   try {
     return parseArgs({
-      args: Bun.argv.slice(2),
+      args: process.argv.slice(2),
       allowPositionals: true,
       strict: true,
       options: {
@@ -173,7 +174,7 @@ async function main(): Promise<void> {
       if (opts.file && args.length > 0) throw new UsageError("capture takes text or --file, not both");
       const base = opts.file
         ? captureInputFromMarkdown(readFileSync(opts.file, "utf8"), opts.file)
-        : { text: args.length > 0 ? args.join(" ") : await Bun.stdin.text() };
+        : { text: args.length > 0 ? args.join(" ") : await text(process.stdin) };
       const result = await vault.capture(
         {
           ...base,

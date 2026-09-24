@@ -1,6 +1,6 @@
 # roadmap
 
-What neiro does, what comes next, and what it will not do. Each planned item links to its GitHub issue, which holds its status and acceptance criteria; this page holds the order and the reasons. Update this page in the same PR that ships or reorders an item. The design rules in [AGENTS.md](../AGENTS.md) bound everything here.
+What neiro does, what comes next, and what it will not do. Each planned item links to its GitHub issue, which holds its status and acceptance criteria; this page holds the order and the reasons. Update this page in the same PR that ships or reorders an item. The design rules in [AGENTS.md](../AGENTS.md) bound everything here, and [use cases](use-cases.md) records what each item is for and which tests hold it.
 
 ## principles
 
@@ -68,13 +68,12 @@ Each capability has a chain of providers, and the first one available in the cur
 | --- | --- | --- |
 | parse YAML | `Bun.YAML` → [`yaml`](https://www.npmjs.com/package/yaml) | `Bun.YAML` measured 6 ms against 100 ms, identical on all 1,837 blocks of a real vault |
 | parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `neiro.toml` and the allowlist it names |
-| list files | `Bun.Glob` → `node:fs` recursive `readdir` | both filtered by the same exclusion rules |
 | content search | `rg -l` prefilter → in-process scan | ripgrep only narrows the candidate files; matching and ranking always run in-process, so results cannot differ |
 | settings | code options → `neiro.toml` → `.obsidian/` settings → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
 | templates | `neiro.toml` → Obsidian's Templates folder (`templates.json`) → none | for `new` ([#18](https://github.com/azusachino/neiro/issues/18)) |
 | history | Git → none | without Git, `history` and `--commit` raise `UnsupportedError`; reads still work |
 
-Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
+Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover listing, reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Listing was planned as a `Bun.Glob` chain, but a `node:fs` walk returned the same 6,386 paths from obsidian-help in 11–17 ms against `Bun.Glob`'s 31–36 ms, on Bun itself. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
 
 ## own code and libraries
 

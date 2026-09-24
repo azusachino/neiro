@@ -1,3 +1,4 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { stringify } from "yaml";
@@ -148,9 +149,10 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
 }
 
 function git(root: string, args: string[]): void {
-  const result = Bun.spawnSync(["git", ...args], { cwd: root, stdout: "pipe", stderr: "pipe" });
-  if (result.exitCode !== 0) {
-    throw new CaptureError(`git ${args[0]} failed: ${result.stderr.toString().trim() || `exit ${result.exitCode}`}`);
+  const result = spawnSync("git", args, { cwd: root, encoding: "utf8" });
+  if (result.status !== 0) {
+    const reason = result.error?.message ?? (result.stderr.trim() || `exit ${result.status}`);
+    throw new CaptureError(`git ${args[0]} failed: ${reason}`);
   }
 }
 

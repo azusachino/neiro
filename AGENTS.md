@@ -12,6 +12,8 @@ neiro is an SDK and CLI over an Obsidian-compatible Markdown vault, working on t
 src/index.ts         The public SDK surface; everything a library consumer may import
 src/vault.ts         Vault: scanning, lookup, list, links, nav, and journal
 src/settings.ts      The settings chain: code options, neiro.toml, .obsidian settings, defaults
+src/chain.ts         Fallback chains: the first available provider serves a capability
+src/providers.ts     The capability chains; the only place a Bun-only API may appear
 src/links.ts         Wikilink extraction and Obsidian-style resolution
 src/search.ts        BM25 ranking over a scan
 src/capture.ts       The one write: a new note, optionally committed and pushed
@@ -23,12 +25,13 @@ src/cli.ts           The CLI, a thin front end over src/index.ts
 test/fixtures/vault  A small synthetic vault for edge cases; never copy personal notes into it
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
+docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
 ```
 
 ## Toolchain and tasks
 
-- **mise first:** Bun is pinned in `.mise.toml`; run `mise install`.
-- **make is the task runner:** `make check` (lint, typecheck, test) before every commit; `make validate` (check, build, and run the binary) before a PR. CI runs `make validate`.
+- **mise first:** Bun and Node are pinned in `.mise.toml`; run `mise install`.
+- **make is the task runner:** `make check` (lint, typecheck, test) before every commit; `make validate` (check, build, and run the binary) before a PR. CI runs `make validate`, and `make node-smoke` on Node.
 - **Portable by default:** new code uses standard `node:` modules and Web APIs that both Bun and Node provide. A Bun-only API belongs in a provider of a [fallback chain](docs/roadmap.md#capabilities-and-fallback-chains), with a portable provider that returns identical results.
 - **Dependencies:** add a library only when it has released within the past year, has few or no dependencies of its own, and does something hard to get right. Otherwise implement the part neiro needs.
 
