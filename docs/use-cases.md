@@ -14,9 +14,10 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T2. Open a note by its name, title, or alias
 
-`get <ref>`. An ambiguous reference fails and names every candidate instead of picking one. Shipped; suggesting near matches on a miss is [#7](https://github.com/azusachino/neiro/issues/7).
+`get <ref>`. An ambiguous reference fails and names every candidate instead of picking one. A miss names the closest notes by fuzzy match, even through a typo. Shipped.
 
 - `vault.test › resolves a path, stem, title, or alias`
+- `fuzzy.test › suggests the closest notes, even through a typo`
 - `vault.test › refuses an ambiguous stem and names the candidates`
 
 ### T3. Browse a folder before searching
@@ -91,9 +92,12 @@ An agent reaches neiro in one of two ways: a coding agent shells out to the CLI 
 
 ### A4. Resolve a loose reference from a user's message
 
-The user writes "that note about oolong". `get` resolves a path, file name, title, or alias; on a miss, `find` ranks near matches by fuzzy score. Partial: exact references work, fuzzy `find` and suggestions are [#7](https://github.com/azusachino/neiro/issues/7). How Obsidian treats a bare alias link is open in [#24](https://github.com/azusachino/neiro/issues/24).
+The user writes "that note about oolong". `get` resolves a path, file name, title, or alias; on a miss, `find` ranks near matches by fuzzy score. Shipped. How Obsidian treats a bare alias link is open in [#24](https://github.com/azusachino/neiro/issues/24).
 
 - `vault.test › resolves a path, stem, title, or alias`
+- `fuzzy.test › ranks Latin titles, aliases, and paths`
+- `fuzzy.test › ranks CJK titles`
+- `fuzzy.test › prints the suggestions from the CLI and exits 1`
 
 ### A5. Capture a chat message into the vault
 

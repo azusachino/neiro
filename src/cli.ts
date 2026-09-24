@@ -28,6 +28,7 @@ commands:
   search <query...>            rank notes by relevance
   grep <pattern>               matching lines as path:line:text, like rg -n (smart case)
   tags                         every tag with its note count, parents of nested tags included
+  find <query...>              fuzzy match over paths, titles, and aliases, ranked as fzf ranks
   list                         list notes matching the filters
   nav [folder]                 a folder's index, subfolders, and notes
   links <note>                 outgoing wikilinks and how each resolves
@@ -214,6 +215,13 @@ async function main(): Promise<void> {
         hits.length === 0
           ? "no matches"
           : hits.map((hit) => `${hit.score}\t${hit.path}\t${hit.title}\n\t${hit.snippet}`).join("\n"),
+      );
+    }
+    case "find": {
+      if (args.length === 0) throw new UsageError("find needs a query");
+      const hits = await vault.suggest(args.join(" "), { ...filter, limit: count("limit", opts.limit) });
+      return emitNotes(vault, hits, hits, () =>
+        hits.length === 0 ? "no matches" : hits.map((hit) => `${hit.score}\t${hit.path}\t${hit.title}`).join("\n"),
       );
     }
     case "tags": {
