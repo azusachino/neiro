@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Agent tools: `agentTools()` returns a definition per operation with a closed JSON Schema, MCP-style read-only, destructive, and idempotent hints, an exposure (`direct`, `confirm`, or `cli-only`), and a `run` bound to the SDK. `validateInput` rejects malformed calls. The consumer, not the model, decides whether writes commit and push. The default exposure follows the roadmap's proposal, pending the owner's agreement.
+- A refresh policy for long-running processes: `watch` rescans when the notes' modification times change, at most once per interval, and `Vault.sync()` pulls and pushes through `History`, then reloads.
+- A guide to running neiro against a Git clone of a vault in a container, tested against a bare remote.
+
 ## 0.3.0
 
 - A `History` interface with `GitHistory` through the git CLI; `history`, `show --rev`, and `diff` read a note's revisions. Without Git, history raises `UnsupportedError` and every read still works; `capture --commit` then fails before writing.

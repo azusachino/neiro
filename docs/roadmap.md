@@ -13,6 +13,13 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 
 ## shipped
 
+### 0.4.0: agent integration
+
+- Export ready-made tool definitions: names, parameter schemas, and read-only or destructive hints for each operation. ([#19](https://github.com/azusachino/neiro/issues/19))
+- A default exposure for agents, following this proposal and pending the owner's agreement (overridable through `agentTools`): `capture` and `journal append` directly; `append`, `section put`, and `prop set` behind a human confirmation step; `put` stays CLI-only. ([#19](https://github.com/azusachino/neiro/issues/19))
+- A `Vault` refresh policy for a long-running process: reload after `git pull`, or when the files' modification times change. ([#20](https://github.com/azusachino/neiro/issues/20))
+- A documented way to run neiro against a Git clone of the vault in a container, synced through `History`. ([#21](https://github.com/azusachino/neiro/issues/21))
+
 ### 0.3.0: history and targeted writes
 
 Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
@@ -56,12 +63,7 @@ Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ## next
 
-### 0.4: agent integration
-
-- Export ready-made tool definitions: names, parameter schemas, and read-only or destructive hints for each operation. ([#19](https://github.com/azusachino/neiro/issues/19))
-- A default exposure for agents, pending the owner's agreement: `capture` and `journal append` directly; `append`, `section put`, and `prop set` behind a human confirmation step; `put` stays CLI-only. ([#19](https://github.com/azusachino/neiro/issues/19))
-- A `Vault` refresh policy for a long-running process: reload after `git pull`, or when the files' modification times change. ([#20](https://github.com/azusachino/neiro/issues/20))
-- A documented way to run neiro against a Git clone of the vault in a container, synced through `History`. ([#21](https://github.com/azusachino/neiro/issues/21))
+No milestone is planned. Work beyond 0.4 waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/neiro/issues/24)), which needs a check in the app.
 
 ## capabilities and fallback chains
 
