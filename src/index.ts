@@ -12,7 +12,6 @@ export { formatDate, isoWeek, localeWeek, parseDate } from "./dateformat.ts";
 export { type Frontmatter, splitFrontmatter } from "./frontmatter.ts";
 export { journalPath } from "./journal.ts";
 export { extractLinks, type Resolution, type WikiLink } from "./links.ts";
-export type { SearchHit } from "./search.ts";
 export {
   type CaptureSettings,
   CONFIG_FILE,

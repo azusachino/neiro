@@ -1,8 +1,7 @@
 import type { Note } from "./vault.ts";
 
-export interface SearchHit {
-  path: string;
-  title: string;
+export interface Ranked {
+  note: Note;
   score: number;
   snippet: string;
 }
@@ -51,7 +50,7 @@ function snippet(body: string, lowered: string, query: Term[]): string {
 }
 
 /** BM25 over note bodies, plus boosts for terms in the title or tags. No index: every call scans the notes given. */
-export function rank(notes: Note[], query: string, limit: number): SearchHit[] {
+export function rank(notes: Note[], query: string, limit: number): Ranked[] {
   const wanted = terms(query);
   if (wanted.length === 0 || notes.length === 0) return [];
 
@@ -65,7 +64,7 @@ export function rank(notes: Note[], query: string, limit: number): SearchHit[] {
     return Math.log(1 + (docs.length - df + 0.5) / (df + 0.5));
   });
 
-  const hits: SearchHit[] = [];
+  const hits: Ranked[] = [];
   for (const { note, lowered, counts } of docs) {
     const title = note.title.toLowerCase();
     const tags = note.tags.join(" ");
@@ -79,12 +78,11 @@ export function rank(notes: Note[], query: string, limit: number): SearchHit[] {
     });
     if (score > 0) {
       hits.push({
-        path: note.path,
-        title: note.title,
+        note,
         score: Number(score.toFixed(3)),
         snippet: snippet(note.body, lowered, wanted),
       });
     }
   }
-  return hits.sort((a, b) => b.score - a.score || a.path.localeCompare(b.path)).slice(0, limit);
+  return hits.sort((a, b) => b.score - a.score || a.note.path.localeCompare(b.note.path)).slice(0, limit);
 }

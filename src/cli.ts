@@ -33,7 +33,9 @@ commands:
 
 options:
   --vault <dir>                vault root (default: $NEIRO_VAULT, then the current directory)
-  --json                       machine-readable output
+  --json                       machine-readable output, the same as --format json
+  --format <text|json|paths>   paths prints one path per line, for xargs and fzf
+  --fields <a,b,...>           only these fields: summary fields such as score, or any frontmatter key
   --type, --tag, --status, --under <value>
                                filters for search and list
   --limit <n>                  search results (default 10)
@@ -59,6 +61,8 @@ function parse() {
       options: {
         vault: { type: "string" },
         json: { type: "boolean" },
+        format: { type: "string" },
+        fields: { type: "string" },
         type: { type: "string" },
         tag: { type: "string", multiple: true },
         status: { type: "string" },
@@ -97,8 +101,28 @@ function one(args: string[], what: string): string {
   return args[0] as string;
 }
 
+const FORMATS = ["text", "json", "paths"];
+const format = opts.format ?? (opts.json ? "json" : "text");
+const fields = opts.fields?.split(",").map((field) => field.trim());
+
 function emit(value: unknown, human: () => string): void {
-  console.log(opts.json ? JSON.stringify(value, null, 2) : human());
+  if (format === "paths" || fields) {
+    throw new UsageError("--format paths and --fields work with get, search, list, nav, and backlinks");
+  }
+  console.log(format === "json" ? JSON.stringify(value, null, 2) : human());
+}
+
+const cell = (value: unknown) =>
+  value === null ? "" : typeof value === "object" ? JSON.stringify(value) : String(value);
+
+/** Emit notes: one path per line with `--format paths`, only the named fields with `--fields`, else `value`. */
+async function emitNotes(vault: Vault, notes: { path: string }[], value: unknown, human: () => string): Promise<void> {
+  if (format === "paths") return console.log(notes.map((note) => note.path).join("\n"));
+  if (!fields) return emit(value, human);
+  const rows = await vault.select(notes, fields);
+  const selected = Array.isArray(value) ? rows : rows[0];
+  if (format === "json") return console.log(JSON.stringify(selected, null, 2));
+  console.log(rows.map((row) => Object.values(row).map(cell).join("\t")).join("\n"));
 }
 
 async function main(): Promise<void> {
@@ -106,18 +130,24 @@ async function main(): Promise<void> {
   const [command, ...args] = positionals;
   if (opts.help || !command) return console.log(USAGE);
 
+  if (!FORMATS.includes(format)) throw new UsageError(`--format takes ${FORMATS.join(", ")}`);
   const vault = new Vault(opts.vault ?? process.env.NEIRO_VAULT ?? process.cwd());
   const filter: Filter = { type: opts.type, tag: opts.tag?.[0], status: opts.status, under: opts.under };
 
   switch (command) {
     case "get": {
       const note = await vault.get(one(args, "note"), { maxChars: count("max-chars", opts["max-chars"]) });
-      return emit(note, () => `${note.path}\n\n${note.body}${note.truncated ? "\n[truncated]" : ""}`);
+      return emitNotes(
+        vault,
+        [note],
+        note,
+        () => `${note.path}\n\n${note.body}${note.truncated ? "\n[truncated]" : ""}`,
+      );
     }
     case "search": {
       if (args.length === 0) throw new UsageError("search needs a query");
       const hits = await vault.search(args.join(" "), { ...filter, limit: count("limit", opts.limit) });
-      return emit(hits, () =>
+      return emitNotes(vault, hits, hits, () =>
         hits.length === 0
           ? "no matches"
           : hits.map((hit) => `${hit.score}\t${hit.path}\t${hit.title}\n\t${hit.snippet}`).join("\n"),
@@ -125,12 +155,13 @@ async function main(): Promise<void> {
     }
     case "list": {
       const notes = await vault.list(filter);
-      return emit(notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
+      return emitNotes(vault, notes, notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
     }
     case "nav": {
       if (args.length > 1) throw new UsageError("nav takes at most one folder");
       const view = await vault.nav(args[0]);
-      return emit(view, () =>
+      const notes = view.index ? [view.index, ...view.notes] : view.notes;
+      return emitNotes(vault, notes, view, () =>
         [
           view.index
             ? `${view.index.path}\t${view.index.title}\n${view.index.headings.map((h) => `  # ${h}`).join("\n")}`
@@ -156,7 +187,7 @@ async function main(): Promise<void> {
     }
     case "backlinks": {
       const notes = await vault.backlinks(one(args, "note"));
-      return emit(notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
+      return emitNotes(vault, notes, notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
     }
     case "unresolved": {
       const links = await vault.unresolved();
