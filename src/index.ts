@@ -15,6 +15,7 @@ export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern 
 export { GitHistory, type History, HistoryError, historyChain, type Revision } from "./history.ts";
 export { journalPath } from "./journal.ts";
 export { extractLinks, type Resolution, type WikiLink } from "./links.ts";
+export { findSection, type HeadingAt, headingsOf, type Section, SectionError } from "./sections.ts";
 export {
   type CaptureSettings,
   CONFIG_FILE,
@@ -41,6 +42,7 @@ export {
   NotFoundError,
   type OutgoingLink,
   type SearchHit,
+  type SectionWriteOptions,
   SORT_KEYS,
   type Suggestion,
   Vault,

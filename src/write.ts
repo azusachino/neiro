@@ -69,7 +69,9 @@ export function writeNote(
     throw new WriteConflictError(`${path} changed since it was read: ${now}`);
   }
   const content = next(current);
-  const diff = createTwoFilesPatch(`a/${path}`, `b/${path}`, current ?? "", content, "", "", { context: 3 });
+  const patch = createTwoFilesPatch(`a/${path}`, `b/${path}`, current ?? "", content, "", "", { context: 3 });
+  // Drop the package's `====` separator so the patch reads as `git diff` prints one.
+  const diff = patch.replace(/^=+\n/, "");
   const result = { path, diff, created: current === undefined, hash: contentHash(content) };
   if (options.dryRun || content === current) return { ...result, written: false, committed: false };
 

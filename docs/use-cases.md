@@ -122,15 +122,18 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A7. Summarize the week, then record the summary
 
-`journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Partial: reading ships; appending is [#14](https://github.com/azusachino/neiro/issues/14), and which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/neiro/issues/19).
+`journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/neiro/issues/19).
 
 - `vault.test › reads Obsidian's Daily Notes and Periodic Notes settings`
+- `sections.test › appends to the journal note for a date, which must exist`
 
 ### A8. Edit a note without overwriting the owner's change
 
-`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. Partial: the hash ships; guarded writes are [#13](https://github.com/azusachino/neiro/issues/13).
+`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. Shipped.
 
 - `vault.test › returns a content hash and marks truncation`
+- `write.test › refuses a stale hash and accepts the one get returned`
+- `sections.test › a dry run returns the diff and writes nothing; a stale hash is refused`
 
 ### A9. Stop instead of guessing
 
