@@ -10,6 +10,7 @@ import {
   type Filter,
   formatGrep,
   type GrepHit,
+  HistoryError,
   LineRangeError,
   NotFoundError,
   PERIODS,
@@ -34,6 +35,10 @@ commands:
   nav [folder]                 a folder's index, subfolders, and notes
   links <note>                 outgoing wikilinks and how each resolves
   backlinks <note>             notes that link to a note
+  history <note>               revisions of a note, newest first (--limit, default 20)
+  show <note> --rev <rev>      a note's content at a revision
+  diff <note> [--rev r] [--to r]
+                               a note's changes since --rev (default HEAD), or between two revisions
   orphans                      notes no other note links to or embeds
   outline <note>               a note's headings with their line numbers
   prop get <note> <key>        one frontmatter value
@@ -92,6 +97,8 @@ function parse() {
         "max-chars": { type: "string" },
         lines: { type: "string" },
         around: { type: "string" },
+        rev: { type: "string" },
+        to: { type: "string" },
         context: { type: "string", short: "C" },
         "fixed-strings": { type: "boolean", short: "F" },
         date: { type: "string" },
@@ -294,6 +301,28 @@ async function main(): Promise<void> {
           .join("\n"),
       );
     }
+    case "history": {
+      const note = await vault.find(one(args, "note"));
+      const revisions = vault.history.log(note.path, count("limit", opts.limit));
+      return emit(revisions, () =>
+        revisions
+          .map(({ rev, date, author, message }) => `${rev.slice(0, 12)}\t${date}\t${author}\t${message}`)
+          .join("\n"),
+      );
+    }
+    case "show": {
+      if (!opts.rev) throw new UsageError("show needs --rev <rev>");
+      const note = await vault.find(one(args, "note"));
+      const content = vault.history.show(note.path, opts.rev);
+      return emit({ path: note.path, rev: opts.rev, content }, () => content.replace(/\n$/, ""));
+    }
+    case "diff": {
+      const note = await vault.find(one(args, "note"));
+      const patch = vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
+      return emit({ path: note.path, from: opts.rev ?? "HEAD", to: opts.to ?? null, diff: patch }, () =>
+        patch.replace(/\n$/, ""),
+      );
+    }
     case "orphans": {
       if (args.length > 0) throw new UsageError("orphans takes no arguments; narrow it with the filters");
       const notes = await vault.orphans(filter);
@@ -358,6 +387,7 @@ try {
   if (
     error instanceof NotFoundError ||
     error instanceof LineRangeError ||
+    error instanceof HistoryError ||
     error instanceof CaptureError ||
     error instanceof UnsupportedError
   ) {

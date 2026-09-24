@@ -1,16 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   CaptureError,
   captureInputFromMarkdown,
+  HistoryError,
   type NeiroConfig,
   renderCapture,
   resolveSettings,
   splitFrontmatter,
+  UnsupportedError,
   Vault,
 } from "../src/index.ts";
+import { copyVault, git, gitVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
@@ -28,32 +31,6 @@ const STRICT: NeiroConfig = {
     reject_tags: ["todo"],
   },
 };
-
-function copyVault(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-vault-"));
-  cpSync(FIXTURE, root, { recursive: true });
-  return root;
-}
-
-function git(cwd: string, ...args: string[]): string {
-  const result = Bun.spawnSync(["git", ...args], { cwd, stdout: "pipe", stderr: "pipe" });
-  if (result.exitCode !== 0) throw new Error(result.stderr.toString());
-  return result.stdout.toString().trim();
-}
-
-function gitVault(): { root: string; remote: string } {
-  const remote = mkdtempSync(join(tmpdir(), "neiro-remote-"));
-  git(remote, "init", "--quiet", "--bare", "--initial-branch=main");
-  const root = copyVault();
-  git(root, "init", "--quiet", "--initial-branch=main");
-  git(root, "config", "user.name", "owner");
-  git(root, "config", "user.email", "owner@example.com");
-  git(root, "add", ".");
-  git(root, "commit", "--quiet", "-m", "init");
-  git(root, "remote", "add", "origin", remote);
-  git(root, "push", "--quiet", "-u", "origin", "main");
-  return { root, remote };
-}
 
 describe("default capture settings", () => {
   const defaults = resolveSettings(FIXTURE).capture;
@@ -229,10 +206,16 @@ describe("capture", () => {
     ]);
   });
 
-  test("reports a Git failure", async () => {
+  test("refuses to commit in a vault without Git, before writing anything", async () => {
     const root = copyVault();
-    expect(new Vault(root).capture({ text: "No repo" }, { commit: true })).rejects.toThrow("git add failed");
-    expect(readdirSync(join(root, "Inbox"))).toContain("No repo.md");
+    expect(new Vault(root).capture({ text: "No repo" }, { commit: true })).rejects.toThrow(UnsupportedError);
+    expect(readdirSync(join(root, "Inbox"))).not.toContain("No repo.md");
+  });
+
+  test("reports a Git failure", async () => {
+    const { root } = gitVault();
+    git(root, "remote", "remove", "origin");
+    expect(new Vault(root).capture({ text: "No remote", now: NOW }, { push: true })).rejects.toThrow(HistoryError);
   });
 });
 

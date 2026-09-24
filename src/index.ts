@@ -12,6 +12,7 @@ export { formatDate, isoWeek, localeWeek, parseDate } from "./dateformat.ts";
 export { type Frontmatter, splitFrontmatter } from "./frontmatter.ts";
 export { type FuzzyCandidate, type FuzzyHit, fuzzyRank, fuzzyScore } from "./fuzzy.ts";
 export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern } from "./grep.ts";
+export { GitHistory, type History, HistoryError, historyChain, type Revision } from "./history.ts";
 export { journalPath } from "./journal.ts";
 export { extractLinks, type Resolution, type WikiLink } from "./links.ts";
 export {
