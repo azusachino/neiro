@@ -1,0 +1,4 @@
+{
+  "weekly": { "enabled": true, "folder": "Weekly", "format": "gggg-[W]ww", "template": "" },
+  "monthly": { "enabled": false, "folder": "", "format": "YYYY-MM", "template": "" }
+}

@@ -1,0 +1,3 @@
+[submodule "libs/sub"]
+	path = libs/sub
+	url = https://example.com/sub.git

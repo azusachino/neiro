@@ -1,0 +1,23 @@
+name: Bug report
+description: Something neiro does wrong.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: The command or SDK call, what you expected, and what you got.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: A minimal vault layout or note that shows it. Do not paste private notes.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and runtime
+      placeholder: neiro 0.1.0 on Bun 1.4.2, macOS

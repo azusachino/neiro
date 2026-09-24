@@ -1,0 +1,34 @@
+import { parse } from "yaml";
+
+export type Frontmatter = Record<string, unknown>;
+
+const FENCE = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+
+/** Split a note into its YAML frontmatter and body. Malformed YAML yields an empty object, never a throw. */
+export function splitFrontmatter(raw: string): { data: Frontmatter; body: string } {
+  const match = FENCE.exec(raw);
+  if (!match) return { data: {}, body: raw };
+  let data: unknown;
+  try {
+    // Templates often hold unquoted placeholders such as `{{date}}`, which YAML reads as mappings; parse them quietly.
+    data = parse(match[1] ?? "", { logLevel: "error" });
+  } catch {
+    data = null;
+  }
+  const isObject = typeof data === "object" && data !== null && !Array.isArray(data);
+  return { data: isObject ? (data as Frontmatter) : {}, body: raw.slice(match[0].length) };
+}
+
+/** The string entries of a frontmatter list field such as `tags` or `aliases`. */
+export function stringList(value: unknown): string[] {
+  if (typeof value === "string") return [value];
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+const NEEDS_QUOTES = /: |\s#|^[\s\-?:,[\]{}#&*!|>'"%@`]|\s$|^(?:true|false|null|yes|no|on|off|~)$|^[\d.+-]+$/i;
+
+/** A YAML scalar, double-quoted only when plain style would change its meaning. */
+export function yamlScalar(value: string): string {
+  return value === "" || NEEDS_QUOTES.test(value) ? JSON.stringify(value) : value;
+}
