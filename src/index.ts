@@ -46,3 +46,11 @@ export {
   Vault,
   type VaultOptions,
 } from "./vault.ts";
+export {
+  contentHash,
+  splice,
+  WriteConflictError,
+  type WriteOptions,
+  type WriteResult,
+  writeNote,
+} from "./write.ts";
