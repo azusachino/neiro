@@ -1,8 +1,8 @@
 # neiro
 
-An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault. It works on the files directly: Obsidian does not need to be installed or running. It is built for [Apricot](https://github.com/azusachino/apricot), used from the terminal by its owner and imported by the [luna](https://github.com/azusachino/luna) Telegram bot.
+An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault. It works on the files directly: Obsidian does not need to be installed or running. It is built for a personal vault that is used from the terminal and read by a Telegram bot, which imports the SDK in-process.
 
-The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli), but the model follows [notesmd-cli](https://github.com/Yakitrak/notesmd-cli): files are the only source of truth, and there is no index to build or keep fresh. A full scan of Apricot's 1,837 notes answers a search in about 200 ms, including process start-up.
+The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli), but the model follows [notesmd-cli](https://github.com/Yakitrak/notesmd-cli): files are the only source of truth, and there is no index to build or keep fresh. A full scan of a 1,837-note vault answers a search in about 200 ms, including process start-up.
 
 ## Commands
 
@@ -65,7 +65,7 @@ const vault = new Vault(process.env.NEIRO_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
 const week = await vault.journalFor("week", new Date());
-await vault.capture({ text: "an idea", tags: ["learning"] }, { push: true, author: "luna <luna@example.com>" });
+await vault.capture({ text: "an idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
 ```
 
 A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, for example after a `git pull`.

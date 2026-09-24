@@ -4,12 +4,12 @@ Conventions for contributors and coding agents working in this repo. Read this a
 
 ## What this is
 
-neiro is an SDK and CLI over an Obsidian-compatible Markdown vault, working on the files directly. Its first vault is Apricot; its first consumers are the owner's terminal and the luna Telegram bot, which imports the SDK in-process.
+neiro is an SDK and CLI over an Obsidian-compatible Markdown vault, working on the files directly. Its first consumers are the owner's terminal and a Telegram bot that imports the SDK in-process.
 
 ## Layout
 
 ```text
-src/index.ts         The public SDK surface; everything luna may import
+src/index.ts         The public SDK surface; everything a library consumer may import
 src/vault.ts         Vault: scanning, lookup, list, links, nav, journal, and neiro.toml
 src/links.ts         Wikilink extraction and Obsidian-style resolution
 src/search.ts        BM25 ranking over a scan
@@ -30,8 +30,8 @@ test/fixtures/vault  A synthetic vault; never copy personal notes into it
 ## Rules
 
 - **Files are the only truth.** Do not add an index, cache file, or database until a measurement shows the scan is too slow; any index must be derived and deletable.
-- **Never require the Obsidian app.** luna runs in a pod with no GUI.
+- **Never require the Obsidian app.** The bot runs in a container with no GUI.
 - **Capture creates, never edits.** It writes one new file under `inbox/`, and `--commit` commits only that file. A new write verb needs the owner's agreement first, and must target a heading or a frontmatter key rather than rewriting a note.
-- **Vault conventions belong to the vault.** Apricot-specific rules come from its `neiro.toml`, not from constants here. The defaults may match Apricot's layout, but must stay overridable.
-- **The CLI imports only `src/index.ts`,** so it cannot depend on anything luna cannot use.
+- **Vault conventions belong to the vault.** A vault's own rules come from its `neiro.toml`, not from constants here. Defaults may match the first vault's layout, but must stay overridable.
+- **The CLI imports only `src/index.ts`,** so it cannot depend on anything a library consumer cannot use.
 - **Fixtures are synthetic.** Tests must never read the real vault or copy its content.

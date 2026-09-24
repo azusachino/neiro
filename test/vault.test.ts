@@ -96,7 +96,7 @@ describe("links", () => {
 describe("nav", () => {
   test("shows the root index, folders, and direct notes", async () => {
     const root = await vault.nav();
-    expect(root.index).toEqual({ path: "index.md", title: "home", headings: ["start here", "current flow"] });
+    expect(root.index).toEqual({ path: "index.md", title: "home", headings: ["start here", "reading"] });
     expect(root.folders.map((folder) => folder.path)).toEqual(["inbox", "journal", "maps", "note"]);
     expect(root.folders.find((folder) => folder.path === "note")?.title).toBe("notes");
     expect(root.notes).toEqual([]);

@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
-// The CLI uses only the public SDK surface, the same one luna imports.
+// The CLI uses only the public SDK surface, the same one library consumers import.
 import { CaptureError, type Filter, NotFoundError, parseDate, Vault } from "./index.ts";
 
 const USAGE = `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault

@@ -126,10 +126,10 @@ describe("capture", () => {
     writeFileSync(join(root, "note/life/tea.md"), "an unrelated owner edit\n");
     const result = await new Vault(root).capture(
       { text: "Committed idea", tags: ["learning"], now: NOW },
-      { commit: true, author: "luna <luna@example.com>" },
+      { commit: true, author: "bot <bot@example.com>" },
     );
     expect(result).toMatchObject({ written: true, committed: true, pushed: false });
-    expect(git(root, "log", "-1", "--format=%an|%s")).toBe("luna|chore: capture inbox/committed-idea.md");
+    expect(git(root, "log", "-1", "--format=%an|%s")).toBe("bot|chore: capture inbox/committed-idea.md");
     expect(git(root, "show", "--name-only", "--format=", "HEAD")).toBe("inbox/committed-idea.md");
     expect(git(root, "status", "--short")).toBe("M note/life/tea.md");
   });
