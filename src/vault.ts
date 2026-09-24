@@ -98,6 +98,13 @@ export interface OutgoingLink {
   resolution: Resolution;
 }
 
+export interface Heading {
+  level: number;
+  text: string;
+  /** Counted from the top of the file, frontmatter included. */
+  line: number;
+}
+
 export interface NavEntry {
   path: string;
   title: string;
@@ -228,6 +235,46 @@ export class Vault {
         }),
       )
       .map(summarize);
+  }
+
+  /** Notes no other note links to or embeds, narrowed by the filters; a note linking only to itself is an orphan. */
+  async orphans(filter: Filter = {}): Promise<NoteSummary[]> {
+    const { notes, index } = await this.load();
+    const linked = new Set<string>();
+    for (const note of notes) {
+      for (const link of extractLinks(note.body)) {
+        const resolution = index.resolve(note.path, link.target);
+        if (resolution.status === "resolved" && resolution.path !== note.path) linked.add(resolution.path);
+      }
+    }
+    return (await this.filtered(filter)).filter((note) => !linked.has(note.path)).map(summarize);
+  }
+
+  /** A note's ATX headings with their line numbers, counted as `get --lines` counts; fenced code is skipped. */
+  async outline(ref: string): Promise<Heading[]> {
+    const note = await this.find(ref);
+    const headings: Heading[] = [];
+    let fence: string | undefined;
+    const lines = note.raw.split(/\r?\n/);
+    const bodyStart = lines.length - note.body.split(/\r?\n/).length;
+    lines.forEach((text, index) => {
+      if (index < bodyStart) return;
+      const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(text)?.[1];
+      if (marker && (!fence || (marker[0] === fence[0] && marker.length >= fence.length))) {
+        fence = fence ? undefined : marker;
+        return;
+      }
+      const heading = fence ? null : /^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/.exec(text);
+      if (heading) headings.push({ level: heading[1]?.length ?? 1, text: heading[2] as string, line: index + 1 });
+    });
+    return headings;
+  }
+
+  /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
+  async property(ref: string, key: string): Promise<unknown> {
+    const note = await this.find(ref);
+    if (!(key in note.frontmatter)) throw new NotFoundError(`${note.path} has no property "${key}"`);
+    return note.frontmatter[key];
   }
 
   /** Links that point at no note, or at more than one. Attachments are not checked. */

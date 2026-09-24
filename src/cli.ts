@@ -34,6 +34,9 @@ commands:
   nav [folder]                 a folder's index, subfolders, and notes
   links <note>                 outgoing wikilinks and how each resolves
   backlinks <note>             notes that link to a note
+  orphans                      notes no other note links to or embeds
+  outline <note>               a note's headings with their line numbers
+  prop get <note> <key>        one frontmatter value
   unresolved                   links pointing at no note, or at several
   journal <period>             the day, week, month, quarter, or year note for a date
   capture [text...]            create a new note from text, --file, or stdin
@@ -290,6 +293,23 @@ async function main(): Promise<void> {
           })
           .join("\n"),
       );
+    }
+    case "orphans": {
+      if (args.length > 0) throw new UsageError("orphans takes no arguments; narrow it with the filters");
+      const notes = await vault.orphans(filter);
+      return emitNotes(vault, notes, notes, () => notes.map((note) => `${note.path}\t${note.title}`).join("\n"));
+    }
+    case "outline": {
+      const headings = await vault.outline(one(args, "note"));
+      return emit(headings, () =>
+        headings.map(({ level, text, line }) => `${line}\t${"#".repeat(level)} ${text}`).join("\n"),
+      );
+    }
+    case "prop": {
+      const [action, ref, key, ...rest] = args;
+      if (action !== "get" || !ref || !key || rest.length > 0) throw new UsageError("usage: prop get <note> <key>");
+      const value = await vault.property(ref, key);
+      return emit(value, () => (typeof value === "string" ? value : JSON.stringify(value)));
     }
     case "backlinks": {
       const notes = await vault.backlinks(one(args, "note"));

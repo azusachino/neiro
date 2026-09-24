@@ -29,6 +29,7 @@ export { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 export {
   type Filter,
   type GetOptions,
+  type Heading,
   LineRangeError,
   type ListOptions,
   type NavEntry,
