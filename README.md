@@ -46,7 +46,7 @@ A `neiro.toml` declaring a stricter house style:
 folder = "inbox"
 filename = "slug"                  # ASCII kebab-case; the default "title" names files as Obsidian does
 properties = ["title", "created", "modified", "status", "tags", "source"]
-timestamp_format = "YYYY-MM-DD HH:mm"
+timestamp_format = "YYYY-MM-DD HH:mm"  # the default "YYYY-MM-DD" is the format of Obsidian's Date property
 title_style = "lowercase"          # lowercase title words, except those in the allowlist
 title_allowlist = "casing.toml"    # every string in this file's arrays is kept as written
 tag_style = "kebab"                # canonical lowercase kebab-case; the default keeps tags as written

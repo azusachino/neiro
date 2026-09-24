@@ -24,7 +24,7 @@ export interface CaptureSettings {
   /** Frontmatter keys in the order written. `title`, `created`, `modified`, `tags`, and `source` are filled by capture; other keys come from `values`. */
   properties: string[];
   values: Record<string, string>;
-  /** moment-style format for `created` and `modified`. */
+  /** moment-style format for `created` and `modified`; `YYYY-MM-DD` by default, the format of Obsidian's Date property. */
   timestampFormat: string;
   /** `lowercase` lowercases title words except `titleAllow` entries and spaces Latin text apart from CJK text. */
   titleStyle: "as-written" | "lowercase";
@@ -62,7 +62,7 @@ const DEFAULT_CAPTURE: Omit<CaptureSettings, "folder"> = {
   filename: "title",
   properties: ["tags", "source"],
   values: {},
-  timestampFormat: "YYYY-MM-DD HH:mm",
+  timestampFormat: "YYYY-MM-DD",
   titleStyle: "as-written",
   titleAllow: [],
   tagStyle: "as-written",
