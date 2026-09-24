@@ -152,4 +152,7 @@ A bot in a container with no GUI keeps one `Vault`, pulls the clone, and calls `
 
 ### A11. Hand an agent framework neiro's tools
 
-Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. Planned: [#19](https://github.com/azusachino/neiro/issues/19).
+Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK; the consumer decides whether writes commit and push. Shipped; the default exposure follows the roadmap's proposal, pending the owner's agreement.
+
+- `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
+- `tools.test › writes take the model's guards and the consumer's commit policy`

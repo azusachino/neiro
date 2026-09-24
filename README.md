@@ -98,6 +98,12 @@ await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, autho
 
 A `Vault` scans once and caches the notes. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `vault.sync()` pulls and pushes through `History`, then reloads. Otherwise call `vault.reload()` after the files change underneath it.
 
+### Agent tools
+
+`agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input, { commit, push, author })`; the consumer, not the model, decides whether writes commit and push.
+
+The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it.
+
 ## Development
 
 Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then:

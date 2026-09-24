@@ -31,6 +31,18 @@ export {
 export { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 export { renderTemplate, templateFor, templateNames } from "./templates.ts";
 export {
+  agentTools,
+  DEFAULT_EXPOSURE,
+  type Exposure,
+  type InputSchema,
+  type PropertySchema,
+  TOOLS,
+  type ToolContext,
+  type ToolDefinition,
+  ToolInputError,
+  validateInput,
+} from "./tools.ts";
+export {
   type Filter,
   type GetOptions,
   type Heading,
