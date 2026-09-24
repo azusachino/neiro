@@ -1,0 +1,8 @@
+[global]
+# Prose uses semantic lines; wrapping is left to the renderer.
+disable = ["MD013"]
+respect-gitignore = true
+
+[per-file-ignores]
+# The agent redirect does not need a standalone document title.
+"CLAUDE.md" = ["MD041"]
