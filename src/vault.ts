@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { join, posix, resolve } from "node:path";
+import ignore from "ignore";
 import { type CaptureInput, type CaptureOptions, type CaptureResult, capture } from "./capture.ts";
 import { type Frontmatter, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
@@ -364,8 +365,9 @@ export class Vault {
 
   private async load(): Promise<{ notes: Note[]; index: LinkIndex }> {
     if (this.cache) return this.cache;
+    const ignored = gitignore(this.root);
     const paths = (await markdownFiles(this.root)).filter(
-      (path) => !this.exclude.some((prefix) => path.startsWith(prefix)),
+      (path) => !this.exclude.some((prefix) => path.startsWith(prefix)) && !ignored(path),
     );
     paths.sort();
     // TextDecoder drops a leading byte order mark, so frontmatter after one is still found.
@@ -449,6 +451,14 @@ function folderPrefix(folder: string): string {
     .replace(/^\.?\/+/, "")
     .replace(/\/+$/, "");
   return trimmed === "" ? "" : `${trimmed}/`;
+}
+
+/** The vault root's `.gitignore`, as ripgrep honors it; a vault without one ignores nothing. */
+function gitignore(root: string): (path: string) => boolean {
+  const file = join(root, ".gitignore");
+  if (!existsSync(file)) return () => false;
+  const rules = ignore().add(readFileSync(file, "utf8"));
+  return (path) => rules.ignores(path);
 }
 
 function submodulePaths(root: string): string[] {

@@ -23,6 +23,7 @@
     "build": "bun build --compile src/cli.ts --outfile dist/neiro"
   },
   "dependencies": {
+    "ignore": "7.0.9",
     "smol-toml": "1.8.0",
     "yaml": "2.9.0"
   },
