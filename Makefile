@@ -1,4 +1,4 @@
-.PHONY: install check validate build node-smoke format corpus
+.PHONY: install check validate build node-smoke pack format corpus
 
 install: ## Install dependencies from the lockfile and check out the CI corpus
 	bun install --frozen-lockfile
@@ -24,6 +24,11 @@ build: ## Compile neiro into one binary at packages/core/dist/neiro, and both pa
 	bun run --cwd packages/core build
 	bun run --cwd packages/core build:lib
 	bun run --cwd packages/tools build:lib
+
+pack: ## Pack neiro and neiro-tools into dist/pack, the tarballs each GitHub release carries
+	rm -rf dist/pack
+	cd packages/core && bun pm pack --destination ../../dist/pack
+	cd packages/tools && bun pm pack --destination ../../dist/pack
 
 format: ## Apply Biome and rumdl formatting
 	bun run format

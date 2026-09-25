@@ -149,6 +149,24 @@ await vault.capture({ text: "An idea", tags: ["learning"] });
 - Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
 
+### Installing
+
+neiro is not on npm. Each [release](https://github.com/azusachino/neiro/releases) carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`; depend on their URLs, and pin `neiro` in `overrides` to the same tarball, so `neiro-tools`' dependency on `neiro` resolves to it rather than to npm:
+
+```json
+{
+  "dependencies": {
+    "neiro": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-0.6.0.tgz",
+    "neiro-tools": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-tools-0.6.0.tgz"
+  },
+  "overrides": {
+    "neiro": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-0.6.0.tgz"
+  }
+}
+```
+
+A Git dependency on this repository does not work: it installs the workspace root, not the packages.
+
 ### Agent tools
 
 The [`neiro-tools`](packages/tools/README.md) package, released with neiro at the same version, turns the SDK's operations into tool definitions for a tool-calling model. Install it beside `neiro` when a model should call the vault; neiro itself carries no tool code ([ADR 0010](docs/decisions/0010-agent-tools-as-an-extension-package.md)).
@@ -167,6 +185,7 @@ make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build the CLI and run it against the fixture vault
 make build      # compile the CLI into one binary, and the SDK into dist/lib, in packages/core
 make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
+make pack       # pack both packages into dist/pack, the tarballs a release carries
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
