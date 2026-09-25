@@ -1,6 +1,6 @@
 {
   "name": "neiro-tools",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Agent tool definitions over neiro's SDK: names, JSON Schemas, MCP-style hints, and a default exposure",
   "type": "module",
   "private": true,
