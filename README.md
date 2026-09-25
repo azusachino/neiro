@@ -96,7 +96,7 @@ const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json 
 await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
 ```
 
-Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. Otherwise call `vault.reload()` after the files change underneath it.
+Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations `make build` writes to `dist/lib`, which packing the package builds too. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. Otherwise call `vault.reload()` after the files change underneath it.
 
 ### Agent tools
 
@@ -112,8 +112,8 @@ Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build dist/neiro and run it against the fixture vault
-make build      # compile the CLI into a single binary at dist/neiro
-make node-smoke # run the read commands on Node and compare their output with Bun's
+make build      # compile the CLI into a single binary at dist/neiro, and the SDK into dist/lib
+make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
