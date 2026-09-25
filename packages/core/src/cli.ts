@@ -16,7 +16,6 @@ import {
   propertyValue,
   type SectionWriteOptions,
   SORT_KEYS,
-  TOOLS,
   Vault,
   type WriteOptions,
   type WriteResult,
@@ -285,13 +284,6 @@ const COMMANDS: readonly CommandSpec[] = [
     writes: true,
     options: ["date", ...SECTION, ...WRITE],
     example: 'neiro journal append day "- a line for the day" --date 2026-09-16 --dry-run',
-  },
-  {
-    name: "tools",
-    args: "",
-    summary: "the agent tool definitions: names, exposure, JSON Schemas, and read-only or destructive hints",
-    options: [],
-    example: "neiro tools --json",
   },
   {
     name: "help",
@@ -714,18 +706,6 @@ async function main(): Promise<void> {
         { dryRun: opts["dry-run"] },
       );
       return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
-    }
-    case "tools": {
-      if (args.length > 0) throw new UsageError("tools takes no arguments");
-      const definitions = TOOLS.map(({ run: _, ...definition }) => definition);
-      return emit(definitions, () =>
-        definitions
-          .map(({ name, exposure, annotations, description }) => {
-            const effect = annotations.readOnlyHint ? "reads" : annotations.destructiveHint ? "changes" : "adds";
-            return `${name}\t${exposure}\t${effect}\t${description}`;
-          })
-          .join("\n"),
-      );
     }
     default:
       throw new UsageError(`unknown command "${command}"`);

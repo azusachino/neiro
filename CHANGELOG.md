@@ -3,6 +3,7 @@
 ## Unreleased
 
 - **Breaking:** neiro works on files only ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). Removed: `History`, `GitHistory`, `historyChain`, `HistoryError`, `PartialWriteError`, `Vault.history` and `Vault.sync()`, the `history`, `show`, and `diff` commands and the `neiro_history` tool, the `--commit`, `--push`, `--author`, `--rev`, and `--to` options, the `committed` and `pushed` result fields, and the agent tools' `context` argument. `--if-hash` and `--dry-run` stay. `docs/container.md` is gone; use case A10 is now a long-running process. ([#74](https://github.com/azusachino/neiro/issues/74))
+- **Breaking:** the agent tools move out of `neiro` into the `neiro-tools` package in `packages/tools`, released at the same version ([ADR 0010](docs/decisions/0010-agent-tools-as-an-extension-package.md)). `agentTools`, `TOOLS`, `DEFAULT_EXPOSURE`, `validateInput`, `ToolInputError`, and their types import from `neiro-tools`; `neiro tools` becomes `neiro-tools`. The default exposure is agreed as it stood. The repository is now a Bun workspace with the core package in `packages/core`. ([#76](https://github.com/azusachino/neiro/issues/76))
 - Decisions are recorded as ADRs in `docs/decisions/`, 0001 to 0010, and `AGENTS.md` and the roadmap link to them. ([#73](https://github.com/azusachino/neiro/issues/73))
 
 ## 0.5.0

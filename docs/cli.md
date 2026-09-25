@@ -275,18 +275,6 @@ With `--json`: `path`, and `note` as `get` returns it, or `null` when not writte
 neiro journal day --date 2026-09-16
 ```
 
-### tools
-
-`neiro tools`
-
-The agent tool definitions: names, exposure, JSON Schemas, and read-only or destructive hints.
-
-With `--json`: definitions: `name`, `description`, `inputSchema`, `annotations`, and `exposure`.
-
-```sh
-neiro tools --json
-```
-
 ### help
 
 `neiro help [command]`

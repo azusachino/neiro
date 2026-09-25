@@ -8,7 +8,6 @@ import {
   NotFoundError,
   parseDate,
   SectionError,
-  ToolInputError,
   UnsupportedError,
   WriteConflictError,
 } from "../src/index.ts";
@@ -21,7 +20,6 @@ test("every error neiro raises is a NeiroError named after its class", () => {
     LineRangeError,
     NotFoundError,
     SectionError,
-    ToolInputError,
     UnsupportedError,
     WriteConflictError,
   ];

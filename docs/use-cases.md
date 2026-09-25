@@ -160,7 +160,7 @@ A bot keeps one `Vault` for its lifetime and passes `watch`, so a read rescans, 
 
 ### A11. Hand an agent framework neiro's tools
 
-Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK; Shipped; the default exposure follows the roadmap's proposal, pending the owner's agreement.
+Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `neiro-tools` package's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK, and `neiro-tools --json` prints them for an agent with only a shell. Shipped; the default exposure is agreed in [ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md).
 
 - `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
 - `tools.test › writes take the model's guards and change only the files`

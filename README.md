@@ -58,7 +58,7 @@ neiro capture --tag reading "Read: how agents plan"
 
 `capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. neiro only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 
-`neiro tools` lists the same operations as agent tools, and `neiro tools --json` prints their definitions.
+The [`neiro-tools`](packages/tools/README.md) package offers the same operations as agent tools, and `neiro-tools --json` prints their definitions.
 
 ## Output and errors
 
@@ -151,9 +151,7 @@ await vault.capture({ text: "An idea", tags: ["learning"] });
 
 ### Agent tools
 
-`agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
-
-The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `neiro_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+The [`neiro-tools`](packages/tools/README.md) package, released with neiro at the same version, turns the SDK's operations into tool definitions for a tool-calling model. Install it beside `neiro` when a model should call the vault; neiro itself carries no tool code ([ADR 0010](docs/decisions/0010-agent-tools-as-an-extension-package.md)).
 
 ### Agent skill
 

@@ -2,11 +2,7 @@
  * Ready-made agent tools over a `Vault`: a name, a JSON Schema for the input, MCP-style hints, an exposure, and a
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
-import { parseDate } from "./dateformat.ts";
-import { InputError } from "./errors.ts";
-import { propertyValue } from "./frontmatter.ts";
-import { PERIODS, type Period } from "./settings.ts";
-import { SORT_KEYS, type Vault } from "./vault.ts";
+import { InputError, PERIODS, type Period, parseDate, propertyValue, SORT_KEYS, type Vault } from "neiro";
 
 /** `direct`: an agent may call it; `confirm`: only after a human approves the call; `cli-only`: never offered. */
 export type Exposure = "direct" | "confirm" | "cli-only";
@@ -419,7 +415,7 @@ export const TOOLS: ToolDefinition[] = [
   },
 ];
 
-/** The default exposure of every tool, as the roadmap proposes it; pass a changed copy to `agentTools`. */
+/** The default exposure of every tool, as ADR 0010 agrees it; pass a changed copy to `agentTools`. */
 export const DEFAULT_EXPOSURE: Readonly<Record<string, Exposure>> = Object.fromEntries(
   TOOLS.map((tool) => [tool.name, tool.exposure]),
 );

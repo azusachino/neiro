@@ -1,8 +1,17 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, Vault, validateInput } from "../src/index.ts";
-import { copyVault } from "./git.ts";
+import { NeiroError, Vault } from "neiro";
+import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "../src/index.ts";
+
+/** A throwaway copy of neiro's own synthetic fixture vault. */
+function copyVault(): string {
+  const root = mkdtempSync(join(tmpdir(), "neiro-tools-"));
+  cpSync(join(import.meta.dir, "..", "..", "core", "test", "fixtures", "vault"), root, { recursive: true });
+  return root;
+}
 
 const tool = (name: string) => {
   const found = TOOLS.find((candidate) => candidate.name === name);
@@ -114,4 +123,25 @@ describe("running tools", () => {
     await call(vault, "neiro_prop_set", { note: "People/Plato.md", key: "rating", value: "5" });
     expect(readFileSync(join(root, "People", "Plato.md"), "utf8")).toContain("rating: 5");
   });
+});
+
+describe("the neiro-tools command", () => {
+  const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+  const run = (...args: string[]) => spawnSync("bun", [CLI, ...args], { encoding: "utf8" });
+
+  test("prints the definitions, the SDK's without run", () => {
+    const { status, stdout } = run("--json");
+    expect(status).toBe(0);
+    expect(JSON.parse(stdout)).toEqual(
+      JSON.parse(JSON.stringify(TOOLS.map(({ run: _, ...definition }) => definition))),
+    );
+    expect(run().stdout).toContain("neiro_capture\tdirect\tadds\t");
+    expect(run("--bogus").status).toBe(2);
+  });
+});
+
+test("a malformed call is a ToolInputError, and so a NeiroError", () => {
+  const error = new ToolInputError("x");
+  expect(error).toBeInstanceOf(NeiroError);
+  expect(error.name).toBe("ToolInputError");
 });
