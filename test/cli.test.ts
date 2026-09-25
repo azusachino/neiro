@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
@@ -123,5 +124,45 @@ describe("cli capture --file", () => {
 
   test("refuses text and --file together", () => {
     expect(run("capture", "--file", draft, "extra text").code).toBe(2);
+  });
+});
+
+describe("help", () => {
+  interface HelpJson {
+    commands: { name: string; options: { name: string }[]; example: string }[];
+  }
+  const help = (): HelpJson => JSON.parse(run("help", "--json").stdout);
+
+  test("runs every command's example without a usage error", () => {
+    const root = copyVault();
+    for (const { name, example } of help().commands) {
+      const words = [...example.matchAll(/"([^"]*)"|(\S+)/g)].map((match) => match[1] ?? match[2] ?? "").slice(1);
+      const result = Bun.spawnSync(["bun", CLI, "--vault", root, ...words], { stdout: "pipe", stderr: "pipe" });
+      expect(result.exitCode, `${name}: ${result.stderr.toString()}`).not.toBe(2);
+    }
+  });
+
+  test("gives one command's help for <command> --help and help <command>", () => {
+    const direct = run("get", "--help");
+    expect(direct.code).toBe(0);
+    expect(direct.stdout).toBe(run("help", "get").stdout);
+    expect(direct.stdout).toStartWith("usage: neiro get <note>");
+    expect(direct.stdout).toContain("--lines <a:b>");
+    expect(direct.stdout).not.toContain("--limit");
+    expect(run("help", "journal").stdout).toContain("usage: neiro journal append");
+  });
+
+  test("lists every command with its options as JSON", () => {
+    const commands = help().commands;
+    expect(commands.map((command) => command.name)).toContain("section put");
+    expect(commands.find((command) => command.name === "grep")?.options.map((option) => option.name)).toContain(
+      "--fixed-strings",
+    );
+  });
+
+  test("refuses an option the command does not take", () => {
+    const { code, stderr } = run("get", "Home", "--limit", "3");
+    expect(code).toBe(2);
+    expect(stderr).toStartWith("neiro: get does not take --limit; run neiro help get");
   });
 });
