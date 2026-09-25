@@ -14,7 +14,7 @@ export { type FuzzyCandidate, type FuzzyHit, fuzzyRank, fuzzyScore } from "./fuz
 export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern } from "./grep.ts";
 export { GitHistory, type History, HistoryError, historyChain, type Revision } from "./history.ts";
 export { journalPath } from "./journal.ts";
-export { extractLinks, type Resolution, type WikiLink } from "./links.ts";
+export { extractLinks, frontmatterLinks, type Resolution, type WikiLink } from "./links.ts";
 export { findSection, type HeadingAt, headingsOf, type Section, SectionError } from "./sections.ts";
 export {
   type CaptureSettings,

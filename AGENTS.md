@@ -14,7 +14,7 @@ src/vault.ts         Vault: scanning, lookup, list, links, nav, and journal
 src/settings.ts      The settings chain: code options, neiro.toml, .obsidian settings, defaults
 src/chain.ts         Fallback chains: the first available provider serves a capability
 src/providers.ts     The capability chains; the only place a Bun-only API may appear
-src/links.ts         Wikilink extraction and Obsidian-style resolution
+src/links.ts         Link extraction (wikilinks, Markdown links, frontmatter) and Obsidian-style resolution
 src/search.ts        BM25 ranking over a scan
 src/capture.ts       The one write: a new note, optionally committed and pushed
 src/title.ts         Title casing and Latin/CJK spacing

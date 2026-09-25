@@ -16,7 +16,7 @@ import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { type History, historyChain } from "./history.ts";
 import { journalPath } from "./journal.ts";
-import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
+import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { type NeiroConfig, type Period, resolveSettings, UnsupportedError, type VaultSettings } from "./settings.ts";
@@ -250,7 +250,7 @@ export class Vault {
   async links(ref: string): Promise<OutgoingLink[]> {
     const note = await this.find(ref);
     const { index } = await this.load();
-    return extractLinks(note.body).map((link) => ({ ...link, resolution: index.resolve(note.path, link.target) }));
+    return linksOf(note).map((link) => ({ ...link, resolution: index.resolve(note.path, link.target) }));
   }
 
   async backlinks(ref: string): Promise<NoteSummary[]> {
@@ -259,7 +259,7 @@ export class Vault {
     return notes
       .filter((note) => note.path !== target.path)
       .filter((note) =>
-        extractLinks(note.body).some((link) => {
+        linksOf(note).some((link) => {
           const resolution = index.resolve(note.path, link.target);
           return resolution.status === "resolved" && resolution.path === target.path;
         }),
@@ -272,7 +272,7 @@ export class Vault {
     const { notes, index } = await this.load();
     const linked = new Set<string>();
     for (const note of notes) {
-      for (const link of extractLinks(note.body)) {
+      for (const link of linksOf(note)) {
         const resolution = index.resolve(note.path, link.target);
         if (resolution.status === "resolved" && resolution.path !== note.path) linked.add(resolution.path);
       }
@@ -402,7 +402,7 @@ export class Vault {
   async unresolved(): Promise<{ from: string; target: string; resolution: Resolution }[]> {
     const { notes, index } = await this.load();
     return notes.flatMap((note) =>
-      extractLinks(note.body)
+      linksOf(note)
         .map((link) => ({ from: note.path, target: link.target, resolution: index.resolve(note.path, link.target) }))
         .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous"),
     );
@@ -722,4 +722,9 @@ async function markdownFiles(root: string, prefix = ""): Promise<string[]> {
     }),
   );
   return nested.flat();
+}
+
+/** A note's links as Obsidian counts them: wikilinks in its frontmatter values, then links in its body. */
+function linksOf(note: Note): WikiLink[] {
+  return [...frontmatterLinks(note.frontmatter), ...extractLinks(note.body)];
 }

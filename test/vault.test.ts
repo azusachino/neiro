@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "../src/index.ts";
 
@@ -113,6 +115,26 @@ describe("links", () => {
     expect(links.map((link) => link.target)).not.toContain("fenced");
     expect(links.find((link) => link.display === "capacity")?.target).toBe("Working memory");
     expect(links.filter((link) => link.display === "wm")).toHaveLength(2);
+  });
+
+  test("counts frontmatter wikilinks and local Markdown links, as Obsidian does", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-links-"));
+    writeFileSync(join(root, "Target.md"), "t\n");
+    writeFileSync(join(root, "My Note.md"), "m\n");
+    writeFileSync(join(root, "Linked.md"), '---\nrelated:\n  - "[[Target]]"\n---\n');
+    writeFileSync(
+      join(root, "Markdown.md"),
+      "[t](Target.md#part) [m](My%20Note.md) [a](<My Note.md>) [web](https://example.com/x.md) `[c](Code.md)`\n",
+    );
+    const linked = new Vault(root);
+    expect((await linked.links("Linked")).map((link) => link.target)).toEqual(["Target"]);
+    expect((await linked.links("Markdown")).map(({ target, display }) => `${target}|${display}`)).toEqual([
+      "Target.md|t",
+      "My Note.md|m",
+      "My Note.md|a",
+    ]);
+    expect((await linked.backlinks("Target")).map((note) => note.path)).toEqual(["Linked.md", "Markdown.md"]);
+    expect((await linked.orphans()).map((note) => note.path)).toEqual(["Linked.md", "Markdown.md"]);
   });
 
   test("finds backlinks and unresolved links", async () => {

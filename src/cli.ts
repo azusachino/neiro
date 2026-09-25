@@ -39,7 +39,7 @@ commands:
   find <query...>              fuzzy match over paths, titles, and aliases, ranked as fzf ranks
   list                         list notes matching the filters
   nav [folder]                 a folder's index, subfolders, and notes
-  links <note>                 outgoing wikilinks and how each resolves
+  links <note>                 outgoing links and how each resolves
   backlinks <note>             notes that link to a note
   history <note>               revisions of a note, newest first (--limit, default 20)
   show <note> --rev <rev>      a note's content at a revision

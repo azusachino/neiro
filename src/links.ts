@@ -14,10 +14,14 @@ export type Resolution =
   | { status: "asset" };
 
 const LINK = /(!?)\[\[([^\]\n]+?)\]\]/g;
+// `[text](target)`, `[text](<target with spaces>)`, and an optional `"title"`.
+const MARKDOWN_LINK = /(!?)\[([^\]\n]*)\]\((<[^>\n]+>|[^)\s]+)(?:\s+"[^"\n]*")?\)/g;
+// A URL scheme such as `https:` or `obsidian:` marks a link that leaves the vault.
+const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
 const FENCE = /^\s*(```|~~~)/;
 const INLINE_CODE = /`[^`\n]*`/g;
 
-/** Every wikilink in a Markdown body, skipping fenced and inline code. */
+/** Every wikilink and local Markdown link in a Markdown body, skipping fenced and inline code. */
 export function extractLinks(body: string): WikiLink[] {
   const links: WikiLink[] = [];
   let fence: string | null = null;
@@ -29,22 +33,62 @@ export function extractLinks(body: string): WikiLink[] {
       continue;
     }
     if (fence !== null) continue;
-    for (const match of line.replace(INLINE_CODE, "").matchAll(LINK)) {
-      const inner = match[2] ?? "";
-      // Table cells escape the alias pipe as `\|`.
-      const pipe = inner.search(/\\?\|/);
-      const rawTarget = pipe === -1 ? inner : inner.slice(0, pipe);
-      const display =
-        pipe === -1
-          ? undefined
-          : inner
-              .slice(pipe)
-              .replace(/^\\?\|/, "")
-              .trim();
-      const target = rawTarget.replace(/[#^].*$/, "").trim();
-      if (target === "") continue;
-      links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}) });
+    const text = line.replace(INLINE_CODE, "");
+    links.push(...wikilinks(text), ...markdownLinks(text.replace(LINK, "")));
+  }
+  return links;
+}
+
+/** The wikilinks in frontmatter values, such as `related: "[[Note]]"`, which Obsidian counts as links. */
+export function frontmatterLinks(data: Record<string, unknown>): WikiLink[] {
+  const strings = (value: unknown): string[] =>
+    typeof value === "string"
+      ? [value]
+      : Array.isArray(value)
+        ? value.flatMap(strings)
+        : typeof value === "object" && value !== null
+          ? Object.values(value).flatMap(strings)
+          : [];
+  return strings(data).flatMap(wikilinks);
+}
+
+function wikilinks(text: string): WikiLink[] {
+  const links: WikiLink[] = [];
+  for (const match of text.matchAll(LINK)) {
+    const inner = match[2] ?? "";
+    // Table cells escape the alias pipe as `\|`.
+    const pipe = inner.search(/\\?\|/);
+    const rawTarget = pipe === -1 ? inner : inner.slice(0, pipe);
+    const display =
+      pipe === -1
+        ? undefined
+        : inner
+            .slice(pipe)
+            .replace(/^\\?\|/, "")
+            .trim();
+    const target = rawTarget.replace(/[#^].*$/, "").trim();
+    if (target === "") continue;
+    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}) });
+  }
+  return links;
+}
+
+/** Markdown links to vault files; Obsidian writes their targets URL-encoded, as `My%20Note.md`. */
+function markdownLinks(text: string): WikiLink[] {
+  const links: WikiLink[] = [];
+  for (const match of text.matchAll(MARKDOWN_LINK)) {
+    const written = (match[3] ?? "").replace(/^<|>$/g, "");
+    if (SCHEME.test(written)) continue;
+    let target = written.replace(/#.*$/, "");
+    try {
+      target = decodeURIComponent(target);
+    } catch {
+      // A stray `%` is part of the name.
     }
+    target = target.trim();
+    if (target === "") continue;
+    const display = match[2]?.trim();
+    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}) });
   }
   return links;
 }

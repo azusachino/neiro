@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Links in frontmatter values and local Markdown links count for `links`, `backlinks`, `orphans`, and `unresolved`, as in Obsidian. ([#49](https://github.com/azusachino/neiro/issues/49))
+
 ## 0.4.0
 
 - Agent tools: `agentTools()` returns a definition per operation with a closed JSON Schema, MCP-style read-only, destructive, and idempotent hints, an exposure (`direct`, `confirm`, or `cli-only`), and a `run` bound to the SDK. `validateInput` rejects malformed calls. The consumer, not the model, decides whether writes commit and push. The default exposure follows the roadmap's proposal, pending the owner's agreement.
