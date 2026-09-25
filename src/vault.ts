@@ -151,6 +151,13 @@ export interface VaultOptions {
   watch?: number;
 }
 
+/** The notes as last read, their link index, and the fingerprint `watch` compares. */
+interface Scan {
+  notes: Note[];
+  index: LinkIndex;
+  fingerprint: string;
+}
+
 export class NotFoundError extends NeiroError {
   /** The closest notes by fuzzy match, when a reference resolved to none. */
   readonly suggestions: string[];
@@ -175,7 +182,11 @@ export class Vault {
   /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
   readonly settings: VaultSettings;
   private readonly exclude: string[];
-  private cache?: { notes: Note[]; index: LinkIndex; fingerprint: string };
+  private cache?: Scan;
+  /** The scan in flight, shared by every read that arrives while it runs. */
+  private loading?: Promise<Scan>;
+  /** Bumped by `reload`, so a scan that started before it does not become the cache. */
+  private generation = 0;
   private readonly watch?: number;
   private checked = 0;
   private historyChain?: Chain<History>;
@@ -192,6 +203,8 @@ export class Vault {
   /** Forget the scanned notes, e.g. after a `git pull`. */
   reload(): void {
     this.cache = undefined;
+    this.loading = undefined;
+    this.generation++;
   }
 
   async notes(): Promise<Note[]> {
@@ -595,6 +608,23 @@ export class Vault {
       if ((await this.fingerprint()) !== this.cache.fingerprint) this.cache = undefined;
     }
     if (this.cache) return this.cache;
+    if (!this.loading) {
+      const generation = this.generation;
+      this.loading = this.scan().then(
+        (scan) => {
+          if (generation === this.generation) [this.cache, this.loading] = [scan, undefined];
+          return scan;
+        },
+        (error) => {
+          if (generation === this.generation) this.loading = undefined;
+          throw error;
+        },
+      );
+    }
+    return this.loading;
+  }
+
+  private async scan(): Promise<Scan> {
     const paths = await this.paths();
     // TextDecoder drops a leading byte order mark, so frontmatter after one is still found.
     const decoder = new TextDecoder();
@@ -603,8 +633,7 @@ export class Vault {
     );
     const fingerprint = this.watch === undefined ? "" : await this.fingerprint(paths);
     this.checked = Date.now();
-    this.cache = { notes, index: new LinkIndex(paths), fingerprint };
-    return this.cache;
+    return { notes, index: new LinkIndex(paths), fingerprint };
   }
 
   private async paths(): Promise<string[]> {

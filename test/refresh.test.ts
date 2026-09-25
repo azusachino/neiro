@@ -53,4 +53,14 @@ describe("sync", () => {
     await vault.sync();
     expect((await vault.find("From elsewhere")).path).toBe("Notes/From elsewhere.md");
   });
+
+  test("reads that arrive during a scan share it", async () => {
+    const vault = new Vault(copyVault());
+    const scans = await Promise.all([vault.notes(), vault.notes(), vault.search("memory"), vault.notes()]);
+    expect(scans[1]).toBe(scans[0]);
+    expect(scans[3]).toBe(scans[0]);
+    vault.reload();
+    const [again] = await Promise.all([vault.notes(), vault.notes()]);
+    expect(again).not.toBe(scans[0]);
+  });
 });

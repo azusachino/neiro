@@ -13,6 +13,7 @@
 - A write whose commit or push fails after the file is written raises `PartialWriteError`, a `HistoryError` carrying the note's `path`, its new `hash`, and whether it `committed`, and the `Vault` rereads the file; before, the caller could not tell the note was written. ([#56](https://github.com/azusachino/neiro/issues/56))
 - Targeted writes replace a note atomically, through a temporary file renamed over it, keeping its mode and any symbolic link, so a crash or a reader never sees half a note. ([#58](https://github.com/azusachino/neiro/issues/58))
 - `neiro_grep` reads a model's pattern as literal text unless `regex` is set, refuses a pattern over 200 characters, and reports an invalid regular expression as `ToolInputError`, so a backtracking pattern cannot stall the host. Its `fixed` input is replaced by `regex`. ([#59](https://github.com/azusachino/neiro/issues/59))
+- Reads that arrive while a `Vault` scans share that scan instead of each reading every file. ([#60](https://github.com/azusachino/neiro/issues/60))
 
 ## 0.4.0
 
