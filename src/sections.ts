@@ -27,10 +27,26 @@ export class SectionError extends Error {}
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;
 
+/**
+ * CommonMark's fenced code, read line by line: the returned function is true for a fence line or a line inside a
+ * fence. A fence closes only on the same character, at least as long as the one that opened it.
+ */
+export function codeFences(): (line: string) => boolean {
+  let fence: string | undefined;
+  return (line) => {
+    const marker = FENCE.exec(line)?.[1];
+    if (marker && (!fence || (marker[0] === fence[0] && marker.length >= fence.length))) {
+      fence = fence ? undefined : marker;
+      return true;
+    }
+    return fence !== undefined;
+  };
+}
+
 export function headingsOf(text: string): HeadingAt[] {
   const headings: HeadingAt[] = [];
   const skip = FRONTMATTER.exec(text)?.[0].length ?? 0;
-  let fence: string | undefined;
+  const inCode = codeFences();
   let offset = 0;
   let line = 0;
   for (const raw of text.split(/(?<=\n)/)) {
@@ -39,12 +55,7 @@ export function headingsOf(text: string): HeadingAt[] {
     offset += raw.length;
     if (start < skip) continue;
     const content = raw.replace(/\r?\n$/, "");
-    const marker = FENCE.exec(content)?.[1];
-    if (marker && (!fence || (marker[0] === fence[0] && marker.length >= fence.length))) {
-      fence = fence ? undefined : marker;
-      continue;
-    }
-    const match = fence ? null : HEADING.exec(content);
+    const match = inCode(content) ? null : HEADING.exec(content);
     if (match) {
       headings.push({ level: match[1]?.length ?? 1, text: match[2] as string, line, start, bodyStart: offset });
     }

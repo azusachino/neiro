@@ -148,6 +148,16 @@ describe("links", () => {
     expect(byTarget["image.png"]).toEqual({ status: "asset" });
   });
 
+  test("skips links in a fence that holds a shorter fence, as headings do", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-fences-"));
+    const note = "````md\n```\n[[Inner]]\n# not a heading\n```\n````\n[[Outer]]\n## real\n";
+    writeFileSync(join(root, "index.md"), note);
+    const fenced = new Vault(root);
+    expect((await fenced.links("index")).map((link) => link.target)).toEqual(["Outer"]);
+    expect((await fenced.outline("index")).map((heading) => heading.text)).toEqual(["real"]);
+    expect((await fenced.nav()).index?.headings).toEqual(["real"]);
+  });
+
   test("finds backlinks and unresolved links", async () => {
     expect((await vault.backlinks("Cognitive load")).map((note) => note.path)).toEqual(["Home.md", "Topics/index.md"]);
     const unresolved = (await vault.unresolved()).map(({ target, resolution }) => `${target}:${resolution.status}`);

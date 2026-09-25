@@ -433,7 +433,7 @@ export class Vault {
         ? {
             index: {
               ...summarize(indexNote),
-              headings: [...indexNote.body.matchAll(/^#{1,6}\s+(.+?)\s*$/gm)].map((match) => match[1] as string),
+              headings: headingsOf(indexNote.raw).map((heading) => heading.text),
             },
           }
         : {}),

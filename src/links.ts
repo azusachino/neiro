@@ -1,4 +1,5 @@
 import { posix } from "node:path";
+import { codeFences } from "./sections.ts";
 
 export interface WikiLink {
   /** The link target as written, without any `#heading` or `^block` suffix. */
@@ -18,21 +19,14 @@ const LINK = /(!?)\[\[([^\]\n]+?)\]\]/g;
 const MARKDOWN_LINK = /(!?)\[([^\]\n]*)\]\((<[^>\n]+>|[^)\s]+)(?:\s+"[^"\n]*")?\)/g;
 // A URL scheme such as `https:` or `obsidian:` marks a link that leaves the vault.
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-const FENCE = /^\s*(```|~~~)/;
 const INLINE_CODE = /`[^`\n]*`/g;
 
 /** Every wikilink and local Markdown link in a Markdown body, skipping fenced and inline code. */
 export function extractLinks(body: string): WikiLink[] {
   const links: WikiLink[] = [];
-  let fence: string | null = null;
+  const inCode = codeFences();
   for (const line of body.split("\n")) {
-    const opener = FENCE.exec(line)?.[1];
-    if (opener) {
-      if (fence === null) fence = opener;
-      else if (opener === fence) fence = null;
-      continue;
-    }
-    if (fence !== null) continue;
+    if (inCode(line)) continue;
     const text = line.replace(INLINE_CODE, "");
     links.push(...wikilinks(text), ...markdownLinks(text.replace(LINK, "")));
   }
