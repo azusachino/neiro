@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, lstatSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   contentHash,
@@ -76,6 +76,22 @@ describe("writeNote", () => {
     expect(readFileSync(join(root, "Marked.md"), "utf8")).toBe("\uFEFFfirst\nsecond\n");
     const created = await writeNote(root, "New/Fresh.md", () => "fresh\n", "create", {}, noHistory);
     expect(created).toMatchObject({ created: true, written: true });
+  });
+
+  test("replaces a note whole, keeping its mode and any symbolic link, with no temporary file left", async () => {
+    const root = copyVault();
+    chmodSync(join(root, NOTE), 0o640);
+    await writeNote(root, NOTE, (text = "") => `${text}more\n`, "edit", {}, noHistory);
+    expect(statSync(join(root, NOTE)).mode & 0o777).toBe(0o640);
+    writeFileSync(join(root, "Real.md"), "real\n");
+    symlinkSync("Real.md", join(root, "Link.md"));
+    await writeNote(root, "Link.md", () => "through the link\n", "edit", {}, noHistory);
+    expect(lstatSync(join(root, "Link.md")).isSymbolicLink()).toBe(true);
+    expect(readFileSync(join(root, "Real.md"), "utf8")).toBe("through the link\n");
+    const leftovers = [root, join(root, "Topics")].flatMap((dir) =>
+      readdirSync(dir).filter((name) => name.endsWith(".tmp")),
+    );
+    expect(leftovers).toEqual([]);
   });
 
   test("commits one revision of the note alone, and asks for history before writing", async () => {

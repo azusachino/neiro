@@ -11,6 +11,7 @@
 - Git runs without blocking the process: `History` methods and `Vault.sync()` return promises, each git command stops after a timeout (60 seconds by default, `new GitHistory(root, { timeout })`), and git never waits for a credential prompt. The Git work-tree check runs once per vault. ([#57](https://github.com/azusachino/neiro/issues/57))
 - The agent tools' `push` now pulls before each write as documented, so `ifHash` is checked against the remote's latest. A `sync` whose rebase conflicts aborts it and raises `HistoryError`, instead of leaving the clone mid-rebase. ([#55](https://github.com/azusachino/neiro/issues/55))
 - A write whose commit or push fails after the file is written raises `PartialWriteError`, a `HistoryError` carrying the note's `path`, its new `hash`, and whether it `committed`, and the `Vault` rereads the file; before, the caller could not tell the note was written. ([#56](https://github.com/azusachino/neiro/issues/56))
+- Targeted writes replace a note atomically, through a temporary file renamed over it, keeping its mode and any symbolic link, so a crash or a reader never sees half a note. ([#58](https://github.com/azusachino/neiro/issues/58))
 
 ## 0.4.0
 

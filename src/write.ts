@@ -2,9 +2,19 @@
  * The guards every targeted write shares: a unified diff for `dryRun`, a content-hash check for `ifHash`, a change
  * confined to the target range, and one commit per write. Nothing here deletes a file.
  */
-import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { createHash, randomBytes } from "node:crypto";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
+import { basename, dirname, join } from "node:path";
 import { createTwoFilesPatch } from "diff";
 import { NeiroError } from "./errors.ts";
 import { type History, PartialWriteError } from "./history.ts";
@@ -78,11 +88,29 @@ export async function writeNote(
 
   const store = options.commit ? history() : undefined;
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, bom ? BOM + content : content);
+  replaceFile(file, bom ? BOM + content : content);
   try {
     await store?.commit([path], message, options.author);
   } catch (error) {
     throw new PartialWriteError({ path, hash: result.hash, committed: false }, error);
   }
   return { ...result, written: true, committed: store !== undefined };
+}
+
+/**
+ * Write through a temporary file in the same folder, then rename it over the target, so a crash or a reader never
+ * sees half a note. The target keeps its mode, and a symbolic link keeps pointing where it did.
+ */
+function replaceFile(file: string, content: string): void {
+  const target = existsSync(file) ? realpathSync(file) : file;
+  // A dot name keeps the scan, and Obsidian, from reading the file while it is written.
+  const temp = join(dirname(target), `.${basename(target)}.${randomBytes(6).toString("hex")}.tmp`);
+  try {
+    writeFileSync(temp, content, { flag: "wx" });
+    if (existsSync(target)) chmodSync(temp, statSync(target).mode & 0o7777);
+    renameSync(temp, target);
+  } catch (error) {
+    rmSync(temp, { force: true });
+    throw error;
+  }
 }
