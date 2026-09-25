@@ -13,6 +13,18 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 
 ## shipped
 
+### 0.5.0: design review and agent CLI
+
+The fixes from a best-practice review, and a CLI made for agents, in [#63](https://github.com/azusachino/neiro/pull/63); the [changelog](../CHANGELOG.md) lists each with its issue.
+
+- **Obsidian's links:** frontmatter wikilinks and Markdown links count, a dotted note name resolves to the note, and links, headings, and frontmatter share one parser each for fences and blocks. ([#49](https://github.com/azusachino/neiro/issues/49)–[#52](https://github.com/azusachino/neiro/issues/52))
+- **Errors and settings:** every error extends `NeiroError`, and `neiro.toml` is checked against its shape. ([#53](https://github.com/azusachino/neiro/issues/53), [#54](https://github.com/azusachino/neiro/issues/54))
+- **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/neiro/issues/55)–[#58](https://github.com/azusachino/neiro/issues/58))
+- **An agent's reach:** `neiro_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/neiro/issues/59))
+- **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/neiro/issues/60), [#64](https://github.com/azusachino/neiro/issues/64))
+- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/neiro/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
+- **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/neiro/issues/61), [#65](https://github.com/azusachino/neiro/issues/65), [#66](https://github.com/azusachino/neiro/issues/66))
+
 ### 0.4.0: agent integration
 
 - Export ready-made tool definitions: names, parameter schemas, and read-only or destructive hints for each operation. ([#19](https://github.com/azusachino/neiro/issues/19))
@@ -63,18 +75,7 @@ Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ## next
 
-### 0.5.0: design review
-
-The fixes from a best-practice review, in [#63](https://github.com/azusachino/neiro/pull/63); the [changelog](../CHANGELOG.md) lists each with its issue.
-
-- **Obsidian's links:** frontmatter wikilinks and Markdown links count, a dotted note name resolves to the note, and links, headings, and frontmatter share one parser each for fences and blocks. ([#49](https://github.com/azusachino/neiro/issues/49)–[#52](https://github.com/azusachino/neiro/issues/52))
-- **Errors and settings:** every error extends `NeiroError`, and `neiro.toml` is checked against its shape. ([#53](https://github.com/azusachino/neiro/issues/53), [#54](https://github.com/azusachino/neiro/issues/54))
-- **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/neiro/issues/55)–[#58](https://github.com/azusachino/neiro/issues/58))
-- **An agent's reach:** `neiro_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/neiro/issues/59))
-- **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/neiro/issues/60), [#64](https://github.com/azusachino/neiro/issues/64))
-- **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/neiro/issues/61), [#65](https://github.com/azusachino/neiro/issues/65), [#66](https://github.com/azusachino/neiro/issues/66))
-
-Beyond 0.5, work waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/neiro/issues/24)), which needs a check in the app.
+No milestone is planned. Work beyond 0.5 waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/neiro/issues/24)), which needs a check in the app.
 
 ## capabilities and fallback chains
 

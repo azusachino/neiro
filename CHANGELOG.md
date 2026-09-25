@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0
 
 - Links in frontmatter values and local Markdown links count for `links`, `backlinks`, `orphans`, and `unresolved`, as in Obsidian. ([#49](https://github.com/azusachino/neiro/issues/49))
 - A wikilink to a note whose name contains a dot, such as `[[Node.js]]`, resolves to the note instead of being taken for an attachment. ([#50](https://github.com/azusachino/neiro/issues/50))
