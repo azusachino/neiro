@@ -21,7 +21,33 @@ import {
   type WriteResult,
 } from "./index.ts";
 
-class UsageError extends Error {}
+class UsageError extends Error {
+  override name = "UsageError";
+}
+
+/** `--json` or `--format json`, read from the raw arguments so it holds even when parsing them failed. */
+const jsonErrors = (() => {
+  const args = process.argv.slice(2);
+  return (
+    args.includes("--json") ||
+    args.includes("--format=json") ||
+    args.some((arg, i) => arg === "--format" && args[i + 1] === "json")
+  );
+})();
+
+/**
+ * Report a failure and exit: prose for people, or one JSON line for agents, carrying the error's own fields such as
+ * `suggestions`, or a partial write's `path`, `hash`, and `committed`.
+ */
+function fail(error: Error, code: 1 | 2): never {
+  if (jsonErrors) {
+    const { name: _, ...fields } = Object.fromEntries(Object.entries(error));
+    console.error(JSON.stringify({ error: { name: error.name, message: error.message, ...fields } }));
+  } else {
+    console.error(`neiro: ${error.message}${code === 2 ? `\n\n${usage()}` : ""}`);
+  }
+  process.exit(code);
+}
 
 /** One option: its parseArgs type, the value it takes, and what it does. `--tag` and friends are declared once here. */
 interface OptionSpec {
@@ -386,8 +412,7 @@ function parse() {
       options: OPTIONS,
     });
   } catch (error) {
-    console.error(`neiro: ${(error as Error).message}\n\n${usage()}`);
-    process.exit(2);
+    fail(new UsageError((error as Error).message), 2);
   }
 }
 
@@ -740,13 +765,7 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  if (error instanceof UsageError) {
-    console.error(`neiro: ${error.message}\n\n${usage()}`);
-    process.exit(2);
-  }
-  if (error instanceof NeiroError) {
-    console.error(`neiro: ${error.message}`);
-    process.exit(1);
-  }
+  if (error instanceof UsageError) fail(error, 2);
+  if (error instanceof NeiroError) fail(error, 1);
   throw error;
 }

@@ -127,6 +127,28 @@ describe("cli capture --file", () => {
   });
 });
 
+describe("errors under --json", () => {
+  const errorOf = (...args: string[]) => {
+    const { code, stderr } = run(...args, "--json");
+    return { code, error: JSON.parse(stderr.trim()).error };
+  };
+
+  test("name the error and carry its own fields, such as the closest notes", () => {
+    const { code, error } = errorOf("get", "cognitive laod");
+    expect(code).toBe(1);
+    expect(error.name).toBe("NotFoundError");
+    expect(error.message).toStartWith('no note matches "cognitive laod"');
+    expect(error.suggestions[0]).toBe("Topics/Cognitive load.md");
+  });
+
+  test("report a usage error, and an option that fails to parse, as UsageError with exit 2", () => {
+    expect(errorOf("get", "Home", "--limit", "3")).toMatchObject({ code: 2, error: { name: "UsageError" } });
+    const parsed = errorOf("get", "--bogus");
+    expect(parsed).toMatchObject({ code: 2, error: { name: "UsageError" } });
+    expect(parsed.error.message).toContain("--bogus");
+  });
+});
+
 describe("help", () => {
   interface HelpJson {
     commands: { name: string; options: { name: string }[]; example: string }[];
