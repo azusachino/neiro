@@ -71,6 +71,14 @@ describe("validateInput", () => {
     expect(() => validateInput(tool("neiro_list"), { sort: "size" })).toThrow("must be one of");
     expect(() => validateInput(tool("neiro_capture"), { text: "x", tags: ["a", 2] })).toThrow("must be array");
     expect(() => validateInput(tool("neiro_get"), "note")).toThrow("takes an object");
+    expect(() => validateInput(tool("neiro_list"), { where: { status: 3 } })).toThrow("values must be string or null");
+    expect(validateInput(tool("neiro_list"), { where: { status: "done", source: null } })).toBeDefined();
+  });
+
+  test("refuses a malformed line range instead of reading the whole note", async () => {
+    const vault = new Vault(copyVault());
+    await expect(call(vault, "neiro_get", { note: "Home", lines: "abc:def" })).rejects.toThrow(ToolInputError);
+    expect(await call(vault, "neiro_get", { note: "Home", lines: "2" })).toMatchObject({ start: 2, end: 2 });
   });
 });
 

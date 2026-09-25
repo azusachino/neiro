@@ -88,7 +88,9 @@ function titleFrom(input: CaptureInput, settings: CaptureSettings): string {
   const raw = (explicit || firstLine || "").replace(/\s+/g, " ");
   if (raw === "") throw new CaptureError("a capture needs text or a title");
   const styled = settings.titleStyle === "lowercase" ? lowercaseTitle(raw, new Set(settings.titleAllow)) : raw;
-  return styled.length > TITLE_LIMIT ? `${styled.slice(0, TITLE_LIMIT).trimEnd()}…` : styled;
+  // Counted in code points, so the cut never splits an emoji or other astral character in half.
+  const chars = [...styled];
+  return chars.length > TITLE_LIMIT ? `${chars.slice(0, TITLE_LIMIT).join("").trimEnd()}…` : styled;
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");

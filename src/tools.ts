@@ -18,6 +18,8 @@ export interface PropertySchema {
   enum?: readonly string[];
   items?: { type: "string" };
   minimum?: number;
+  /** For an object: the JSON types its values may take. */
+  additionalProperties?: { type: readonly ("string" | "null")[] };
 }
 
 export interface InputSchema {
@@ -97,6 +99,15 @@ export function validateInput(tool: ToolDefinition, input: unknown): Record<stri
             ? typeof value === "object" && value !== null && !Array.isArray(value)
             : typeof value === property.type;
     if (!ok) throw new ToolInputError(`${tool.name}: ${key} must be ${property.type}`);
+    const values = property.additionalProperties?.type;
+    if (
+      values &&
+      !Object.values(value as object).every((item) =>
+        values.includes(item === null ? "null" : (typeof item as "string")),
+      )
+    ) {
+      throw new ToolInputError(`${tool.name}: ${key} values must be ${values.join(" or ")}`);
+    }
     if (property.enum && !property.enum.includes(value as string)) {
       throw new ToolInputError(`${tool.name}: ${key} must be one of ${property.enum.join(", ")}`);
     }
@@ -162,7 +173,11 @@ export const TOOLS: ToolDefinition[] = [
     annotations: READ,
     exposure: "direct",
     run: async (vault, input) => {
-      const span = o<string>(input, "lines")?.split(":");
+      const lines = o<string>(input, "lines");
+      if (lines !== undefined && !/^(?:\d+:\d*|:\d+|\d+)$/.test(lines)) {
+        throw new ToolInputError(`neiro_get: lines must be a:b, a:, :b, or a line, not "${lines}"`);
+      }
+      const span = lines?.split(":");
       const around = o<number>(input, "around");
       return vault.get(s(input, "note"), {
         maxChars: o<number>(input, "maxChars"),
@@ -228,7 +243,11 @@ export const TOOLS: ToolDefinition[] = [
     description: "List note summaries, filtered on any frontmatter property and sorted, such as the latest books.",
     inputSchema: schema({
       ...FILTERS,
-      where: { type: "object", description: "Frontmatter key to required text value; null asks only for presence" },
+      where: {
+        type: "object",
+        description: "Frontmatter key to required text value; null asks only for presence",
+        additionalProperties: { type: ["string", "null"] },
+      },
       sort: { type: "string", description: "Sort key", enum: SORT_KEYS },
       desc: bool("Sort descending"),
       limit: int("Most results"),

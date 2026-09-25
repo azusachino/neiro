@@ -42,6 +42,12 @@ describe("default capture settings", () => {
     expect(content).toBe("---\ntags:\n  - learning\n---\n\nBody line\n");
   });
 
+  test("shorten a long title without splitting an emoji", () => {
+    const { title } = renderCapture({ text: "Body", title: `${"a".repeat(79)}😀😀`, now: NOW }, defaults);
+    expect(title).toBe(`${"a".repeat(79)}😀…`);
+    expect(title.isWellFormed()).toBe(true);
+  });
+
   test("write no frontmatter when there is nothing to record", () => {
     expect(renderCapture({ text: "Just text", now: NOW }, defaults).content).toBe("Just text\n");
   });
