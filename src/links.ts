@@ -107,11 +107,15 @@ export class LinkIndex {
     }
   }
 
-  /** Resolve a link target the way Obsidian does: relative, vault-root path, path suffix, then unique stem. */
+  /** Resolve a link target the way Obsidian does: relative, vault-root path, path suffix, then unique stem; an unmatched target with a file extension is an attachment. */
   resolve(fromPath: string, target: string): Resolution {
-    if (/\.[a-z0-9]+$/i.test(target) && !/\.md$/i.test(target)) return { status: "asset" };
-    const wanted = target.replace(/\.md$/i, "").toLowerCase();
+    const resolution = this.lookup(fromPath, target.replace(/\.md$/i, "").toLowerCase());
+    // A name such as `Node.js` is a note when one exists; only an unmatched extension names an attachment.
+    const extension = /\.[a-z0-9]+$/i.test(target) && !/\.md$/i.test(target);
+    return extension && resolution.status === "missing" ? { status: "asset" } : resolution;
+  }
 
+  private lookup(fromPath: string, wanted: string): Resolution {
     if (wanted.startsWith("./") || wanted.startsWith("../")) {
       const key = posix.normalize(posix.join(posix.dirname(fromPath.toLowerCase()), wanted));
       return this.found(this.byPath.get(key));

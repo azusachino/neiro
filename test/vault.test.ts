@@ -137,6 +137,17 @@ describe("links", () => {
     expect((await linked.orphans()).map((note) => note.path)).toEqual(["Linked.md", "Markdown.md"]);
   });
 
+  test("resolves a note whose name has a dot before calling it an attachment", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-dotted-"));
+    writeFileSync(join(root, "Node.js.md"), "n\n");
+    writeFileSync(join(root, "From.md"), "[[Node.js]] ![[image.png]]\n");
+    const byTarget = Object.fromEntries(
+      (await new Vault(root).links("From")).map((link) => [link.target, link.resolution]),
+    );
+    expect(byTarget["Node.js"]).toEqual({ status: "resolved", path: "Node.js.md" });
+    expect(byTarget["image.png"]).toEqual({ status: "asset" });
+  });
+
   test("finds backlinks and unresolved links", async () => {
     expect((await vault.backlinks("Cognitive load")).map((note) => note.path)).toEqual(["Home.md", "Topics/index.md"]);
     const unresolved = (await vault.unresolved()).map(({ target, resolution }) => `${target}:${resolution.status}`);
