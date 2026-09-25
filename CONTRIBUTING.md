@@ -20,7 +20,7 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 ## Tests
 
-- Contract tests live in `packages/tests` and import only `neiro` and `neiro-tools`, as a consumer would. Unit tests of internals sit beside their code in `packages/core/src/*.test.ts`, with their own temporary files rather than the fixture vault.
+- Contract tests live in `packages/tests` and import only `neiro` and `neiro/tools`, as a consumer would. Unit tests of internals sit beside their code in `packages/core/src/*.test.ts`, with their own temporary files rather than the fixture vault.
 - `packages/tests/fixtures/vault` is a small synthetic vault for edge cases. Never copy real personal notes into it.
 - `packages/tests/vaults/` holds real public Obsidian vaults, pinned as submodules. Their tests assert invariants any correct reader must hold rather than exact counts.
 - Behaviour that depends on a vault's own conventions is tested through `neiro.toml` or `VaultOptions.config`, never built in as a default.
@@ -34,9 +34,9 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 ## Releasing
 
-1. Update `CHANGELOG.md` and the `version` of `packages/core` and `packages/tools`, which are released together, and merge.
+1. Update `CHANGELOG.md` and the `version` in `packages/core/package.json`, and merge.
 2. Tag the merge commit `v<version>` and push the tag.
-3. `make pack`, which writes `neiro-<version>.tgz` and `neiro-tools-<version>.tgz` to `dist/pack`.
+3. `make pack`, which writes `neiro-<version>.tgz` to `dist/pack`.
 4. `gh release create v<version> dist/pack/*.tgz --notes-file <the version's changelog section>`.
 
 Consumers install the release assets, as the [README](README.md#installing) shows; a Git dependency on the repository installs the workspace root, not the packages.

@@ -1,6 +1,6 @@
 # 0010 agent tools as an extension package
 
-Status: accepted, 2026-09-25 (0.6.0).
+Status: accepted, 2026-09-25 (0.6.0); the separate package superseded by [ADR 0012](0012-one-npm-package-named-tsuzuri.md).
 
 ## context
 

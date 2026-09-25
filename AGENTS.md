@@ -28,8 +28,8 @@ packages/tests/                    Contract tests through the public entries and
 packages/tests/fixtures/vault      A small synthetic vault for edge cases; never copy personal notes into it
 packages/tests/vaults/             Public Obsidian vaults pinned as submodules; tests assert invariants on them
 skills/neiro/                      SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
-packages/tools/src/index.ts        neiro-tools: agent tool definitions over the prelude, and nothing else
-packages/tools/src/cli.ts          neiro-tools --json, which prints the definitions
+packages/core/src/tools.ts         The neiro/tools entry: agent tool definitions over the prelude, and nothing else
+packages/core/src/tools-cli.ts     neiro-tools --json, which prints the definitions
 docs/decisions/                    Architecture decision records: every rule below, with its reasons
 docs/roadmap.md                    Shipped, next, and not-planned work; update it with each change
 docs/cli.md                        Every CLI command, option, and JSON output; a test checks it against the CLI's command table
@@ -54,5 +54,5 @@ Each rule below is a decision record in [`docs/decisions/`](docs/decisions/READM
 - **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
 - **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))
 - **Files only:** no Git and no server. ([0008](docs/decisions/0008-files-only-no-git-no-server.md))
-- **The CLI imports only the prelude** in `packages/core/src/index.ts`, the one public entry. ([0009](docs/decisions/0009-the-core-contract-and-prelude.md))
-- **Agent tools live in the `neiro-tools` extension,** which imports only the prelude. ([0010](docs/decisions/0010-agent-tools-as-an-extension-package.md))
+- **The CLI imports only the prelude** in `packages/core/src/index.ts`, the SDK's public entry. ([0009](docs/decisions/0009-the-core-contract-and-prelude.md))
+- **Agent tools are the `neiro/tools` entry of the one package,** which imports only the prelude. ([0010](docs/decisions/0010-agent-tools-as-an-extension-package.md), [0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md))

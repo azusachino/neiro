@@ -2,7 +2,7 @@
  * Ready-made agent tools over a `Vault`: a name, a JSON Schema for the input, MCP-style hints, an exposure, and a
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
-import { InputError, PERIODS, type Period, parseDate, propertyValue, SORT_KEYS, type Vault } from "neiro";
+import { InputError, PERIODS, type Period, parseDate, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
 
 /** `direct`: an agent may call it; `confirm`: only after a human approves the call; `cli-only`: never offered. */
 export type Exposure = "direct" | "confirm" | "cli-only";

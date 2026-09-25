@@ -13,5 +13,6 @@ neiro's architecture decision records. Each one says what was decided, what it r
 | [0007](0007-maintained-dependencies-or-own-code.md) | Maintained dependencies or neiro's own code | accepted |
 | [0008](0008-files-only-no-git-no-server.md) | Files only: no Git and no server | accepted |
 | [0009](0009-the-core-contract-and-prelude.md) | The core contract and its prelude | accepted |
-| [0010](0010-agent-tools-as-an-extension-package.md) | Agent tools as an extension package | accepted |
+| [0010](0010-agent-tools-as-an-extension-package.md) | Agent tools as an extension package | accepted; separate package superseded by 0012 |
 | [0011](0011-settings-from-neiro-toml-only.md) | Settings from `neiro.toml` only | accepted |
+| [0012](0012-one-npm-package-named-tsuzuri.md) | One npm package, named tsuzuri | accepted |

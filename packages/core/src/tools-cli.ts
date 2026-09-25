@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
-import { TOOLS } from "./index.ts";
+import { TOOLS } from "./tools.ts";
 
 const USAGE = `neiro-tools ${pkg.version}: neiro's agent tool definitions
 

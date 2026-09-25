@@ -8,7 +8,6 @@ import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
 import { join } from "node:path";
 
 const CORE = join(import.meta.dirname, "..", "core");
-const TOOLS = join(import.meta.dirname, "..", "tools");
 const FIXTURE = join(import.meta.dirname, "fixtures", "vault");
 const COMMANDS = [
   ["nav"],
@@ -62,18 +61,22 @@ console.log(
 );
 failed ||= !same;
 
-// neiro-tools installed beside neiro, and each package's `bin` run on Node as an installed command would be.
-const tools = join(consumer, "node_modules", "neiro-tools");
-mkdirSync(tools, { recursive: true });
-cpSync(join(TOOLS, "package.json"), join(tools, "package.json"));
-cpSync(join(TOOLS, "dist", "lib"), join(tools, "dist", "lib"), { recursive: true });
-const binOf = (dir: string) => {
-  const manifest = JSON.parse(readFileSync(join(dir, "package.json"), "utf8"));
-  return join(dir, Object.values(manifest.bin as Record<string, string>)[0] as string);
-};
+// The tools entry, then each `bin` run on Node as an installed command would be.
+writeFileSync(probe, `import { TOOLS } from "neiro/tools";\nconsole.log(TOOLS.length);\n`);
+const tooled = spawnSync("node", [probe], { encoding: "utf8" });
+const toolsOk = tooled.status === 0 && Number(tooled.stdout) > 0;
+console.log(
+  `${toolsOk ? "ok  " : "DIFF"} import neiro/tools from node_modules on Node${toolsOk ? "" : `: ${tooled.stderr.trim()}`}`,
+);
+failed ||= !toolsOk;
+const bins = JSON.parse(readFileSync(join(installed, "package.json"), "utf8")).bin as Record<string, string>;
 const commands: [string, string[], string][] = [
-  [binOf(installed), ["--vault", FIXTURE, "list", "--json"], run("bun", ["list"])],
-  [binOf(tools), ["--json"], spawnSync("bun", [join(TOOLS, "src", "cli.ts"), "--json"], { encoding: "utf8" }).stdout],
+  [join(installed, bins.neiro as string), ["--vault", FIXTURE, "list", "--json"], run("bun", ["list"])],
+  [
+    join(installed, bins["neiro-tools"] as string),
+    ["--json"],
+    spawnSync("bun", [join(CORE, "src", "tools-cli.ts"), "--json"], { encoding: "utf8" }).stdout,
+  ],
 ];
 for (const [bin, args, expected] of commands) {
   const ran = spawnSync("node", [bin, ...args], { encoding: "utf8" });

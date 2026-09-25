@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NeiroError, Vault } from "neiro";
-import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "neiro-tools";
+import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "neiro/tools";
 import { copyVault } from "./git.ts";
 
 const tool = (name: string) => {
@@ -119,7 +119,7 @@ describe("running tools", () => {
 });
 
 describe("the neiro-tools command", () => {
-  const CLI = join(import.meta.dir, "..", "tools", "src", "cli.ts");
+  const CLI = join(import.meta.dir, "..", "core", "src", "tools-cli.ts");
   const run = (...args: string[]) => spawnSync("bun", [CLI, ...args], { encoding: "utf8" });
 
   test("prints the definitions, the SDK's without run", () => {
