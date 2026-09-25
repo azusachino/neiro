@@ -9,17 +9,21 @@ const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const NOTE = "Topics/Working memory.md";
 
 /** A committed vault whose note has a second revision, returning both revision ids. */
-function revisedVault(): { root: string; first: string; second: string } {
+async function revisedVault(): Promise<{ root: string; first: string; second: string }> {
   const { root } = gitVault();
   const first = git(root, "rev-parse", "HEAD");
   writeFileSync(join(root, NOTE), "Working memory holds about four chunks.\n");
-  const second = new GitHistory(root).commit([NOTE], "docs: revise working memory", "editor <editor@example.com>");
+  const second = await new GitHistory(root).commit(
+    [NOTE],
+    "docs: revise working memory",
+    "editor <editor@example.com>",
+  );
   return { root, first, second };
 }
 
 describe("GitHistory", () => {
-  test("commits only the given paths, as the given author", () => {
-    const { root, second } = revisedVault();
+  test("commits only the given paths, as the given author", async () => {
+    const { root, second } = await revisedVault();
     writeFileSync(join(root, "Home.md"), "changed but not committed\n");
     expect(git(root, "show", "--name-only", "--format=%an|%s", second).split("\n")).toEqual([
       "editor|docs: revise working memory",
@@ -29,26 +33,33 @@ describe("GitHistory", () => {
     expect(git(root, "status", "--porcelain")).toBe("M Home.md");
   });
 
-  test("logs a note's revisions newest first, and shows and diffs them", () => {
-    const { root, first, second } = revisedVault();
+  test("logs a note's revisions newest first, and shows and diffs them", async () => {
+    const { root, first, second } = await revisedVault();
     const history = new GitHistory(root);
-    expect(history.log(NOTE).map((revision) => revision.rev)).toEqual([second, first]);
-    expect(history.log(NOTE, 1)[0]).toMatchObject({ author: "editor", message: "docs: revise working memory" });
-    expect(history.show(NOTE, first)).toContain("Working memory holds a few items at once.");
-    expect(history.diff(NOTE, first, second)).toContain("+Working memory holds about four chunks.");
+    expect((await history.log(NOTE)).map((revision) => revision.rev)).toEqual([second, first]);
+    expect((await history.log(NOTE, 1))[0]).toMatchObject({ author: "editor", message: "docs: revise working memory" });
+    expect(await history.show(NOTE, first)).toContain("Working memory holds a few items at once.");
+    expect(await history.diff(NOTE, first, second)).toContain("+Working memory holds about four chunks.");
   });
 
-  test("resolves paths against a vault that sits below the repository root", () => {
-    const { root } = revisedVault();
+  test("stops a git command that runs past its timeout", async () => {
+    const { root } = await revisedVault();
+    await expect(new GitHistory(root, { timeout: 1 }).log(NOTE)).rejects.toThrow(
+      /git log failed: timed out after 1 ms/,
+    );
+  });
+
+  test("resolves paths against a vault that sits below the repository root", async () => {
+    const { root } = await revisedVault();
     const history = new GitHistory(join(root, "Topics"));
-    expect(history.log("Working memory.md")).toHaveLength(2);
-    expect(history.show("Working memory.md", "HEAD")).toBe("Working memory holds about four chunks.\n");
+    expect(await history.log("Working memory.md")).toHaveLength(2);
+    expect(await history.show("Working memory.md", "HEAD")).toBe("Working memory holds about four chunks.\n");
   });
 });
 
 describe("the history chain", () => {
   test("serves Git inside a work tree and raises UnsupportedError elsewhere, while reads keep working", async () => {
-    expect(new Vault(revisedVault().root).history).toBeInstanceOf(GitHistory);
+    expect(new Vault((await revisedVault()).root).history).toBeInstanceOf(GitHistory);
     const plain = new Vault(copyVault());
     expect(() => plain.history).toThrow(UnsupportedError);
     expect((await plain.notes()).length).toBeGreaterThan(0);
@@ -59,8 +70,8 @@ describe("history commands", () => {
   const run = (root: string, ...args: string[]) =>
     spawnSync("bun", [CLI, "--vault", root, ...args], { encoding: "utf8" });
 
-  test("history, show, and diff a note by reference", () => {
-    const { root, first } = revisedVault();
+  test("history, show, and diff a note by reference", async () => {
+    const { root, first } = await revisedVault();
     const revisions = JSON.parse(run(root, "history", "Working memory", "--json").stdout);
     expect(revisions.map((revision: { message: string }) => revision.message)).toEqual([
       "docs: revise working memory",
@@ -72,9 +83,9 @@ describe("history commands", () => {
     expect(run(root, "diff", "Working memory", "--rev", first, "--to", "HEAD").stdout).toContain("four chunks");
   });
 
-  test("exit 1 without Git or for an unknown revision, and 2 without --rev", () => {
+  test("exit 1 without Git or for an unknown revision, and 2 without --rev", async () => {
     expect(run(copyVault(), "history", "Working memory").status).toBe(1);
-    const { root } = revisedVault();
+    const { root } = await revisedVault();
     expect(run(root, "show", "Working memory", "--rev", "nope").status).toBe(1);
     expect(run(root, "show", "Working memory").status).toBe(2);
   });

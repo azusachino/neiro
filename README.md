@@ -96,7 +96,7 @@ const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json 
 await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
 ```
 
-Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `vault.sync()` pulls and pushes through `History`, then reloads. Otherwise call `vault.reload()` after the files change underneath it.
+Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. Otherwise call `vault.reload()` after the files change underneath it.
 
 ### Agent tools
 

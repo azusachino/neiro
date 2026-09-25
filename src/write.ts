@@ -52,14 +52,14 @@ export function splice(text: string, start: number, end: number, replacement: st
  * write is refused when `ifHash` is stale, and is one commit when `commit` is set. `history` is asked for before
  * anything is written, so a vault without one fails with nothing changed.
  */
-export function writeNote(
+export async function writeNote(
   root: string,
   path: string,
   next: (current: string | undefined) => string,
   message: string,
   options: WriteOptions,
   history: () => History,
-): WriteResult {
+): Promise<WriteResult> {
   const file = join(root, path);
   const bytes = existsSync(file) ? readFileSync(file) : undefined;
   // TextDecoder drops a leading byte order mark, as the scan does; it is written back so it stays untouched.
@@ -79,6 +79,6 @@ export function writeNote(
   const store = options.commit ? history() : undefined;
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, bom ? BOM + content : content);
-  store?.commit([path], message, options.author);
+  await store?.commit([path], message, options.author);
   return { ...result, written: true, committed: store !== undefined };
 }

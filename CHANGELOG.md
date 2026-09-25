@@ -8,6 +8,7 @@
 - `nav` no longer lists heading-like lines inside fenced code, and links and headings follow one fence rule: a fence closes only on a fence of the same character at least as long. ([#52](https://github.com/azusachino/neiro/issues/52))
 - Every error neiro raises extends `NeiroError` and carries its class name. A date that is not a calendar date raises `InputError` and a malformed `neiro.toml` raises `ConfigError`; the CLI reports both in one line instead of a stack trace. ([#53](https://github.com/azusachino/neiro/issues/53))
 - `neiro.toml` and code options are checked against the settings' shape: an unknown key or a value outside a setting's type or choices raises `ConfigError` naming it, instead of being ignored. ([#54](https://github.com/azusachino/neiro/issues/54))
+- Git runs without blocking the process: `History` methods and `Vault.sync()` return promises, each git command stops after a timeout (60 seconds by default, `new GitHistory(root, { timeout })`), and git never waits for a credential prompt. The Git work-tree check runs once per vault. ([#57](https://github.com/azusachino/neiro/issues/57))
 
 ## 0.4.0
 

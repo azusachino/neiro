@@ -349,7 +349,7 @@ async function main(): Promise<void> {
     }
     case "history": {
       const note = await vault.find(one(args, "note"));
-      const revisions = vault.history.log(note.path, count("limit", opts.limit));
+      const revisions = await vault.history.log(note.path, count("limit", opts.limit));
       return emit(revisions, () =>
         revisions
           .map(({ rev, date, author, message }) => `${rev.slice(0, 12)}\t${date}\t${author}\t${message}`)
@@ -359,12 +359,12 @@ async function main(): Promise<void> {
     case "show": {
       if (!opts.rev) throw new UsageError("show needs --rev <rev>");
       const note = await vault.find(one(args, "note"));
-      const content = vault.history.show(note.path, opts.rev);
+      const content = await vault.history.show(note.path, opts.rev);
       return emit({ path: note.path, rev: opts.rev, content }, () => content.replace(/\n$/, ""));
     }
     case "diff": {
       const note = await vault.find(one(args, "note"));
-      const patch = vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
+      const patch = await vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
       return emit({ path: note.path, from: opts.rev ?? "HEAD", to: opts.to ?? null, diff: patch }, () =>
         patch.replace(/\n$/, ""),
       );

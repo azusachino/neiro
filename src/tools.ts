@@ -126,7 +126,7 @@ function writeOf(input: Record<string, unknown>, context: ToolContext = {}) {
 
 /** After a committed write, publish it when the consumer asked for push. */
 async function published<T extends { committed: boolean }>(vault: Vault, result: T, context: ToolContext = {}) {
-  if (context.push && result.committed) vault.sync();
+  if (context.push && result.committed) await vault.sync();
   return result;
 }
 

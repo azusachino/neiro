@@ -43,7 +43,7 @@ describe("running against a Git clone", () => {
     await vault.notes();
 
     owner.push("Notes/From the owner.md", "Written in Obsidian.\n");
-    vault.sync();
+    await vault.sync();
     expect((await vault.find("From the owner")).path).toBe("Notes/From the owner.md");
 
     await vault.capture({ text: "Captured by the bot", tags: ["inbox"] }, { push: true, author: BOT });
@@ -72,11 +72,11 @@ describe("running against a Git clone", () => {
     const vault = new Vault(botClone(remote));
     const { hash } = await vault.get("Home");
     owner.push("Home.md", "The owner's newer text.\n");
-    vault.sync();
+    await vault.sync();
     expect(vault.append("Home", "- from the bot", { ifHash: hash, commit: true })).rejects.toThrow(WriteConflictError);
     const fresh = await vault.get("Home");
     await vault.append("Home", "- from the bot", { ifHash: fresh.hash, commit: true });
-    vault.sync();
+    await vault.sync();
     expect(git(remote, "show", "main:Home.md")).toBe("The owner's newer text.\n- from the bot");
   });
 

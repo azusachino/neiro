@@ -50,7 +50,7 @@ describe("sync", () => {
     git(other, "-c", "user.name=other", "-c", "user.email=other@example.com", "commit", "--quiet", "-m", "add");
     git(other, "push", "--quiet");
 
-    vault.sync();
+    await vault.sync();
     expect((await vault.find("From elsewhere")).path).toBe("Notes/From elsewhere.md");
   });
 });

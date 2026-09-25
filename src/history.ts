@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { Chain } from "./chain.ts";
 import { NeiroError } from "./errors.ts";
 
@@ -14,44 +14,57 @@ export interface Revision {
 /** A vault's revision store. Paths are vault-relative POSIX paths. */
 export interface History {
   /** Record exactly these paths in one revision, returning its id. */
-  commit(paths: string[], message: string, author?: string): string;
+  commit(paths: string[], message: string, author?: string): Promise<string>;
   /** Revisions that touched the path, newest first. */
-  log(path: string, limit?: number): Revision[];
+  log(path: string, limit?: number): Promise<Revision[]>;
   /** The path's content at a revision. */
-  show(path: string, rev: string): string;
+  show(path: string, rev: string): Promise<string>;
   /** A unified diff of the path between two revisions, or from a revision to the working file. */
-  diff(path: string, from: string, to?: string): string;
+  diff(path: string, from: string, to?: string): Promise<string>;
   /** Take others' revisions first, then publish this one's. */
-  sync(): void;
+  sync(): Promise<void>;
 }
 
 export class HistoryError extends NeiroError {}
 
-/** History through the git CLI, run in the vault root, which may sit anywhere inside a repository. */
+export interface GitHistoryOptions {
+  /** Milliseconds a git command may run before it is stopped; 60 seconds by default. */
+  timeout?: number;
+}
+
+/**
+ * History through the git CLI, run in the vault root, which may sit anywhere inside a repository. Commands run
+ * without blocking the process, stop after `timeout`, and never wait for a credential prompt.
+ */
 export class GitHistory implements History {
   readonly root: string;
+  private readonly timeout: number;
 
-  constructor(root: string) {
+  constructor(root: string, options: GitHistoryOptions = {}) {
     this.root = root;
+    this.timeout = options.timeout ?? 60_000;
   }
 
-  private git(args: string[]): string {
-    const result = spawnSync("git", args, { cwd: this.root, encoding: "utf8" });
-    if (result.status !== 0) {
-      const reason = result.error?.message ?? (result.stderr.trim() || `exit ${result.status}`);
-      throw new HistoryError(`git ${args[0]} failed: ${reason}`);
-    }
-    return result.stdout;
+  private git(args: string[]): Promise<string> {
+    const env = { ...process.env, GIT_TERMINAL_PROMPT: "0" };
+    const options = { cwd: this.root, encoding: "utf8" as const, env, timeout: this.timeout, maxBuffer: 64 << 20 };
+    return new Promise((resolve, reject) => {
+      execFile("git", args, options, (error, stdout, stderr) => {
+        if (!error) return resolve(stdout);
+        const reason = error.killed ? `timed out after ${this.timeout} ms` : stderr.trim() || error.message;
+        reject(new HistoryError(`git ${args[0]} failed: ${reason}`));
+      });
+    });
   }
 
-  commit(paths: string[], message: string, author?: string): string {
-    this.git(["add", "--", ...paths]);
-    this.git(["commit", "--quiet", "-m", message, ...(author ? ["--author", author] : []), "--", ...paths]);
-    return this.git(["rev-parse", "HEAD"]).trim();
+  async commit(paths: string[], message: string, author?: string): Promise<string> {
+    await this.git(["add", "--", ...paths]);
+    await this.git(["commit", "--quiet", "-m", message, ...(author ? ["--author", author] : []), "--", ...paths]);
+    return (await this.git(["rev-parse", "HEAD"])).trim();
   }
 
-  log(path: string, limit = 20): Revision[] {
-    const out = this.git(["log", `--max-count=${limit}`, "--format=%H%x1f%aI%x1f%an%x1f%s", "--", path]);
+  async log(path: string, limit = 20): Promise<Revision[]> {
+    const out = await this.git(["log", `--max-count=${limit}`, "--format=%H%x1f%aI%x1f%an%x1f%s", "--", path]);
     return out
       .split("\n")
       .filter((line) => line !== "")
@@ -61,33 +74,39 @@ export class GitHistory implements History {
       });
   }
 
-  show(path: string, rev: string): string {
+  show(path: string, rev: string): Promise<string> {
     // `./` makes the path relative to the vault root rather than to the repository's top level.
     return this.git(["show", `${rev}:./${path}`]);
   }
 
-  diff(path: string, from: string, to?: string): string {
+  diff(path: string, from: string, to?: string): Promise<string> {
     return this.git(["diff", from, ...(to ? [to] : []), "--", path]);
   }
 
-  sync(): void {
-    this.git(["pull", "--rebase", "--quiet"]);
-    this.git(["push", "--quiet"]);
+  async sync(): Promise<void> {
+    await this.git(["pull", "--rebase", "--quiet"]);
+    await this.git(["push", "--quiet"]);
   }
 }
 
 function insideGit(root: string): boolean {
-  const result = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], { cwd: root, encoding: "utf8" });
+  const result = spawnSync("git", ["rev-parse", "--is-inside-work-tree"], {
+    cwd: root,
+    encoding: "utf8",
+    timeout: 10_000,
+  });
   return result.status === 0 && result.stdout.trim() === "true";
 }
 
 /** The history chain for a vault root: Git when the root is inside a work tree, otherwise `UnsupportedError`. */
 export function historyChain(root: string): Chain<History> {
+  let inside: boolean | undefined;
   return new Chain<History>("record history", [
     {
       name: "git",
       requires: "a Git work tree at the vault root",
-      available: () => insideGit(root),
+      // Checked once: a vault does not become a work tree, or stop being one, under a running process.
+      available: () => (inside ??= insideGit(root)),
       impl: new GitHistory(root),
     },
   ]);

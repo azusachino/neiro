@@ -186,14 +186,14 @@ export async function capture(
   }
   const store = commit ? history() : undefined;
   // Take others' captures first, so the free file name is free on the remote too.
-  if (options.push) store?.sync();
+  if (options.push) await store?.sync();
 
   const path = freePath(root, settings.folder, stem, settings.filename);
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), content, { flag: "wx" });
 
-  store?.commit([path], `chore: capture ${path}`, options.author);
-  if (options.push) store?.sync();
+  await store?.commit([path], `chore: capture ${path}`, options.author);
+  if (options.push) await store?.sync();
   return { path, content, written: true, committed: commit, pushed: options.push ?? false };
 }
 

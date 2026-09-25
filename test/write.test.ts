@@ -26,11 +26,11 @@ describe("splice", () => {
 });
 
 describe("writeNote", () => {
-  test("leaves every byte outside the target unchanged", () => {
+  test("leaves every byte outside the target unchanged", async () => {
     const root = copyVault();
     const before = readFileSync(join(root, NOTE));
     const target = "working memory limits learning";
-    const result = writeNote(
+    const result = await writeNote(
       root,
       NOTE,
       (text = "") => splice(text, text.indexOf(target), text.indexOf(target) + target.length, "limits learning"),
@@ -51,36 +51,38 @@ describe("writeNote", () => {
     const { hash } = await vault.get(NOTE);
     expect(contentHash(readFileSync(join(root, NOTE), "utf8"))).toBe(hash);
     const edit = (text = "") => `${text}one more line\n`;
-    expect(writeNote(root, NOTE, edit, "edit", { ifHash: hash }, noHistory).written).toBe(true);
-    expect(() => writeNote(root, NOTE, edit, "edit", { ifHash: hash }, noHistory)).toThrow(WriteConflictError);
-    expect(() => writeNote(root, "Nowhere.md", edit, "edit", { ifHash: hash }, noHistory)).toThrow("does not exist");
+    expect((await writeNote(root, NOTE, edit, "edit", { ifHash: hash }, noHistory)).written).toBe(true);
+    await expect(writeNote(root, NOTE, edit, "edit", { ifHash: hash }, noHistory)).rejects.toThrow(WriteConflictError);
+    await expect(writeNote(root, "Nowhere.md", edit, "edit", { ifHash: hash }, noHistory)).rejects.toThrow(
+      "does not exist",
+    );
   });
 
-  test("returns a unified diff and writes nothing on a dry run", () => {
+  test("returns a unified diff and writes nothing on a dry run", async () => {
     const root = copyVault();
     const before = readFileSync(join(root, NOTE), "utf8");
-    const result = writeNote(root, NOTE, (text = "") => `${text}appended\n`, "edit", { dryRun: true }, noHistory);
+    const result = await writeNote(root, NOTE, (text = "") => `${text}appended\n`, "edit", { dryRun: true }, noHistory);
     expect(result.written).toBe(false);
     expect(result.diff).toContain(`--- a/${NOTE}`);
     expect(result.diff).toContain("+appended");
     expect(readFileSync(join(root, NOTE), "utf8")).toBe(before);
   });
 
-  test("keeps a byte order mark, and creates a missing note", () => {
+  test("keeps a byte order mark, and creates a missing note", async () => {
     const root = copyVault();
     writeFileSync(join(root, "Marked.md"), "\uFEFFfirst\n");
-    writeNote(root, "Marked.md", (text = "") => `${text}second\n`, "edit", {}, noHistory);
+    await writeNote(root, "Marked.md", (text = "") => `${text}second\n`, "edit", {}, noHistory);
     expect(readFileSync(join(root, "Marked.md"))[0]).toBe(0xef);
     expect(readFileSync(join(root, "Marked.md"), "utf8")).toBe("\uFEFFfirst\nsecond\n");
-    const created = writeNote(root, "New/Fresh.md", () => "fresh\n", "create", {}, noHistory);
+    const created = await writeNote(root, "New/Fresh.md", () => "fresh\n", "create", {}, noHistory);
     expect(created).toMatchObject({ created: true, written: true });
   });
 
-  test("commits one revision of the note alone, and asks for history before writing", () => {
+  test("commits one revision of the note alone, and asks for history before writing", async () => {
     const { root } = gitVault();
     writeFileSync(join(root, "Home.md"), "an unrelated edit\n");
     const history = new GitHistory(root);
-    const result = writeNote(
+    const result = await writeNote(
       root,
       NOTE,
       (text = "") => `${text}x\n`,
@@ -93,7 +95,7 @@ describe("writeNote", () => {
 
     const plain = copyVault();
     const before = readFileSync(join(plain, NOTE), "utf8");
-    expect(() => writeNote(plain, NOTE, () => "changed", "edit", { commit: true }, noHistory)).toThrow(
+    await expect(writeNote(plain, NOTE, () => "changed", "edit", { commit: true }, noHistory)).rejects.toThrow(
       UnsupportedError,
     );
     expect(readFileSync(join(plain, NOTE), "utf8")).toBe(before);

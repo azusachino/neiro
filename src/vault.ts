@@ -359,7 +359,7 @@ export class Vault {
     if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
       throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
     }
-    const result = writeNote(
+    const result = await writeNote(
       this.root,
       target,
       (current) => {
@@ -377,8 +377,13 @@ export class Vault {
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
-  private change(path: string, message: string, options: WriteOptions, next: (current: string) => string): WriteResult {
-    const result = writeNote(
+  private async change(
+    path: string,
+    message: string,
+    options: WriteOptions,
+    next: (current: string) => string,
+  ): Promise<WriteResult> {
+    const result = await writeNote(
       this.root,
       path,
       (current) => {
@@ -569,8 +574,8 @@ export class Vault {
   }
 
   /** Take others' revisions and publish this one's through `History`, then reload so reads see what arrived. */
-  sync(): void {
-    this.history.sync();
+  async sync(): Promise<void> {
+    await this.history.sync();
     this.reload();
   }
 
