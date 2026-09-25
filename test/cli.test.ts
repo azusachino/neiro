@@ -209,6 +209,25 @@ describe("help", () => {
     }
   });
 
+  test("the skill names only commands and options the CLI takes", () => {
+    const skill = readFileSync(join(import.meta.dir, "..", "skills", "neiro", "SKILL.md"), "utf8");
+    const commands = new Map(help().commands.map((command) => [command.name, command] as const));
+    const global = ["--json", "--vault", "--format", "--help", "--version"];
+    // A code span naming a command: its first two words when they are one, such as `prop set`, else its first.
+    const calls = [...skill.matchAll(/`([^`]+)`/g)].flatMap((match) => {
+      const span = match[1] ?? "";
+      const words = span.split(/\s+/);
+      const name = commands.has(words.slice(0, 2).join(" ")) ? words.slice(0, 2).join(" ") : (words[0] ?? "");
+      return commands.has(name) ? [[name, span] as const] : [];
+    });
+    expect(calls.length).toBeGreaterThan(15);
+    for (const [name, span] of calls) {
+      const command = commands.get(name);
+      const allowed = new Set([...global, ...(command?.options.map((option) => option.name) ?? [])]);
+      for (const flag of span.match(/--[a-z-]+/g) ?? []) expect(allowed.has(flag), `${name} ${flag}`).toBe(true);
+    }
+  });
+
   test("refuses an option the command does not take", () => {
     const { code, stderr } = run("get", "Home", "--limit", "3");
     expect(code).toBe(2);

@@ -23,6 +23,7 @@
 - With `--json`, a failure prints one JSON line on stderr, `{"error": {"name", "message", ...}}`, carrying the error's own fields such as `suggestions`, or a partial write's `path`, `hash`, and `committed`. Exit codes stay 1 and 2. ([#67](https://github.com/azusachino/neiro/issues/67))
 - `neiro tools` lists each agent tool with its exposure and whether it reads, adds, or changes notes, and `neiro tools --json` prints the definitions, JSON Schemas included, so a coding agent with only the CLI sees the same operations as the SDK. ([#69](https://github.com/azusachino/neiro/issues/69))
 - A [CLI reference](docs/cli.md) lists every command, option, JSON output shape, error, and exit code; a test fails when it misses a command or option the CLI declares. ([#70](https://github.com/azusachino/neiro/issues/70))
+- `skills/neiro/SKILL.md` gives agents the command to reach for, the read-then-write sequence with a hash, and the next step for each JSON error, and ships in the package. It passes the Agent Skills validator, and a test checks its commands and options against the CLI. ([#71](https://github.com/azusachino/neiro/issues/71))
 
 ## 0.4.0
 

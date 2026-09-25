@@ -98,6 +98,10 @@ await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, autho
 
 Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations `make build` writes to `dist/lib`, which packing the package builds too. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. Otherwise call `vault.reload()` after the files change underneath it.
 
+### Agent skill
+
+[`skills/neiro/SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+
 ### Agent tools
 
 `agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input, { commit, push, author })`; the consumer, not the model, decides whether writes commit and push.
