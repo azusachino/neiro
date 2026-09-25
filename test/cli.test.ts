@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { TOOLS } from "../src/index.ts";
 import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
@@ -146,6 +147,17 @@ describe("errors under --json", () => {
     const parsed = errorOf("get", "--bogus");
     expect(parsed).toMatchObject({ code: 2, error: { name: "UsageError" } });
     expect(parsed.error.message).toContain("--bogus");
+  });
+});
+
+describe("tools", () => {
+  test("prints the agent tool definitions, the SDK's without run", () => {
+    const { code, stdout } = run("tools", "--json");
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toEqual(
+      JSON.parse(JSON.stringify(TOOLS.map(({ run: _, ...definition }) => definition))),
+    );
+    expect(run("tools").stdout).toContain("neiro_capture\tdirect\tadds\t");
   });
 });
 

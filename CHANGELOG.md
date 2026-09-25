@@ -21,6 +21,7 @@
 - Use cases record the new behaviour with their covering tests, including A12, a bot serving from its owner's checkout, and A13, importing neiro on Node; the roadmap lists 0.5.0. ([#66](https://github.com/azusachino/neiro/issues/66))
 - `neiro help <command>` and `<command> --help` show one command's arguments, options, and an example, and `neiro help --json` lists every command. One table in the CLI declares them and drives the usage; a command refuses an option it does not take instead of ignoring it. ([#68](https://github.com/azusachino/neiro/issues/68))
 - With `--json`, a failure prints one JSON line on stderr, `{"error": {"name", "message", ...}}`, carrying the error's own fields such as `suggestions`, or a partial write's `path`, `hash`, and `committed`. Exit codes stay 1 and 2. ([#67](https://github.com/azusachino/neiro/issues/67))
+- `neiro tools` lists each agent tool with its exposure and whether it reads, adds, or changes notes, and `neiro tools --json` prints the definitions, JSON Schemas included, so a coding agent with only the CLI sees the same operations as the SDK. ([#69](https://github.com/azusachino/neiro/issues/69))
 
 ## 0.4.0
 

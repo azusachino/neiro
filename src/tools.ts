@@ -273,7 +273,8 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "neiro_links",
-    description: "A note's outgoing wikilinks and what each resolves to.",
+    description:
+      "A note's outgoing links (wikilinks, Markdown links, and frontmatter links) and what each resolves to.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
     exposure: "direct",
