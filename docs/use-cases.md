@@ -1,6 +1,6 @@
 # use cases
 
-What people and agents do with neiro, the commands each case walks through, and the tests that hold it in place. A case is **shipped** when every step works today, **partial** when it works with a gap a planned issue closes, and **planned** when it waits on an issue. Update this page with the [roadmap](roadmap.md) when a change ships, and name a covering test for every shipped step. Tests are cited as `file › test name` under `test/`.
+What people and agents do with tsuzuri, the commands each case walks through, and the tests that hold it in place. A case is **shipped** when every step works today, **partial** when it works with a gap a planned issue closes, and **planned** when it waits on an issue. Update this page with the [roadmap](roadmap.md) when a change ships, and name a covering test for every shipped step. Tests are cited as `file › test name` under `test/`.
 
 ## from the terminal
 
@@ -43,9 +43,9 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T5. Open today's or this week's journal
 
-`journal day|week|month|quarter|year [--date]`, with paths from `neiro.toml`'s `[journal.<period>]`. Shipped.
+`journal day|week|month|quarter|year [--date]`, with paths from `tsuzuri.toml`'s `[journal.<period>]`. Shipped.
 
-- `vault.test › finds the periodic notes neiro.toml declares`
+- `vault.test › finds the periodic notes tsuzuri.toml declares`
 - `cli.test › prints a journal note for a date`
 
 ### T6. Capture a thought, or file a draft
@@ -68,7 +68,7 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ## from an agent
 
-An agent reaches neiro in one of two ways: a coding agent shells out to the CLI with `--json`, and a bot imports the SDK in-process. Both see the same operations, and every case below is written for a model that has never seen the vault.
+An agent reaches tsuzuri in one of two ways: a coding agent shells out to the CLI with `--json`, and a bot imports the SDK in-process. Both see the same operations, and every case below is written for a model that has never seen the vault.
 
 ### A1. Orient in an unfamiliar vault
 
@@ -100,7 +100,7 @@ An agent reaches neiro in one of two ways: a coding agent shells out to the CLI 
 
 ### A4. Resolve a loose reference from a user's message
 
-The user writes "that note about oolong". `get` resolves a path, file name, title, or alias; on a miss, `find` ranks near matches by fuzzy score. Shipped. How Obsidian treats a bare alias link is open in [#24](https://github.com/azusachino/neiro/issues/24).
+The user writes "that note about oolong". `get` resolves a path, file name, title, or alias; on a miss, `find` ranks near matches by fuzzy score. Shipped. How Obsidian treats a bare alias link is open in [#24](https://github.com/azusachino/tsuzuri/issues/24).
 
 - `vault.test › resolves a path, stem, title, or alias`
 - `fuzzy.test › ranks Latin titles, aliases, and paths`
@@ -125,9 +125,9 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A7. Summarize the week, then record the summary
 
-`journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/neiro/issues/19).
+`journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/tsuzuri/issues/19).
 
-- `vault.test › finds the periodic notes neiro.toml declares`
+- `vault.test › finds the periodic notes tsuzuri.toml declares`
 - `sections.test › appends to the journal note for a date, which must exist`
 
 ### A8. Edit a note without overwriting the owner's change
@@ -141,12 +141,12 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A9. Stop instead of guessing
 
-When the vault does not say where something lives, neiro raises `UnsupportedError` rather than inventing a path, and the CLI exits 1 for a missing or unsupported request and 2 for bad usage, so an agent can tell its own mistake from the vault's. A misspelled `neiro.toml` key or value raises `ConfigError` instead of being ignored, and every such error is a `NeiroError`. Shipped.
+When the vault does not say where something lives, tsuzuri raises `UnsupportedError` rather than inventing a path, and the CLI exits 1 for a missing or unsupported request and 2 for bad usage, so an agent can tell its own mistake from the vault's. A misspelled `tsuzuri.toml` key or value raises `ConfigError` instead of being ignored, and every such error is a `TsuzuriError`. Shipped.
 
 - `vault.test › raises UnsupportedError for a period no setting covers`
 - `capture.test › rejects a misspelled key, naming the keys the table takes`
-- `cli.test › reports a bad date or a malformed neiro.toml in one line`
-- `errors.test › every error neiro raises is a NeiroError named after its class`
+- `cli.test › reports a bad date or a malformed tsuzuri.toml in one line`
+- `errors.test › every error tsuzuri raises is a TsuzuriError named after its class`
 - `cli.test › exits 1 for a missing note and 2 for bad usage`
 - `chain.test › names the capability and what each provider needs when none is available`
 
@@ -158,9 +158,9 @@ A bot keeps one `Vault` for its lifetime and passes `watch`, so a read rescans, 
 - `refresh.test › a live vault sees a changed and a new file on its next read`
 - `refresh.test › reads that arrive during a scan share it`
 
-### A11. Hand an agent framework neiro's tools
+### A11. Hand an agent framework tsuzuri's tools
 
-Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `neiro/tools` entry's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK, and `neiro-tools --json` prints them for an agent with only a shell. Shipped; the default exposure is agreed in [ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md), and the tools ship in the one package since [ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md).
+Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `tsuzuri/tools` entry's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK, and `tsuzuri-tools --json` prints them for an agent with only a shell. Shipped; the default exposure is agreed in [ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md), and the tools ship in the one package since [ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md).
 
 - `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
 - `tools.test › writes take the model's guards and change only the files`
@@ -169,15 +169,15 @@ Import ready-made tool definitions with parameter schemas and read-only or destr
 
 ### A12. Serve a bot beside its owner, in one checkout
 
-The owner edits one checkout every day, and a bot on the same machine answers from it and captures into it. The bot opens the owner's checkout with `watch`, so its next read sees an edit the owner has not committed, and registers the read tools and `neiro_capture`. A capture adds one new file and leaves the owner's staged and unstaged work as it was; the owner commits it with the rest. The checkout may be a submodule of the owner's workstation. Shipped.
+The owner edits one checkout every day, and a bot on the same machine answers from it and captures into it. The bot opens the owner's checkout with `watch`, so its next read sees an edit the owner has not committed, and registers the read tools and `tsuzuri_capture`. A capture adds one new file and leaves the owner's staged and unstaged work as it was; the owner commits it with the rest. The checkout may be a submodule of the owner's workstation. Shipped.
 
 - `submodule.test › captures one new file and leaves the owner's staged and unstaged work alone`
 - `submodule.test › a watching reader sees the owner's uncommitted edit on its next read`
 - `submodule.test › a vault at the superproject's root skips the checked-out submodule`
 - `tools.test › default to the roadmap's exposure, and agentTools never offers cli-only tools`
 
-### A13. Import neiro in a Node project
+### A13. Import tsuzuri in a Node project
 
-A consumer installs neiro and imports it on Node, which strips no types under `node_modules`; `exports` serves Node the built JavaScript and declarations, and Bun the TypeScript source. Shipped.
+A consumer installs tsuzuri and imports it on Node, which strips no types under `node_modules`; `exports` serves Node the built JavaScript and declarations, and Bun the TypeScript source. Shipped.
 
 - `make node-smoke`, which imports the built package from a `node_modules` folder on Node and requires Bun's output

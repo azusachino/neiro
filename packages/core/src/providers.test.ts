@@ -1,6 +1,6 @@
 /**
  * Every provider of a fallback chain must return what the portable one returns (ADR 0006). These tests force each
- * provider in turn, which only neiro's own code can do, over real notes: the test package's fixture vault and
+ * provider in turn, which only tsuzuri's own code can do, over real notes: the test package's fixture vault and
  * corpora, read by path because no other package has the vaults to check against.
  */
 import { describe, expect, test } from "bun:test";
@@ -63,11 +63,11 @@ describe("every provider returns the same result", () => {
     }
   });
 
-  test("parse TOML, for neiro.toml and its title allowlist", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-toml-"));
+  test("parse TOML, for tsuzuri.toml and its title allowlist", async () => {
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-toml-"));
     writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI", "iPhone"]\nmore = { names = ["GitHub"] }\n');
     writeFileSync(
-      join(root, "neiro.toml"),
+      join(root, "tsuzuri.toml"),
       [
         "[capture]",
         'folder = "Inbox"',

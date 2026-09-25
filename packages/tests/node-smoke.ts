@@ -40,9 +40,9 @@ for (const args of COMMANDS) {
   failed ||= !same;
 }
 
-// Inside the core package, so neiro's own dependencies resolve from its node_modules as they would once installed.
+// Inside the core package, so tsuzuri's own dependencies resolve from its node_modules as they would once installed.
 const consumer = join(CORE, ".tmp", "node-consumer");
-const installed = join(consumer, "node_modules", "neiro");
+const installed = join(consumer, "node_modules", "tsuzuri");
 rmSync(consumer, { recursive: true, force: true });
 mkdirSync(installed, { recursive: true });
 cpSync(join(CORE, "package.json"), join(installed, "package.json"));
@@ -52,28 +52,28 @@ writeFileSync(join(consumer, "package.json"), '{ "private": true, "type": "modul
 const probe = join(consumer, "probe.mjs");
 writeFileSync(
   probe,
-  `import { Vault } from "neiro";\nconsole.log(JSON.stringify(await new Vault(process.argv[2]).list(), null, 2));\n`,
+  `import { Vault } from "tsuzuri";\nconsole.log(JSON.stringify(await new Vault(process.argv[2]).list(), null, 2));\n`,
 );
 const imported = spawnSync("node", [probe, FIXTURE], { encoding: "utf8" });
 const same = imported.status === 0 && imported.stdout === run("bun", ["list"]);
 console.log(
-  `${same ? "ok  " : "DIFF"} import neiro from node_modules on Node${same ? "" : `: ${imported.stderr.trim()}`}`,
+  `${same ? "ok  " : "DIFF"} import tsuzuri from node_modules on Node${same ? "" : `: ${imported.stderr.trim()}`}`,
 );
 failed ||= !same;
 
 // The tools entry, then each `bin` run on Node as an installed command would be.
-writeFileSync(probe, `import { TOOLS } from "neiro/tools";\nconsole.log(TOOLS.length);\n`);
+writeFileSync(probe, `import { TOOLS } from "tsuzuri/tools";\nconsole.log(TOOLS.length);\n`);
 const tooled = spawnSync("node", [probe], { encoding: "utf8" });
 const toolsOk = tooled.status === 0 && Number(tooled.stdout) > 0;
 console.log(
-  `${toolsOk ? "ok  " : "DIFF"} import neiro/tools from node_modules on Node${toolsOk ? "" : `: ${tooled.stderr.trim()}`}`,
+  `${toolsOk ? "ok  " : "DIFF"} import tsuzuri/tools from node_modules on Node${toolsOk ? "" : `: ${tooled.stderr.trim()}`}`,
 );
 failed ||= !toolsOk;
 const bins = JSON.parse(readFileSync(join(installed, "package.json"), "utf8")).bin as Record<string, string>;
 const commands: [string, string[], string][] = [
-  [join(installed, bins.neiro as string), ["--vault", FIXTURE, "list", "--json"], run("bun", ["list"])],
+  [join(installed, bins.tsuzuri as string), ["--vault", FIXTURE, "list", "--json"], run("bun", ["list"])],
   [
-    join(installed, bins["neiro-tools"] as string),
+    join(installed, bins["tsuzuri-tools"] as string),
     ["--json"],
     spawnSync("bun", [join(CORE, "src", "tools-cli.ts"), "--json"], { encoding: "utf8" }).stdout,
   ],

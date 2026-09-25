@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Vault } from "neiro";
+import { Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
@@ -12,7 +12,7 @@ const paths = (notes: { path: string }[]) => notes.map((note) => note.path);
 
 /** The fixture plus a shelf of books, so "latest books" has something to find. */
 function withBooks(): Vault {
-  const root = mkdtempSync(join(tmpdir(), "neiro-books-"));
+  const root = mkdtempSync(join(tmpdir(), "tsuzuri-books-"));
   cpSync(FIXTURE, root, { recursive: true });
   const books: [string, string, string[]][] = [
     ["Dune", "2026-09-20T09:00", ["sf", "classic"]],

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { renderTemplate, templateFor } from "./templates.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
-const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "neiro.toml" };
+const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "tsuzuri.toml" };
 
 describe("rendering", () => {
   test("fills title, date, and time, with an optional moment-style format", () => {

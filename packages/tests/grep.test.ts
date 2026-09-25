@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { Vault } from "neiro";
+import { Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
 const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 const hasRipgrep = spawnSync("rg", ["--version"]).status === 0;
 
-/** ripgrep over the fixture with neiro's exclusions: dot folders are hidden by default, submodule paths excluded. */
+/** ripgrep over the fixture with tsuzuri's exclusions: dot folders are hidden by default, submodule paths excluded. */
 function ripgrep(...args: string[]): string {
   const result = spawnSync("rg", ["-n", "-S", "--sort", "path", "--glob", "*.md", "--glob", "!libs", ...args, "."], {
     cwd: FIXTURE,
@@ -17,7 +17,7 @@ function ripgrep(...args: string[]): string {
   return result.stdout.replaceAll("./", "").trimEnd();
 }
 
-function neiro(...args: string[]): string {
+function tsuzuri(...args: string[]): string {
   return spawnSync("bun", [CLI, "--vault", FIXTURE, "grep", ...args], { encoding: "utf8" }).stdout.trimEnd();
 }
 
@@ -56,14 +56,14 @@ describe("grep", () => {
 describe.skipIf(!hasRipgrep)("grep against ripgrep", () => {
   for (const args of [["working memory"], ["Working"], ["-F", "[[Plato]]"], ["-C", "1", "-F", "Plato"], ["^tags:"]]) {
     test(`matches rg -n ${args.join(" ")}`, () => {
-      expect(neiro(...args)).toBe(ripgrep(...args));
+      expect(tsuzuri(...args)).toBe(ripgrep(...args));
     });
   }
 });
 
 describe("cli grep", () => {
   test("prints unique paths with --format paths and exits 2 for a bad pattern", () => {
-    expect(neiro("memory", "--format", "paths").split("\n")).toEqual([
+    expect(tsuzuri("memory", "--format", "paths").split("\n")).toEqual([
       "Topics/Cognitive load.md",
       "Topics/Working memory.md",
     ]);

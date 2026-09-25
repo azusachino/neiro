@@ -25,7 +25,7 @@ export interface InputSchema {
 }
 
 export interface ToolDefinition {
-  /** `neiro_` and a snake_case verb, valid for every major tool-calling API. */
+  /** `tsuzuri_` and a snake_case verb, valid for every major tool-calling API. */
   name: string;
   description: string;
   inputSchema: InputSchema;
@@ -57,7 +57,7 @@ const GUARDS = {
   dryRun: bool("Return the unified diff without writing"),
   ifHash: str("Write only if the note still has this hash, as get returned it"),
 };
-/** The longest pattern `neiro_grep` takes from a model. */
+/** The longest pattern `tsuzuri_grep` takes from a model. */
 const GREP_PATTERN_LIMIT = 200;
 const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
 
@@ -120,13 +120,13 @@ function writeOf(input: Record<string, unknown>) {
 
 export const TOOLS: ToolDefinition[] = [
   {
-    name: "neiro_get",
+    name: "tsuzuri_get",
     description: "Read one note: its summary, frontmatter, body, and hash. lines or around read part of it by line.",
     inputSchema: schema(
       {
         note: NOTE,
         lines: str("An inclusive line range such as 20:60, 20:, or :60, counted from the top of the file"),
-        around: int("A line to read around, as rg -n or neiro_grep numbers it"),
+        around: int("A line to read around, as rg -n or tsuzuri_grep numbers it"),
         context: { type: "integer", description: "Lines either side of around; 5 by default", minimum: 0 },
         maxChars: int("Truncate the returned body to this many characters"),
       },
@@ -137,7 +137,7 @@ export const TOOLS: ToolDefinition[] = [
     run: async (vault, input) => {
       const lines = o<string>(input, "lines");
       if (lines !== undefined && !/^(?:\d+:\d*|:\d+|\d+)$/.test(lines)) {
-        throw new ToolInputError(`neiro_get: lines must be a:b, a:, :b, or a line, not "${lines}"`);
+        throw new ToolInputError(`tsuzuri_get: lines must be a:b, a:, :b, or a line, not "${lines}"`);
       }
       const span = lines?.split(":");
       const around = o<number>(input, "around");
@@ -149,7 +149,7 @@ export const TOOLS: ToolDefinition[] = [
     },
   },
   {
-    name: "neiro_search",
+    name: "tsuzuri_search",
     description: "Rank notes by relevance to words (BM25; CJK matches as substrings). Returns summaries with snippets.",
     inputSchema: schema({ query: str("Words to look for"), limit: int("Most results; 10 by default"), ...FILTERS }, [
       "query",
@@ -159,7 +159,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.search(s(input, "query"), { ...filterOf(input), limit: o<number>(input, "limit") }),
   },
   {
-    name: "neiro_grep",
+    name: "tsuzuri_grep",
     description:
       "Lines containing text, as path, line, and text; smart case. Literal unless regex is set. Read around a hit next.",
     inputSchema: schema(
@@ -178,7 +178,7 @@ export const TOOLS: ToolDefinition[] = [
       // A model's regular expression runs in the host's process; literal text by default and a length cap keep a
       // backtracking pattern from stalling it.
       if (pattern.length > GREP_PATTERN_LIMIT) {
-        throw new ToolInputError(`neiro_grep: pattern is longer than ${GREP_PATTERN_LIMIT} characters`);
+        throw new ToolInputError(`tsuzuri_grep: pattern is longer than ${GREP_PATTERN_LIMIT} characters`);
       }
       try {
         return await vault.grep(pattern, {
@@ -187,13 +187,13 @@ export const TOOLS: ToolDefinition[] = [
           context: o<number>(input, "context"),
         });
       } catch (error) {
-        if (error instanceof SyntaxError) throw new ToolInputError(`neiro_grep: ${error.message}`);
+        if (error instanceof SyntaxError) throw new ToolInputError(`tsuzuri_grep: ${error.message}`);
         throw error;
       }
     },
   },
   {
-    name: "neiro_find",
+    name: "tsuzuri_find",
     description: "Fuzzy-match notes by path, title, or alias, for a loose reference such as a half-remembered name.",
     inputSchema: schema({ query: str("A loose name, abbreviation, or typo"), limit: int("Most results") }, ["query"]),
     annotations: READ,
@@ -201,7 +201,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.suggest(s(input, "query"), { limit: o<number>(input, "limit") }),
   },
   {
-    name: "neiro_list",
+    name: "tsuzuri_list",
     description: "List note summaries, filtered on any frontmatter property and sorted, such as the latest books.",
     inputSchema: schema({
       ...FILTERS,
@@ -226,7 +226,7 @@ export const TOOLS: ToolDefinition[] = [
       }),
   },
   {
-    name: "neiro_nav",
+    name: "tsuzuri_nav",
     description: "A folder's index note and headings, subfolders, and notes: how the vault is laid out.",
     inputSchema: schema({ folder: str("A folder; the vault root by default") }),
     annotations: READ,
@@ -234,7 +234,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.nav(o<string>(input, "folder")),
   },
   {
-    name: "neiro_links",
+    name: "tsuzuri_links",
     description:
       "A note's outgoing links (wikilinks, Markdown links, and frontmatter links) and what each resolves to.",
     inputSchema: schema({ note: NOTE }, ["note"]),
@@ -243,7 +243,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.links(s(input, "note")),
   },
   {
-    name: "neiro_backlinks",
+    name: "tsuzuri_backlinks",
     description: "Notes that link to a note.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
@@ -251,7 +251,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.backlinks(s(input, "note")),
   },
   {
-    name: "neiro_tags",
+    name: "tsuzuri_tags",
     description: "Every tag with its note count. Reuse one of these instead of inventing a near-duplicate.",
     inputSchema: schema({ ...FILTERS }),
     annotations: READ,
@@ -259,7 +259,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.tags(filterOf(input)),
   },
   {
-    name: "neiro_outline",
+    name: "tsuzuri_outline",
     description: "A note's headings with their levels and line numbers.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
@@ -267,7 +267,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.outline(s(input, "note")),
   },
   {
-    name: "neiro_prop_get",
+    name: "tsuzuri_prop_get",
     description: "One frontmatter value of a note.",
     inputSchema: schema({ note: NOTE, key: str("The property") }, ["note", "key"]),
     annotations: READ,
@@ -275,7 +275,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.property(s(input, "note"), s(input, "key")),
   },
   {
-    name: "neiro_journal",
+    name: "tsuzuri_journal",
     description: "The periodic note for a date: its path, and its content when written.",
     inputSchema: schema(
       {
@@ -289,13 +289,13 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.journalFor(s(input, "period") as Period, dateOf(input)),
   },
   {
-    name: "neiro_capture",
+    name: "tsuzuri_capture",
     description: "Create one new note in the vault's inbox or capture folder. Never edits an existing note.",
     inputSchema: schema(
       {
         text: str("The note body"),
         title: str("A title; the first line of text by default"),
-        tags: list("Tags, preferably ones neiro_tags lists"),
+        tags: list("Tags, preferably ones tsuzuri_tags lists"),
         source: str("Where the note came from, such as a URL"),
         dryRun: GUARDS.dryRun,
       },
@@ -310,7 +310,7 @@ export const TOOLS: ToolDefinition[] = [
       ),
   },
   {
-    name: "neiro_journal_append",
+    name: "tsuzuri_journal_append",
     description: "Add text to the periodic note for a date, at its end or under a heading. The note must exist.",
     inputSchema: schema(
       {
@@ -332,7 +332,7 @@ export const TOOLS: ToolDefinition[] = [
       }),
   },
   {
-    name: "neiro_append",
+    name: "tsuzuri_append",
     description: "Add text to the end of a note, or to the end of one section. Changes nothing else.",
     inputSchema: schema(
       {
@@ -354,7 +354,7 @@ export const TOOLS: ToolDefinition[] = [
       }),
   },
   {
-    name: "neiro_section_put",
+    name: "tsuzuri_section_put",
     description: "Replace one section's body, or add the section. Every other section stays byte-identical.",
     inputSchema: schema({ note: NOTE, heading: str("The section"), text: str("The new body"), ...GUARDS }, [
       "note",
@@ -366,7 +366,7 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input)),
   },
   {
-    name: "neiro_prop_set",
+    name: "tsuzuri_prop_set",
     description: "Set one frontmatter property, keeping comments, key order, and every other line.",
     inputSchema: schema(
       {
@@ -383,7 +383,7 @@ export const TOOLS: ToolDefinition[] = [
       vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input)),
   },
   {
-    name: "neiro_new",
+    name: "tsuzuri_new",
     description: "Create a note from the vault's template for a type, placed as a capture is.",
     inputSchema: schema(
       {
@@ -403,7 +403,7 @@ export const TOOLS: ToolDefinition[] = [
       }),
   },
   {
-    name: "neiro_put",
+    name: "tsuzuri_put",
     description: "Write a whole note: create it, or replace it only with the hash get returned.",
     inputSchema: schema({ path: str("A vault path ending in .md"), content: str("The whole note"), ...GUARDS }, [
       "path",

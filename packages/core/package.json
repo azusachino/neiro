@@ -1,5 +1,5 @@
 {
-  "name": "neiro",
+  "name": "tsuzuri",
   "version": "0.6.0",
   "description": "An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault",
   "type": "module",
@@ -18,15 +18,15 @@
     }
   },
   "bin": {
-    "neiro": "./dist/lib/cli.js",
-    "neiro-tools": "./dist/lib/tools-cli.js"
+    "tsuzuri": "./dist/lib/cli.js",
+    "tsuzuri-tools": "./dist/lib/tools-cli.js"
   },
   "engines": {
     "bun": ">=1.4.0",
     "node": ">=24"
   },
   "scripts": {
-    "build": "bun build --compile src/cli.ts --outfile dist/neiro",
+    "build": "bun build --compile src/cli.ts --outfile dist/tsuzuri",
     "build:lib": "tsc -p tsconfig.build.json && bun build src/cli.ts src/tools-cli.ts --target=node --packages=external --outdir dist/lib",
     "prepack": "bun run build:lib"
   },
@@ -39,7 +39,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/azusachino/neiro.git"
+    "url": "git+https://github.com/azusachino/tsuzuri.git"
   },
   "keywords": [
     "obsidian",

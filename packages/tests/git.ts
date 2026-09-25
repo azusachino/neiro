@@ -8,7 +8,7 @@ export const FIXTURE = join(import.meta.dir, "fixtures", "vault");
 
 /** A throwaway copy of the fixture vault, outside any Git repository. */
 export function copyVault(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-vault-"));
+  const root = mkdtempSync(join(tmpdir(), "tsuzuri-vault-"));
   cpSync(FIXTURE, root, { recursive: true });
   return root;
 }
@@ -21,7 +21,7 @@ export function git(cwd: string, ...args: string[]): string {
 
 /** A copy of the fixture committed to a fresh repository whose `origin` is a bare repository. */
 export function gitVault(): { root: string; remote: string } {
-  const remote = mkdtempSync(join(tmpdir(), "neiro-remote-"));
+  const remote = mkdtempSync(join(tmpdir(), "tsuzuri-remote-"));
   git(remote, "init", "--quiet", "--bare", "--initial-branch=main");
   const root = copyVault();
   git(root, "init", "--quiet", "--initial-branch=main");

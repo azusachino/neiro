@@ -1,4 +1,4 @@
-# The fixture's conventions, as a vault declares them for neiro.
+# The fixture's conventions, as a vault declares them for tsuzuri.
 [capture]
 folder = "Inbox"
 

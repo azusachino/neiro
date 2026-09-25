@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "neiro";
+import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "tsuzuri";
 
 export const FIXTURE = join(import.meta.dir, "fixtures", "vault");
 const vault = new Vault(FIXTURE);
@@ -118,7 +118,7 @@ describe("links", () => {
   });
 
   test("counts frontmatter wikilinks and local Markdown links, as Obsidian does", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-links-"));
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-links-"));
     writeFileSync(join(root, "Target.md"), "t\n");
     writeFileSync(join(root, "My Note.md"), "m\n");
     writeFileSync(join(root, "Linked.md"), '---\nrelated:\n  - "[[Target]]"\n---\n');
@@ -138,7 +138,7 @@ describe("links", () => {
   });
 
   test("resolves a note whose name has a dot before calling it an attachment", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-dotted-"));
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-dotted-"));
     writeFileSync(join(root, "Node.js.md"), "n\n");
     writeFileSync(join(root, "From.md"), "[[Node.js]] ![[image.png]]\n");
     const byTarget = Object.fromEntries(
@@ -149,7 +149,7 @@ describe("links", () => {
   });
 
   test("skips links in a fence that holds a shorter fence, as headings do", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-fences-"));
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-fences-"));
     const note = "````md\n```\n[[Inner]]\n# not a heading\n```\n````\n[[Outer]]\n## real\n";
     writeFileSync(join(root, "index.md"), note);
     const fenced = new Vault(root);
@@ -159,7 +159,7 @@ describe("links", () => {
   });
 
   test("sees a new link after a write, since the link graph goes with the scan", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-graph-"));
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-graph-"));
     writeFileSync(join(root, "A.md"), "a\n");
     writeFileSync(join(root, "B.md"), "b\n");
     const graph = new Vault(root);
@@ -237,7 +237,7 @@ describe("search", () => {
 });
 
 describe("journal", () => {
-  test("finds the periodic notes neiro.toml declares", async () => {
+  test("finds the periodic notes tsuzuri.toml declares", async () => {
     expect((await vault.journalFor("day", parseDate("2026-09-16"))).note?.path).toBe("Daily/2026-09-16.md");
     expect((await vault.journalFor("week", parseDate("2026-09-16"))).note?.path).toBe("Weekly/2026-W38.md");
     expect(await vault.journalFor("day", parseDate("2026-09-17"))).toEqual({ path: "Daily/2026-09-17.md", note: null });

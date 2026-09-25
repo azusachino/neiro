@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
-import { NeiroError } from "./errors.ts";
+import { TsuzuriError } from "./errors.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
 import type { CaptureSettings } from "./settings.ts";
 import { lowercaseTitle } from "./title.ts";
@@ -36,7 +36,7 @@ const FILENAME_LIMIT = 120;
 // Characters Obsidian refuses in a file name, or that break a wikilink to it.
 const UNSAFE_FILENAME = /[*"\\/<>:|?#^[\]\p{Cc}]/gu;
 
-export class CaptureError extends NeiroError {}
+export class CaptureError extends TsuzuriError {}
 
 /** Canonical kebab-case spelling: trimmed, lowercase, one hyphen between words, `/` kept between nested levels. */
 export function canonicalTag(tag: string): string {

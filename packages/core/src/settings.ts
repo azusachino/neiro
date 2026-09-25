@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { ConfigError } from "./errors.ts";
 import { parseToml } from "./providers.ts";
 
-export const CONFIG_FILE = "neiro.toml";
+export const CONFIG_FILE = "tsuzuri.toml";
 export const PERIODS = ["day", "week", "month", "quarter", "year"] as const;
 export type Period = (typeof PERIODS)[number];
 
@@ -52,8 +52,8 @@ export interface VaultSettings {
   templates?: TemplateSettings;
 }
 
-/** The shape of `neiro.toml`, also accepted in code. Every key is optional. */
-export interface NeiroConfig {
+/** The shape of `tsuzuri.toml`, also accepted in code. Every key is optional. */
+export interface TsuzuriConfig {
   capture?: {
     folder?: string;
     filename?: "title" | "slug";
@@ -144,8 +144,8 @@ function checkTable(value: unknown, rules: Record<string, Rule>, path: string, s
   }
 }
 
-/** Check settings against the shape of `neiro.toml`, so a misspelled key or value fails instead of being ignored. */
-function checkConfig(config: unknown, source: string): NeiroConfig {
+/** Check settings against the shape of `tsuzuri.toml`, so a misspelled key or value fails instead of being ignored. */
+function checkConfig(config: unknown, source: string): TsuzuriConfig {
   if (!isTable(config)) throw new ConfigError(`${source}: settings must be a table`);
   for (const [section, value] of Object.entries(config)) {
     if (section === "journal") {
@@ -162,14 +162,14 @@ function checkConfig(config: unknown, source: string): NeiroConfig {
     if (!rules) throw new ConfigError(`${source}: unknown key ${section}; settings take capture, journal, templates`);
     checkTable(value, rules, section, source);
   }
-  return config as NeiroConfig;
+  return config as TsuzuriConfig;
 }
 
 /**
- * Resolve settings by precedence: options passed in code, then `neiro.toml`, then neutral defaults (ADR 0011). A
+ * Resolve settings by precedence: options passed in code, then `tsuzuri.toml`, then neutral defaults (ADR 0011). A
  * journal period with no setting stays unset, and using it raises `UnsupportedError`.
  */
-export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSettings {
+export function resolveSettings(root: string, code: TsuzuriConfig = {}): VaultSettings {
   const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE) : {};
   checkConfig(code, "options");
   const capture = { ...file.capture, ...code.capture };
@@ -201,8 +201,8 @@ export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSett
   };
 }
 
-/** `[templates]` in code options or `neiro.toml`; no folder is assumed. */
-function templates(file: NeiroConfig, code: NeiroConfig): TemplateSettings | undefined {
+/** `[templates]` in code options or `tsuzuri.toml`; no folder is assumed. */
+function templates(file: TsuzuriConfig, code: TsuzuriConfig): TemplateSettings | undefined {
   const folder = code.templates?.folder ?? file.templates?.folder;
   if (folder === undefined || folder.trim() === "") return undefined;
   return {

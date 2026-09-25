@@ -1,5 +1,5 @@
 name: Bug report
-description: Something neiro does wrong.
+description: Something tsuzuri does wrong.
 labels: [bug]
 body:
   - type: textarea
@@ -20,4 +20,4 @@ body:
     id: version
     attributes:
       label: Version and runtime
-      placeholder: neiro 0.1.0 on Bun 1.4.2, macOS
+      placeholder: tsuzuri 0.1.0 on Bun 1.4.2, macOS

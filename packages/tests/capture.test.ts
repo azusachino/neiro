@@ -2,14 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { ConfigError, type NeiroConfig, Vault } from "neiro";
+import { ConfigError, type TsuzuriConfig, Vault } from "tsuzuri";
 import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
 
-/** A vault that declares a strict house style, the way a vault's own neiro.toml would. */
-const STRICT: NeiroConfig = {
+/** A vault that declares a strict house style, the way a vault's own tsuzuri.toml would. */
+const STRICT: TsuzuriConfig = {
   capture: {
     folder: "queue",
     filename: "slug",
@@ -27,11 +27,11 @@ describe("capture settings in a vault", () => {
     expect(new Vault(join(FIXTURE, "People")).settings.capture.folder).toBe("");
   });
 
-  test("read the title allowlist named in neiro.toml", async () => {
+  test("read the title allowlist named in tsuzuri.toml", async () => {
     const root = copyVault();
     writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI"]\n');
     writeFileSync(
-      join(root, "neiro.toml"),
+      join(root, "tsuzuri.toml"),
       '[capture]\nfolder = "Inbox"\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n',
     );
     const result = await new Vault(root).capture({ text: "Trying OpenAI Tools" }, { dryRun: true });
@@ -41,8 +41,8 @@ describe("capture settings in a vault", () => {
 
 describe("settings shape", () => {
   const withToml = (toml: string) => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-config-"));
-    writeFileSync(join(root, "neiro.toml"), toml);
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-config-"));
+    writeFileSync(join(root, "tsuzuri.toml"), toml);
     return () => new Vault(root);
   };
 
@@ -59,9 +59,9 @@ describe("settings shape", () => {
     expect(withToml("[capture]\nrequire_tags = 1\n")).toThrow("capture.require_tags must be a boolean");
     expect(withToml('[capture]\nreject_tags = "todo"\n')).toThrow("reject_tags must be a list of strings");
     expect(withToml("[journal.week]\nformat = 3\n")).toThrow(ConfigError);
-    expect(() => new Vault(FIXTURE, { config: { capture: { tag_style: "Kebab" } } as unknown as NeiroConfig })).toThrow(
-      "options: capture.tag_style must be one of as-written, kebab",
-    );
+    expect(
+      () => new Vault(FIXTURE, { config: { capture: { tag_style: "Kebab" } } as unknown as TsuzuriConfig }),
+    ).toThrow("options: capture.tag_style must be one of as-written, kebab");
   });
 });
 

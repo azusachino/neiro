@@ -1,5 +1,5 @@
 /**
- * neiro's prelude: the one public entry, and the whole of the SDK's contract (ADR 0009). `Vault`, the types its
+ * tsuzuri's prelude: the one public entry, and the whole of the SDK's contract (ADR 0009). `Vault`, the types its
  * methods take and return, the errors, and the helpers the CLI needs; everything else is internal, and the package's
  * `exports` refuses a deep import. A test snapshots this list, so a change to it is always deliberate.
  */
@@ -7,7 +7,7 @@
 export type { CaptureInput, CaptureOptions, CaptureResult } from "./capture.ts";
 export { CaptureError, captureInputFromMarkdown } from "./capture.ts";
 export { parseDate } from "./dateformat.ts";
-export { ConfigError, InputError, NeiroError } from "./errors.ts";
+export { ConfigError, InputError, TsuzuriError } from "./errors.ts";
 export type { Frontmatter } from "./frontmatter.ts";
 export { propertyValue } from "./frontmatter.ts";
 export type { GrepHit, GrepLine, GrepOptions } from "./grep.ts";
@@ -16,10 +16,10 @@ export type { Resolution } from "./links.ts";
 export { SectionError } from "./sections.ts";
 export type {
   CaptureSettings,
-  NeiroConfig,
   Period,
   PeriodicSetting,
   TemplateSettings,
+  TsuzuriConfig,
   VaultSettings,
 } from "./settings.ts";
 export { PERIODS, UnsupportedError } from "./settings.ts";

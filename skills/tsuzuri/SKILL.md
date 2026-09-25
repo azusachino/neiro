@@ -1,13 +1,13 @@
 ---
-name: neiro
-description: neiro, the CLI for an Obsidian-compatible Markdown vault. Use when reading, searching, or navigating a vault's notes, capturing a new note into it, or changing one section, property, or journal entry of an existing note.
+name: tsuzuri
+description: tsuzuri, the CLI for an Obsidian-compatible Markdown vault. Use when reading, searching, or navigating a vault's notes, capturing a new note into it, or changing one section, property, or journal entry of an existing note.
 ---
 
-# neiro
+# tsuzuri
 
-neiro reads and writes a vault's Markdown files directly; Obsidian need not run. Run it with `--vault <dir>` or `$NEIRO_VAULT` set, and pass `--json` to every call you parse. `neiro help <command>` gives a command's options and an example; this skill covers what help cannot: which command to reach for, and how to write without clobbering the owner.
+tsuzuri reads and writes a vault's Markdown files directly; Obsidian need not run. Run it with `--vault <dir>` or `$TSUZURI_VAULT` set, and pass `--json` to every call you parse. `tsuzuri help <command>` gives a command's options and an example; this skill covers what help cannot: which command to reach for, and how to write without clobbering the owner.
 
-Before writing, read the vault's own instructions (`AGENTS.md` or similar at its root). They decide where new notes go and who commits them; neiro only writes files, and leaves Git to the owner.
+Before writing, read the vault's own instructions (`AGENTS.md` or similar at its root). They decide where new notes go and who commits them; tsuzuri only writes files, and leaves Git to the owner.
 
 ## Read
 
@@ -22,7 +22,7 @@ Each read ends when you can name the note paths your answer rests on.
 | a note to place in the graph | `links <note>` and `backlinks <note>` |
 | a date | `journal day\|week\|month --date YYYY-MM-DD` |
 
-A reference is a path, file name, title, or alias. When it matches several notes, neiro refuses and names every candidate: pick one by path. Line numbers count from the top of the file, frontmatter included, as `rg -n` counts them. In a long note, read `--lines a:b` instead of the whole body.
+A reference is a path, file name, title, or alias. When it matches several notes, tsuzuri refuses and names every candidate: pick one by path. Line numbers count from the top of the file, frontmatter included, as `rg -n` counts them. In a long note, read `--lines a:b` instead of the whole body.
 
 ## Write
 
@@ -55,6 +55,6 @@ With `--json`, a failure is one line on stderr, `{"error": {"name", "message", .
 | `WriteConflictError` | the note changed since you read it: `get` it again and redo the write from step 1 |
 | `SectionError` | the heading is missing or repeated: `outline <note>` shows the headings |
 | `UnsupportedError`, `ConfigError` | the vault lacks a setting, such as a journal format; report it to the user as the message words it |
-| `UsageError` | `neiro help <command>` |
+| `UsageError` | `tsuzuri help <command>` |
 
 Exit code 1 is a refused request and 2 is bad usage.

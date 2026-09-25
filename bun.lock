@@ -11,11 +11,11 @@
       },
     },
     "packages/core": {
-      "name": "neiro",
+      "name": "tsuzuri",
       "version": "0.6.0",
       "bin": {
-        "neiro": "./dist/lib/cli.js",
-        "neiro-tools": "./dist/lib/tools-cli.js",
+        "tsuzuri": "./dist/lib/cli.js",
+        "tsuzuri-tools": "./dist/lib/tools-cli.js",
       },
       "dependencies": {
         "diff": "9.0.0",
@@ -25,9 +25,9 @@
       },
     },
     "packages/tests": {
-      "name": "neiro-tests",
+      "name": "tsuzuri-tests",
       "dependencies": {
-        "neiro": "workspace:*",
+        "tsuzuri": "workspace:*",
       },
     },
   },
@@ -100,11 +100,11 @@
 
     "ignore": ["ignore@7.0.9", "", {}, "sha512-brTTsvFRt5C1gGHtPst/281UjPD5t9fBqbgoMPlVWy11ZLTPfu7HxK4ZYqO9H7o/yC9rSTCI85EaQ4OoY12qYw=="],
 
-    "neiro": ["neiro@workspace:packages/core"],
-
-    "neiro-tests": ["neiro-tests@workspace:packages/tests"],
-
     "smol-toml": ["smol-toml@1.8.0", "", {}, "sha512-kCZr2V3ch9i00x8zXRhjUNVcjG9ijES5dDudkXvUVCT5QlJNQWElSJdZqyPemffHoLNUYwOcou0Fy+ojN0uHSQ=="],
+
+    "tsuzuri": ["tsuzuri@workspace:packages/core"],
+
+    "tsuzuri-tests": ["tsuzuri-tests@workspace:packages/tests"],
 
     "typescript": ["typescript@7.0.2", "", { "optionalDependencies": { "@typescript/typescript-aix-ppc64": "7.0.2", "@typescript/typescript-darwin-arm64": "7.0.2", "@typescript/typescript-darwin-x64": "7.0.2", "@typescript/typescript-freebsd-arm64": "7.0.2", "@typescript/typescript-freebsd-x64": "7.0.2", "@typescript/typescript-linux-arm": "7.0.2", "@typescript/typescript-linux-arm64": "7.0.2", "@typescript/typescript-linux-loong64": "7.0.2", "@typescript/typescript-linux-mips64el": "7.0.2", "@typescript/typescript-linux-ppc64": "7.0.2", "@typescript/typescript-linux-riscv64": "7.0.2", "@typescript/typescript-linux-s390x": "7.0.2", "@typescript/typescript-linux-x64": "7.0.2", "@typescript/typescript-netbsd-arm64": "7.0.2", "@typescript/typescript-netbsd-x64": "7.0.2", "@typescript/typescript-openbsd-arm64": "7.0.2", "@typescript/typescript-openbsd-x64": "7.0.2", "@typescript/typescript-sunos-x64": "7.0.2", "@typescript/typescript-win32-arm64": "7.0.2", "@typescript/typescript-win32-x64": "7.0.2" }, "bin": { "tsc": "bin/tsc" } }, "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA=="],
 

@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Vault } from "neiro";
+import { Vault } from "tsuzuri";
 import { git, gitVault } from "./git.ts";
 
 const NOTE = "Topics/Working memory.md";
@@ -14,7 +14,7 @@ const NOTE = "Topics/Working memory.md";
 /** A superproject whose `vault/` is a submodule checkout of the fixture: its `.git` is a `gitdir:` file. */
 function submoduleVault(): { superproject: string; root: string } {
   const { remote } = gitVault();
-  const superproject = mkdtempSync(join(tmpdir(), "neiro-super-"));
+  const superproject = mkdtempSync(join(tmpdir(), "tsuzuri-super-"));
   git(superproject, "init", "--quiet", "--initial-branch=main");
   git(superproject, "config", "user.name", "owner");
   git(superproject, "config", "user.email", "owner@example.com");
