@@ -38,6 +38,14 @@ describe("prop set", () => {
     expect((await vault.find("Commented")).frontmatter).toMatchObject({ zeta: 2, rating: 4, title: "A quoted title" });
   });
 
+  test("fills an empty frontmatter block instead of adding a second one", async () => {
+    const { vault, read } = vaultWith("Empty.md", "---\n---\nBody.\n\n---\n\nAfter a rule.\n");
+    expect((await vault.find("Empty")).body).toBe("Body.\n\n---\n\nAfter a rule.\n");
+    await vault.setProperty("Empty", "status", "draft");
+    expect(read()).toBe("---\nstatus: draft\n---\nBody.\n\n---\n\nAfter a rule.\n");
+    expect(await vault.outline("Empty")).toEqual([]);
+  });
+
   test("adds a block to a note without frontmatter, leaving the body as it was", async () => {
     const { vault, read } = vaultWith("Plain.md", "Just text.\n");
     await vault.setProperty("Plain", "status", "draft");

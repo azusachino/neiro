@@ -4,6 +4,7 @@
 
 - Links in frontmatter values and local Markdown links count for `links`, `backlinks`, `orphans`, and `unresolved`, as in Obsidian. ([#49](https://github.com/azusachino/neiro/issues/49))
 - A wikilink to a note whose name contains a dot, such as `[[Node.js]]`, resolves to the note instead of being taken for an attachment. ([#50](https://github.com/azusachino/neiro/issues/50))
+- An empty frontmatter block (`---` then `---`) is read as frontmatter, as in Obsidian, so `prop set` fills it instead of adding a second block. ([#51](https://github.com/azusachino/neiro/issues/51))
 
 ## 0.4.0
 

@@ -344,7 +344,8 @@ export class Vault {
       }
       doc.set(key, value);
       const yaml = doc.toString({ flowCollectionPadding: false, lineWidth: 0 }).replace(/\n$/, "");
-      return splice(current, range.start, range.end, yaml);
+      // An empty block has no line break of its own before the closing fence.
+      return splice(current, range.start, range.end, range.start === range.end ? `${yaml}\n` : yaml);
     });
   }
 

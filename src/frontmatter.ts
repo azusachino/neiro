@@ -2,7 +2,8 @@ import { parseYaml } from "./providers.ts";
 
 export type Frontmatter = Record<string, unknown>;
 
-const FENCE = /^---\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/;
+// The YAML between `---` fences; an empty block, `---` straight after `---`, is frontmatter too, as in Obsidian.
+export const FRONTMATTER = /^---\r?\n(?:([\s\S]*?)\r?\n)??---[ \t]*(?:\r?\n|$)/;
 
 /** A property value written as text, read as YAML reads it: `4` is a number, `[a, b]` a list, other text stays text. */
 export function propertyValue(text: string): unknown {
@@ -15,7 +16,7 @@ export function propertyValue(text: string): unknown {
 
 /** Where the YAML between a note's `---` fences sits, as character offsets, or undefined without frontmatter. */
 export function frontmatterRange(raw: string): { start: number; end: number } | undefined {
-  const match = FENCE.exec(raw);
+  const match = FRONTMATTER.exec(raw);
   if (!match) return undefined;
   const start = raw.startsWith("---\r\n") ? 5 : 4;
   return { start, end: start + (match[1] ?? "").length };
@@ -23,7 +24,7 @@ export function frontmatterRange(raw: string): { start: number; end: number } | 
 
 /** Split a note into its YAML frontmatter and body. Malformed YAML yields an empty object, never a throw. */
 export function splitFrontmatter(raw: string): { data: Frontmatter; body: string } {
-  const match = FENCE.exec(raw);
+  const match = FRONTMATTER.exec(raw);
   if (!match) return { data: {}, body: raw };
   let data: unknown;
   try {
