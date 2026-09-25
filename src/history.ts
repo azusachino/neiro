@@ -21,7 +21,10 @@ export interface History {
   show(path: string, rev: string): Promise<string>;
   /** A unified diff of the path between two revisions, or from a revision to the working file. */
   diff(path: string, from: string, to?: string): Promise<string>;
-  /** Take others' revisions first, then publish this one's. */
+  /**
+   * Take others' revisions first, then publish this one's. When they conflict, the store is left as it was before
+   * the call, local revisions kept, and a `HistoryError` says a person must reconcile it.
+   */
   sync(): Promise<void>;
 }
 
@@ -84,7 +87,19 @@ export class GitHistory implements History {
   }
 
   async sync(): Promise<void> {
-    await this.git(["pull", "--rebase", "--quiet"]);
+    try {
+      await this.git(["pull", "--rebase", "--quiet"]);
+    } catch (error) {
+      // A conflicting rebase stops halfway and blocks every later commit; put the clone back as it was.
+      const stopped = await this.git(["rebase", "--abort"]).then(
+        () => true,
+        () => false,
+      );
+      if (!stopped) throw error;
+      throw new HistoryError(
+        "git pull failed: local revisions conflict with the remote; the rebase was aborted and local commits kept, so a person must reconcile them",
+      );
+    }
     await this.git(["push", "--quiet"]);
   }
 }

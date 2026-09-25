@@ -41,7 +41,7 @@ export interface ToolDefinition {
 export interface ToolContext {
   /** Commit each write, as one revision of the note alone. */
   commit?: boolean;
-  /** Pull before and push after each write, through `History`. Implies `commit`. */
+  /** Pull before and push after each write, through `History`, so `ifHash` meets the remote's latest. Implies `commit`. */
   push?: boolean;
   /** Commit author, as `Name <email>`. */
   author?: string;
@@ -124,8 +124,14 @@ function writeOf(input: Record<string, unknown>, context: ToolContext = {}) {
   };
 }
 
-/** After a committed write, publish it when the consumer asked for push. */
-async function published<T extends { committed: boolean }>(vault: Vault, result: T, context: ToolContext = {}) {
+/** With push: take the remote's revisions before the write, so its guards see them, and publish the write after. */
+async function published<T extends { committed: boolean }>(
+  vault: Vault,
+  context: ToolContext = {},
+  write: () => Promise<T>,
+): Promise<T> {
+  if (context.push) await vault.sync();
+  const result = await write();
   if (context.push && result.committed) await vault.sync();
   return result;
 }
@@ -324,14 +330,12 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "direct",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
+      published(vault, context, () =>
+        vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
           ...writeOf(input, context),
           heading: o(input, "heading"),
           date: dateOf(input),
         }),
-        context,
       ),
   },
   {
@@ -350,14 +354,12 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.append(s(input, "note"), s(input, "text"), {
+      published(vault, context, () =>
+        vault.append(s(input, "note"), s(input, "text"), {
           ...writeOf(input, context),
           heading: o(input, "heading"),
           createHeading: o(input, "createHeading"),
         }),
-        context,
       ),
   },
   {
@@ -371,10 +373,8 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input, context)),
-        context,
+      published(vault, context, () =>
+        vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input, context)),
       ),
   },
   {
@@ -392,15 +392,8 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.setProperty(
-          s(input, "note"),
-          s(input, "key"),
-          propertyValue(s(input, "value")),
-          writeOf(input, context),
-        ),
-        context,
+      published(vault, context, () =>
+        vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input, context)),
       ),
   },
   {
@@ -436,7 +429,7 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "cli-only",
     run: async (vault, input, context) =>
-      published(vault, await vault.put(s(input, "path"), s(input, "content"), writeOf(input, context)), context),
+      published(vault, context, () => vault.put(s(input, "path"), s(input, "content"), writeOf(input, context))),
   },
 ];
 
