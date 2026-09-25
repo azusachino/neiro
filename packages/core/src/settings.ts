@@ -83,25 +83,6 @@ const DEFAULT_CAPTURE: Omit<CaptureSettings, "folder"> = {
   rejectTags: [],
 };
 
-const PERIODIC_NOTES_KEYS: Record<Period, string> = {
-  day: "daily",
-  week: "weekly",
-  month: "monthly",
-  quarter: "quarterly",
-  year: "yearly",
-};
-
-function readJson(root: string, path: string): Record<string, unknown> | undefined {
-  const file = join(root, path);
-  if (!existsSync(file)) return undefined;
-  try {
-    const value: unknown = JSON.parse(readFileSync(file, "utf8"));
-    return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function readToml(root: string, path: string): unknown {
   try {
     return parseToml.get()(readFileSync(join(root, path), "utf8"));
@@ -186,29 +167,9 @@ function checkConfig(config: unknown, source: string): NeiroConfig {
   return config as NeiroConfig;
 }
 
-/** Obsidian's "Default location for new notes": a folder only when set to "In the folder specified below". */
-function obsidianNewNoteFolder(root: string): string | undefined {
-  const app = readJson(root, ".obsidian/app.json");
-  return app?.newFileLocation === "folder" ? text(app.newFileFolderPath) : undefined;
-}
-
-/** Periodic Notes (0.0.x settings) first, then Obsidian's core Daily Notes for days. */
-function obsidianJournal(root: string, period: Period): PeriodicSetting | undefined {
-  const periodic = readJson(root, ".obsidian/plugins/periodic-notes/data.json");
-  const entry = periodic?.[PERIODIC_NOTES_KEYS[period]] as Record<string, unknown> | undefined;
-  if (entry?.enabled === true && text(entry.format)) {
-    return { folder: text(entry.folder) ?? "", format: text(entry.format) as string, source: "Periodic Notes" };
-  }
-  if (period !== "day") return undefined;
-  const daily = readJson(root, ".obsidian/daily-notes.json");
-  const corePlugins = readJson(root, ".obsidian/core-plugins.json");
-  if (!daily && corePlugins?.["daily-notes"] !== true) return undefined;
-  return { folder: text(daily?.folder) ?? "", format: text(daily?.format) || "YYYY-MM-DD", source: "Daily Notes" };
-}
-
 /**
- * Resolve settings by precedence: options passed in code, then `neiro.toml`, then the vault's own Obsidian settings,
- * then neutral defaults. A journal period with no source stays unset, and using it raises `UnsupportedError`.
+ * Resolve settings by precedence: options passed in code, then `neiro.toml`, then neutral defaults (ADR 0011). A
+ * journal period with no setting stays unset, and using it raises `UnsupportedError`.
  */
 export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSettings {
   const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE) : {};
@@ -220,16 +181,13 @@ export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSett
   for (const period of PERIODS) {
     const configured = code.journal?.[period] ?? file.journal?.[period];
     const source = code.journal?.[period] ? "options" : CONFIG_FILE;
-    const setting = configured?.format
-      ? { folder: configured.folder ?? "", format: configured.format, source }
-      : obsidianJournal(root, period);
-    if (setting) journal[period] = setting;
+    if (configured?.format) journal[period] = { folder: configured.folder ?? "", format: configured.format, source };
   }
-  const template = templates(root, file, code);
+  const template = templates(file, code);
 
   return {
     capture: {
-      folder: capture.folder ?? obsidianNewNoteFolder(root) ?? "",
+      folder: capture.folder ?? "",
       filename: capture.filename ?? DEFAULT_CAPTURE.filename,
       properties: capture.properties ?? DEFAULT_CAPTURE.properties,
       values: capture.values ?? DEFAULT_CAPTURE.values,
@@ -245,19 +203,15 @@ export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSett
   };
 }
 
-/** `[templates]` in code options or `neiro.toml`, then Obsidian's core Templates setting; no folder is assumed. */
-function templates(root: string, file: NeiroConfig, code: NeiroConfig): TemplateSettings | undefined {
-  const obsidian = readJson(root, ".obsidian/templates.json");
-  const configured = code.templates?.folder ?? file.templates?.folder;
-  const source = code.templates?.folder ? "options" : file.templates?.folder ? CONFIG_FILE : "Templates";
-  const folder = configured ?? text(obsidian?.folder);
+/** `[templates]` in code options or `neiro.toml`; no folder is assumed. */
+function templates(file: NeiroConfig, code: NeiroConfig): TemplateSettings | undefined {
+  const folder = code.templates?.folder ?? file.templates?.folder;
   if (folder === undefined || folder.trim() === "") return undefined;
   return {
     folder: folder.replace(/^\/+|\/+$/g, ""),
     // Obsidian's own defaults for a template's {{date}} and {{time}}.
-    dateFormat:
-      code.templates?.date_format ?? file.templates?.date_format ?? (text(obsidian?.dateFormat) || "YYYY-MM-DD"),
-    timeFormat: code.templates?.time_format ?? file.templates?.time_format ?? (text(obsidian?.timeFormat) || "HH:mm"),
-    source,
+    dateFormat: code.templates?.date_format ?? file.templates?.date_format ?? "YYYY-MM-DD",
+    timeFormat: code.templates?.time_format ?? file.templates?.time_format ?? "HH:mm",
+    source: code.templates?.folder ? "options" : CONFIG_FILE,
   };
 }

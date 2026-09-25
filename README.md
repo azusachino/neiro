@@ -79,15 +79,15 @@ neiro assumes no folder layout or house style. Each setting is resolved in this 
 
 1. options passed in code (`new Vault(root, { config })`), in the shape of `neiro.toml`
 2. `neiro.toml` at the vault root
-3. the vault's own Obsidian settings in `.obsidian/`
-4. a neutral default, or an `UnsupportedError` naming what is missing
+3. a neutral default, or an `UnsupportedError` naming what to set
 
-| Setting | Read from Obsidian | Default |
+| Setting | `neiro.toml` | Default |
 | --- | --- | --- |
-| capture folder | "Default location for new notes" (`app.json`) | the vault root |
-| day journal | Periodic Notes, then core Daily Notes (`daily-notes.json`) | `UnsupportedError` |
-| week, month, quarter, and year journals | Periodic Notes (`plugins/periodic-notes/data.json`) | `UnsupportedError` |
-| template folder | core Templates (`templates.json`) | `UnsupportedError` for `new` |
+| capture folder | `[capture] folder` | the vault root |
+| journals, day to year | `[journal.<period>] folder` and `format` | `UnsupportedError` |
+| template folder | `[templates] folder` | `UnsupportedError` for `new` |
+
+neiro reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `neiro.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
 An unknown key, or a value of the wrong type or choice, in `neiro.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
 
@@ -113,7 +113,7 @@ folder = "journal"
 format = "GGGG/[weekly]/GGGG-[W]WW"
 
 [templates]
-folder = "templates"               # else Obsidian's Templates folder
+folder = "templates"               # without it, `new` raises UnsupportedError
 ```
 
 Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `.trash`, `node_modules`, and anything the vault root's `.gitignore` ignores are never scanned, as ripgrep skips them.
@@ -141,7 +141,7 @@ import { Vault } from "neiro";
 const vault = new Vault(process.env.NEIRO_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
-const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json or neiro.toml
+const today = await vault.journalFor("day"); // from [journal.day] in neiro.toml
 await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 

@@ -129,7 +129,10 @@ describe("configured capture settings", () => {
   test("read the title allowlist named in neiro.toml", async () => {
     const root = copyVault();
     writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI"]\n');
-    writeFileSync(join(root, "neiro.toml"), '[capture]\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n');
+    writeFileSync(
+      join(root, "neiro.toml"),
+      '[capture]\nfolder = "Inbox"\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n',
+    );
     const result = await new Vault(root).capture({ text: "Trying OpenAI Tools" }, { dryRun: true });
     expect(result.path).toBe("Inbox/trying OpenAI tools.md");
   });

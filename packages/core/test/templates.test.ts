@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { splitFrontmatter } from "../src/frontmatter.ts";
 import { type NeiroConfig, NotFoundError, UnsupportedError, Vault } from "../src/index.ts";
@@ -11,10 +11,10 @@ const NOW = new Date(2026, 8, 24, 19, 5);
 const _CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const KEPANO = join(import.meta.dir, "vaults", "kepano-obsidian");
 const kepanoPresent = existsSync(KEPANO) && readdirSync(KEPANO).length > 0;
-const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "Templates" };
+const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "neiro.toml" };
 
 describe("template settings", () => {
-  test("come from Obsidian's Templates setting, or neiro.toml, and nothing is assumed", () => {
+  test("come from neiro.toml or code options, and nothing is assumed", () => {
     expect(resolveSettings(FIXTURE).templates).toEqual(SETTINGS);
     const config: NeiroConfig = { templates: { folder: "Notes", date_format: "DD.MM.YYYY" } };
     expect(resolveSettings(FIXTURE, config).templates).toMatchObject({
@@ -23,7 +23,9 @@ describe("template settings", () => {
       source: "options",
     });
     const bare = copyVault();
-    writeFileSync(join(bare, ".obsidian", "templates.json"), "{}");
+    writeFileSync(join(bare, "neiro.toml"), '[capture]\nfolder = "Inbox"\n');
+    mkdirSync(join(bare, ".obsidian"), { recursive: true });
+    writeFileSync(join(bare, ".obsidian", "templates.json"), '{ "folder": "Templates" }');
     expect(resolveSettings(bare).templates).toBeUndefined();
   });
 });
@@ -75,21 +77,24 @@ describe("new", () => {
     expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
     expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
     const bare = copyVault();
-    writeFileSync(join(bare, ".obsidian", "templates.json"), "{}");
-    expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);
+    writeFileSync(join(bare, "neiro.toml"), '[capture]\nfolder = "Inbox"\n');
+    await expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);
   });
 });
 
+// kepano-obsidian names its templates folder only in .obsidian, which neiro does not read (ADR 0011).
+const KEPANO_TEMPLATES = { config: { templates: { folder: "Templates" } } };
+
 describe.skipIf(!kepanoPresent)("kepano-obsidian templates", () => {
   test("a book renders with valid frontmatter, its properties, blanks, and tags kept", async () => {
-    const result = await new Vault(KEPANO).create("book", "Dune", { now: NOW, dryRun: true });
+    const result = await new Vault(KEPANO, KEPANO_TEMPLATES).create("book", "Dune", { now: NOW, dryRun: true });
     const { data } = splitFrontmatter(result.content);
     expect(result.written).toBe(false);
     expect(data).toMatchObject({ categories: ["[[Books]]"], created: "2026-09-24", tags: ["to-read"], cover: null });
   });
 
   test("every template renders to parseable frontmatter", async () => {
-    const vault = new Vault(KEPANO);
+    const vault = new Vault(KEPANO, KEPANO_TEMPLATES);
     const types = readdirSync(join(KEPANO, "Templates"))
       .filter((name) => name.endsWith(" Template.md"))
       .map((name) => name.replace(/ Template\.md$/, ""));

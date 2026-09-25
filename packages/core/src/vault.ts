@@ -137,7 +137,7 @@ export interface NavView {
 }
 
 export interface VaultOptions {
-  /** Settings in the shape of `neiro.toml`, taking precedence over the vault's own `neiro.toml` and Obsidian settings. */
+  /** Settings in the shape of `neiro.toml`, taking precedence over the vault's own `neiro.toml`. */
   config?: NeiroConfig;
   /** Folder prefixes never scanned. Paths from the vault's `.gitmodules` are always excluded. */
   exclude?: string[];
@@ -186,7 +186,7 @@ export class LineRangeError extends NeiroError {}
 
 export class Vault {
   readonly root: string;
-  /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
+  /** Resolved from code options, then `neiro.toml`, then neutral defaults. */
   readonly settings: VaultSettings;
   private readonly exclude: string[];
   private cache?: Scan;
@@ -474,9 +474,7 @@ export class Vault {
   ): Promise<CaptureResult> {
     const settings = this.settings.templates;
     if (!settings) {
-      throw new UnsupportedError(
-        "no template folder: set [templates] folder in neiro.toml, or Obsidian's Templates folder",
-      );
+      throw new UnsupportedError("no template folder: set [templates] folder in neiro.toml");
     }
     const paths = (await this.notes()).map((note) => note.path);
     const path = templateFor(paths, settings.folder, type);

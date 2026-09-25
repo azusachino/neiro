@@ -237,7 +237,7 @@ describe("search", () => {
 });
 
 describe("journal", () => {
-  test("reads Obsidian's Daily Notes and Periodic Notes settings", async () => {
+  test("finds the periodic notes neiro.toml declares", async () => {
     expect((await vault.journalFor("day", parseDate("2026-09-16"))).note?.path).toBe("Daily/2026-09-16.md");
     expect((await vault.journalFor("week", parseDate("2026-09-16"))).note?.path).toBe("Weekly/2026-W38.md");
     expect(await vault.journalFor("day", parseDate("2026-09-17"))).toEqual({ path: "Daily/2026-09-17.md", note: null });

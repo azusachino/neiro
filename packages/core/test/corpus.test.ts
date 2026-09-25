@@ -58,9 +58,11 @@ describe.skipIf(!present(KEPANO))("kepano-obsidian", () => {
     expect((await vault.backlinks("Categories/Books")).length).toBeGreaterThan(1);
   });
 
-  test("takes the day journal from the vault's Daily Notes settings", () => {
-    expect(vault.settings.journal.day).toEqual({ folder: "Daily", format: "YYYY-MM-DD", source: "Daily Notes" });
-    expect(vault.settings.journal.week).toBeUndefined();
+  test("reads nothing from the vault's own .obsidian settings", () => {
+    expect(existsSync(join(KEPANO, ".obsidian", "daily-notes.json"))).toBe(true);
+    expect(vault.settings.journal).toEqual({});
+    expect(vault.settings.templates).toBeUndefined();
+    expect(vault.settings.capture.folder).toBe("");
   });
 
   test("finds template notes by title", async () => {

@@ -6,7 +6,7 @@ import { type Period, type PeriodicSetting, UnsupportedError } from "./settings.
 export function journalPath(period: Period, date: Date, setting: PeriodicSetting | undefined): string {
   if (!setting) {
     throw new UnsupportedError(
-      `no ${period} journal settings: set [journal.${period}] in neiro.toml, or configure Obsidian's Daily Notes or Periodic Notes`,
+      `no ${period} journal settings: set [journal.${period}] folder and format in neiro.toml`,
     );
   }
   const relative = posix.normalize(posix.join(setting.folder, `${formatDate(date, setting.format)}.md`));

@@ -43,9 +43,9 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T5. Open today's or this week's journal
 
-`journal day|week|month|quarter|year [--date]`, with paths from the vault's own Daily Notes or Periodic Notes settings, or from `neiro.toml`. Shipped.
+`journal day|week|month|quarter|year [--date]`, with paths from `neiro.toml`'s `[journal.<period>]`. Shipped.
 
-- `vault.test › reads Obsidian's Daily Notes and Periodic Notes settings`
+- `vault.test › finds the periodic notes neiro.toml declares`
 - `cli.test › prints a journal note for a date`
 
 ### T6. Capture a thought, or file a draft
@@ -127,7 +127,7 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 `journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/neiro/issues/19).
 
-- `vault.test › reads Obsidian's Daily Notes and Periodic Notes settings`
+- `vault.test › finds the periodic notes neiro.toml declares`
 - `sections.test › appends to the journal note for a date, which must exist`
 
 ### A8. Edit a note without overwriting the owner's change
