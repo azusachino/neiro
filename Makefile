@@ -27,8 +27,13 @@ build: ## Compile neiro into one binary at packages/core/dist/neiro, and both pa
 
 pack: ## Pack neiro and neiro-tools into dist/pack, the tarballs each GitHub release carries
 	rm -rf dist/pack
+	# bun pm pack does not run prepack, so build the JavaScript and declarations Node and tsc need first
+	bun run --cwd packages/core build:lib
+	bun run --cwd packages/tools build:lib
 	cd packages/core && bun pm pack --destination ../../dist/pack
 	cd packages/tools && bun pm pack --destination ../../dist/pack
+	tar -tzf dist/pack/neiro-[0-9]*.tgz | grep -q package/dist/lib/index.d.ts
+	tar -tzf dist/pack/neiro-tools-*.tgz | grep -q package/dist/lib/index.d.ts
 
 format: ## Apply Biome and rumdl formatting
 	bun run format

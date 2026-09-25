@@ -2,7 +2,7 @@
 
 ## Unreleased
 
-- Each release carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`, built by `make pack`, and the README shows how to depend on them; a Git dependency installs the workspace root, not the packages. ([#83](https://github.com/azusachino/neiro/issues/83))
+- Each release carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`, built by `make pack`, which builds `dist/lib` first since `bun pm pack` does not run `prepack`, and the README shows how to depend on them; a Git dependency installs the workspace root, not the packages. ([#83](https://github.com/azusachino/neiro/issues/83))
 
 ## 0.6.0
 
