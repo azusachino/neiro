@@ -2,10 +2,12 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, posix } from "node:path";
 import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
+import { NeiroError } from "./errors.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
-import { type History, historyChain } from "./history.ts";
+import { type History, historyChain, PartialWriteError } from "./history.ts";
 import type { CaptureSettings } from "./settings.ts";
 import { lowercaseTitle } from "./title.ts";
+import { contentHash } from "./write.ts";
 
 export interface CaptureInput {
   /** The note body. */
@@ -44,7 +46,7 @@ const FILENAME_LIMIT = 120;
 // Characters Obsidian refuses in a file name, or that break a wikilink to it.
 const UNSAFE_FILENAME = /[*"\\/<>:|?#^[\]\p{Cc}]/gu;
 
-export class CaptureError extends Error {}
+export class CaptureError extends NeiroError {}
 
 /** Canonical kebab-case spelling: trimmed, lowercase, one hyphen between words, `/` kept between nested levels. */
 export function canonicalTag(tag: string): string {
@@ -86,7 +88,9 @@ function titleFrom(input: CaptureInput, settings: CaptureSettings): string {
   const raw = (explicit || firstLine || "").replace(/\s+/g, " ");
   if (raw === "") throw new CaptureError("a capture needs text or a title");
   const styled = settings.titleStyle === "lowercase" ? lowercaseTitle(raw, new Set(settings.titleAllow)) : raw;
-  return styled.length > TITLE_LIMIT ? `${styled.slice(0, TITLE_LIMIT).trimEnd()}…` : styled;
+  // Counted in code points, so the cut never splits an emoji or other astral character in half.
+  const chars = [...styled];
+  return chars.length > TITLE_LIMIT ? `${chars.slice(0, TITLE_LIMIT).join("").trimEnd()}…` : styled;
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -185,14 +189,20 @@ export async function capture(
   }
   const store = commit ? history() : undefined;
   // Take others' captures first, so the free file name is free on the remote too.
-  if (options.push) store?.sync();
+  if (options.push) await store?.sync();
 
   const path = freePath(root, settings.folder, stem, settings.filename);
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), content, { flag: "wx" });
 
-  store?.commit([path], `chore: capture ${path}`, options.author);
-  if (options.push) store?.sync();
+  let committed = false;
+  try {
+    await store?.commit([path], `chore: capture ${path}`, options.author);
+    committed = store !== undefined;
+    if (options.push) await store?.sync();
+  } catch (error) {
+    throw new PartialWriteError({ path, hash: contentHash(content), committed }, error);
+  }
   return { path, content, written: true, committed: commit, pushed: options.push ?? false };
 }
 

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { TOOLS } from "../src/index.ts";
+import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
@@ -19,6 +21,18 @@ describe("cli", () => {
       "People/Greek/Plato.md",
       "People/Plato.md",
     ]);
+  });
+
+  test("reports a bad date or a malformed neiro.toml in one line", () => {
+    const date = run("journal", "day", "--date", "2026-13-01");
+    expect(date.code).toBe(1);
+    expect(date.stderr.trim()).toBe('neiro: not a calendar date: "2026-13-01"');
+    const root = mkdtempSync(join(tmpdir(), "neiro-badtoml-"));
+    writeFileSync(join(root, "neiro.toml"), "capture = [\n");
+    const result = Bun.spawnSync(["bun", CLI, "--vault", root, "list"], { stderr: "pipe" });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toStartWith("neiro: neiro.toml: ");
+    expect(result.stderr.toString().trim().split("\n")).toHaveLength(1);
   });
 
   test("prints a journal note for a date", () => {
@@ -111,5 +125,112 @@ describe("cli capture --file", () => {
 
   test("refuses text and --file together", () => {
     expect(run("capture", "--file", draft, "extra text").code).toBe(2);
+  });
+});
+
+describe("errors under --json", () => {
+  const errorOf = (...args: string[]) => {
+    const { code, stderr } = run(...args, "--json");
+    return { code, error: JSON.parse(stderr.trim()).error };
+  };
+
+  test("name the error and carry its own fields, such as the closest notes", () => {
+    const { code, error } = errorOf("get", "cognitive laod");
+    expect(code).toBe(1);
+    expect(error.name).toBe("NotFoundError");
+    expect(error.message).toStartWith('no note matches "cognitive laod"');
+    expect(error.suggestions[0]).toBe("Topics/Cognitive load.md");
+  });
+
+  test("report a usage error, and an option that fails to parse, as UsageError with exit 2", () => {
+    expect(errorOf("get", "Home", "--limit", "3")).toMatchObject({ code: 2, error: { name: "UsageError" } });
+    const parsed = errorOf("get", "--bogus");
+    expect(parsed).toMatchObject({ code: 2, error: { name: "UsageError" } });
+    expect(parsed.error.message).toContain("--bogus");
+  });
+});
+
+describe("tools", () => {
+  test("prints the agent tool definitions, the SDK's without run", () => {
+    const { code, stdout } = run("tools", "--json");
+    expect(code).toBe(0);
+    expect(JSON.parse(stdout)).toEqual(
+      JSON.parse(JSON.stringify(TOOLS.map(({ run: _, ...definition }) => definition))),
+    );
+    expect(run("tools").stdout).toContain("neiro_capture\tdirect\tadds\t");
+  });
+});
+
+describe("help", () => {
+  interface HelpJson {
+    commands: { name: string; options: { name: string }[]; example: string }[];
+  }
+  const help = (): HelpJson => JSON.parse(run("help", "--json").stdout);
+
+  test("runs every command's example without a usage error", () => {
+    const root = copyVault();
+    for (const { name, example } of help().commands) {
+      const words = [...example.matchAll(/"([^"]*)"|(\S+)/g)].map((match) => match[1] ?? match[2] ?? "").slice(1);
+      const result = Bun.spawnSync(["bun", CLI, "--vault", root, ...words], { stdout: "pipe", stderr: "pipe" });
+      expect(result.exitCode, `${name}: ${result.stderr.toString()}`).not.toBe(2);
+    }
+  });
+
+  test("gives one command's help for <command> --help and help <command>", () => {
+    const direct = run("get", "--help");
+    expect(direct.code).toBe(0);
+    expect(direct.stdout).toBe(run("help", "get").stdout);
+    expect(direct.stdout).toStartWith("usage: neiro get <note>");
+    expect(direct.stdout).toContain("--lines <a:b>");
+    expect(direct.stdout).not.toContain("--limit");
+    expect(run("help", "journal").stdout).toContain("usage: neiro journal append");
+  });
+
+  test("lists every command with its options as JSON", () => {
+    const commands = help().commands;
+    expect(commands.map((command) => command.name)).toContain("section put");
+    expect(commands.find((command) => command.name === "grep")?.options.map((option) => option.name)).toContain(
+      "--fixed-strings",
+    );
+  });
+
+  test("docs/cli.md names every command and each of its options, and nothing else", () => {
+    const page = readFileSync(join(import.meta.dir, "..", "docs", "cli.md"), "utf8");
+    const sections = new Map(
+      page
+        .split(/^### /m)
+        .slice(1)
+        .map((section) => [section.slice(0, section.indexOf("\n")), section] as const),
+    );
+    const commands = help().commands;
+    expect([...sections.keys()].sort()).toEqual(commands.map((command) => command.name).sort());
+    for (const { name, options } of commands) {
+      for (const option of options) expect(sections.get(name), `${name} ${option.name}`).toContain(`${option.name}`);
+    }
+  });
+
+  test("the skill names only commands and options the CLI takes", () => {
+    const skill = readFileSync(join(import.meta.dir, "..", "skills", "neiro", "SKILL.md"), "utf8");
+    const commands = new Map(help().commands.map((command) => [command.name, command] as const));
+    const global = ["--json", "--vault", "--format", "--help", "--version"];
+    // A code span naming a command: its first two words when they are one, such as `prop set`, else its first.
+    const calls = [...skill.matchAll(/`([^`]+)`/g)].flatMap((match) => {
+      const span = match[1] ?? "";
+      const words = span.split(/\s+/);
+      const name = commands.has(words.slice(0, 2).join(" ")) ? words.slice(0, 2).join(" ") : (words[0] ?? "");
+      return commands.has(name) ? [[name, span] as const] : [];
+    });
+    expect(calls.length).toBeGreaterThan(15);
+    for (const [name, span] of calls) {
+      const command = commands.get(name);
+      const allowed = new Set([...global, ...(command?.options.map((option) => option.name) ?? [])]);
+      for (const flag of span.match(/--[a-z-]+/g) ?? []) expect(allowed.has(flag), `${name} ${flag}`).toBe(true);
+    }
+  });
+
+  test("refuses an option the command does not take", () => {
+    const { code, stderr } = run("get", "Home", "--limit", "3");
+    expect(code).toBe(2);
+    expect(stderr).toStartWith("neiro: get does not take --limit; run neiro help get");
   });
 });

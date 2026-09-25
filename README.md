@@ -11,16 +11,16 @@ neiro get <note>              one note by path, filename, title, or alias
 neiro search <query...>       BM25 ranking with title and tag boosts; CJK matches as substrings
 neiro list                    notes filtered by --type, --tag, --status, --under
 neiro nav [folder]            a folder's index note, subfolders, and notes
-neiro links <note>            outgoing wikilinks and how each resolves
+neiro links <note>            outgoing links and how each resolves
 neiro backlinks <note>        notes linking to a note
 neiro unresolved              links pointing at no note, or at several
 neiro journal <period>        the day, week, month, quarter, or year note for --date (default: today)
 neiro capture [text...]       create a new note
 ```
 
-Every command accepts `--json`. Commands that return notes (`get`, `search`, `list`, `nav`, `backlinks`) share one summary (path, title, type, status, tags, created, modified), accept `--fields a,b` to keep named fields or any frontmatter key, and `--format paths` to print one path per line for `xargs` or `fzf`. `find <query>` ranks notes by fuzzy match over paths, titles, and aliases with fzf's scoring rules, CJK included, and a failed `get` names the closest notes. `list --where key=value --sort modified --desc --limit 10` filters on any frontmatter property and sorts by `modified`, `created`, `title`, or `path`. `tags` lists every tag with its note count. `new <type> <title>` creates a note from the vault's template for that type (`Book` or `Book Template`), filling `{{title}}`, `{{date}}`, and `{{time}}` as Obsidian's core Templates do, and places it as `capture` does. `append <note> <text> [--heading H]`, `section put <note> --heading H`, and `journal append <period> <text>` change one part of a note, `prop set <note> <key> <value>` sets one frontmatter key keeping comments and order, and `put <path>` creates a note or replaces it only with `--if-hash`: each takes `--dry-run` for a diff, `--if-hash` to refuse a note changed since `get` read it, and `--commit` for one commit of that note alone. A text argument that starts with a dash and a space is a Markdown bullet, not an option. `history <note>`, `show <note> --rev <rev>`, and `diff <note>` read a note's revisions through Git; without Git they raise `UnsupportedError` and every read still works. `orphans` lists notes nothing links to, `outline <note>` gives headings with their line numbers, and `prop get <note> <key>` returns one frontmatter value. `--tag` may repeat, and matches the way Obsidian does: case-insensitively, with `area` matching `area/sub`. `grep <pattern>` prints matching lines as `path:line:text`, like `rg -n`, with smart case, `-F` for literal text, and `-C <n>` for context. `get` reads part of a note by line, counted from the top of the file as `rg -n` counts: `--lines 20:60`, or `--around <line|path:line> --context <n>`, which takes an `rg -n` result unchanged. The vault is `--vault <dir>`, else `$NEIRO_VAULT`, else the current directory. Run `neiro --help` for every option.
+Every command accepts `--json`, which also turns a failure into one JSON line on stderr naming the error, such as `NotFoundError` with its `suggestions`; the exit code is 1 for a missing or refused request and 2 for bad usage. Commands that return notes (`get`, `search`, `list`, `nav`, `backlinks`) share one summary (path, title, type, status, tags, created, modified), accept `--fields a,b` to keep named fields or any frontmatter key, and `--format paths` to print one path per line for `xargs` or `fzf`. `find <query>` ranks notes by fuzzy match over paths, titles, and aliases with fzf's scoring rules, CJK included, and a failed `get` names the closest notes. `list --where key=value --sort modified --desc --limit 10` filters on any frontmatter property and sorts by `modified`, `created`, `title`, or `path`. `tags` lists every tag with its note count. `new <type> <title>` creates a note from the vault's template for that type (`Book` or `Book Template`), filling `{{title}}`, `{{date}}`, and `{{time}}` as Obsidian's core Templates do, and places it as `capture` does. `append <note> <text> [--heading H]`, `section put <note> --heading H`, and `journal append <period> <text>` change one part of a note, `prop set <note> <key> <value>` sets one frontmatter key keeping comments and order, and `put <path>` creates a note or replaces it only with `--if-hash`: each takes `--dry-run` for a diff, `--if-hash` to refuse a note changed since `get` read it, and `--commit` for one commit of that note alone. A text argument that starts with a dash and a space is a Markdown bullet, not an option. `history <note>`, `show <note> --rev <rev>`, and `diff <note>` read a note's revisions through Git; without Git they raise `UnsupportedError` and every read still works. `orphans` lists notes nothing links to, `outline <note>` gives headings with their line numbers, and `prop get <note> <key>` returns one frontmatter value. `--tag` may repeat, and matches the way Obsidian does: case-insensitively, with `area` matching `area/sub`. `grep <pattern>` prints matching lines as `path:line:text`, like `rg -n`, with smart case, `-F` for literal text, and `-C <n>` for context. `get` reads part of a note by line, counted from the top of the file as `rg -n` counts: `--lines 20:60`, or `--around <line|path:line> --context <n>`, which takes an `rg -n` result unchanged. The vault is `--vault <dir>`, else `$NEIRO_VAULT`, else the current directory. Run `neiro help` for every command, `neiro help <command>` or `<command> --help` for one command's options and an example, and `neiro help --json` for all of it as JSON; the [CLI reference](docs/cli.md) has every command, option, and JSON output shape. A command refuses an option it does not take.
 
-Wikilinks resolve the way Obsidian resolves them: a vault-root path, a path relative to the linking note's folder, a unique path suffix, then a unique filename stem, preferring the linking note's own folder. A link that still matches several notes is reported as ambiguous rather than guessed. A note without a `title` property takes its title from its file name, as in Obsidian.
+Wikilinks resolve the way Obsidian resolves them: a vault-root path, a path relative to the linking note's folder, a unique path suffix, then a unique filename stem, preferring the linking note's own folder. A link that still matches several notes is reported as ambiguous rather than guessed. As in Obsidian, wikilinks in frontmatter values and Markdown links to vault files such as `[text](My%20Note.md)` count as links too. A note without a `title` property takes its title from its file name, as in Obsidian.
 
 ## Settings
 
@@ -37,7 +37,7 @@ neiro assumes no folder layout or house style. Each setting is resolved in this 
 | day journal | Periodic Notes, then core Daily Notes (`daily-notes.json`) | `UnsupportedError` |
 | week, month, quarter, and year journals | Periodic Notes (`plugins/periodic-notes/data.json`) | `UnsupportedError` |
 
-Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
+An unknown key or a value of the wrong type or choice in `neiro.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
 
 A `neiro.toml` declaring a stricter house style:
 
@@ -96,13 +96,17 @@ const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json 
 await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
 ```
 
-A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `vault.sync()` pulls and pushes through `History`, then reloads. Otherwise call `vault.reload()` after the files change underneath it.
+Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs. Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations `make build` writes to `dist/lib`, which packing the package builds too. A `Vault` scans once and caches the notes. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault. A long-running process passes `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change; `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. Otherwise call `vault.reload()` after the files change underneath it.
+
+### Agent skill
+
+[`skills/neiro/SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
 
 ### Agent tools
 
 `agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input, { commit, push, author })`; the consumer, not the model, decides whether writes commit and push.
 
-The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it.
+The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. `neiro_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it.
 
 ## Development
 
@@ -112,8 +116,8 @@ Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build dist/neiro and run it against the fixture vault
-make build      # compile the CLI into a single binary at dist/neiro
-make node-smoke # run the read commands on Node and compare their output with Bun's
+make build      # compile the CLI into a single binary at dist/neiro, and the SDK into dist/lib
+make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 

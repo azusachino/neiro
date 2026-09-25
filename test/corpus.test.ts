@@ -52,6 +52,12 @@ describe.skipIf(!present(KEPANO))("kepano-obsidian", () => {
     await expectConsistentLinks(vault);
   });
 
+  test("counts category links written in frontmatter", async () => {
+    const orphans = new Set((await vault.orphans()).map((note) => note.path));
+    expect(orphans.has("Categories/Books.md")).toBe(false);
+    expect((await vault.backlinks("Categories/Books")).length).toBeGreaterThan(1);
+  });
+
   test("takes the day journal from the vault's Daily Notes settings", () => {
     expect(vault.settings.journal.day).toEqual({ folder: "Daily", format: "YYYY-MM-DD", source: "Daily Notes" });
     expect(vault.settings.journal.week).toBeUndefined();

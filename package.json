@@ -4,9 +4,13 @@
   "description": "An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault",
   "type": "module",
   "private": true,
-  "module": "src/index.ts",
+  "module": "./dist/lib/index.js",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/lib/index.js"
+    }
   },
   "bin": {
     "neiro": "./src/cli.ts"
@@ -20,7 +24,9 @@
     "lint": "biome check .",
     "format": "biome check --write .",
     "test": "bun test",
-    "build": "bun build --compile src/cli.ts --outfile dist/neiro"
+    "build": "bun build --compile src/cli.ts --outfile dist/neiro",
+    "build:lib": "tsc -p tsconfig.build.json",
+    "prepack": "bun run build:lib"
   },
   "dependencies": {
     "diff": "9.0.0",
@@ -45,5 +51,14 @@
     "cli",
     "sdk",
     "bun"
+  ],
+  "types": "./dist/lib/index.d.ts",
+  "files": [
+    "dist/lib",
+    "src",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "skills"
   ]
 }

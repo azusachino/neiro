@@ -38,6 +38,14 @@ describe("prop set", () => {
     expect((await vault.find("Commented")).frontmatter).toMatchObject({ zeta: 2, rating: 4, title: "A quoted title" });
   });
 
+  test("fills an empty frontmatter block instead of adding a second one", async () => {
+    const { vault, read } = vaultWith("Empty.md", "---\n---\nBody.\n\n---\n\nAfter a rule.\n");
+    expect((await vault.find("Empty")).body).toBe("Body.\n\n---\n\nAfter a rule.\n");
+    await vault.setProperty("Empty", "status", "draft");
+    expect(read()).toBe("---\nstatus: draft\n---\nBody.\n\n---\n\nAfter a rule.\n");
+    expect(await vault.outline("Empty")).toEqual([]);
+  });
+
   test("adds a block to a note without frontmatter, leaving the body as it was", async () => {
     const { vault, read } = vaultWith("Plain.md", "Just text.\n");
     await vault.setProperty("Plain", "status", "draft");
@@ -92,11 +100,11 @@ describe("put", () => {
     const original = readFileSync(join(root, note), "utf8");
     const { hash } = await vault.get(note);
     await vault.put(note, "Rewritten.\n", { ifHash: hash, commit: true });
-    const [latest, first] = vault.history.log(note);
-    const old = vault.history.show(note, first?.rev ?? "");
+    const [latest, first] = await vault.history.log(note);
+    const old = await vault.history.show(note, first?.rev ?? "");
     await vault.put(note, old, { ifHash: (await vault.get(note)).hash, commit: true });
     expect(readFileSync(join(root, note), "utf8")).toBe(original);
-    expect(vault.history.log(note)).toHaveLength(3);
+    expect(await vault.history.log(note)).toHaveLength(3);
     expect(latest?.message).toBe(`docs: put ${note}`);
   });
 

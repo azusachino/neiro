@@ -71,6 +71,14 @@ describe("validateInput", () => {
     expect(() => validateInput(tool("neiro_list"), { sort: "size" })).toThrow("must be one of");
     expect(() => validateInput(tool("neiro_capture"), { text: "x", tags: ["a", 2] })).toThrow("must be array");
     expect(() => validateInput(tool("neiro_get"), "note")).toThrow("takes an object");
+    expect(() => validateInput(tool("neiro_list"), { where: { status: 3 } })).toThrow("values must be string or null");
+    expect(validateInput(tool("neiro_list"), { where: { status: "done", source: null } })).toBeDefined();
+  });
+
+  test("refuses a malformed line range instead of reading the whole note", async () => {
+    const vault = new Vault(copyVault());
+    await expect(call(vault, "neiro_get", { note: "Home", lines: "abc:def" })).rejects.toThrow(ToolInputError);
+    expect(await call(vault, "neiro_get", { note: "Home", lines: "2" })).toMatchObject({ start: 2, end: 2 });
   });
 });
 
@@ -83,6 +91,15 @@ describe("running tools", () => {
     );
     expect(await call(vault, "neiro_list", { where: { born: "-428" } })).toMatchObject([{ path: "People/Plato.md" }]);
     expect(await call(vault, "neiro_prop_get", { note: "People/Plato.md", key: "born" })).toBe(-428);
+  });
+
+  test("grep reads a model's pattern as literal text unless regex is set, and caps its length", async () => {
+    const vault = new Vault(copyVault());
+    const literal = (await call(vault, "neiro_grep", { pattern: "load." })) as unknown[];
+    const regex = (await call(vault, "neiro_grep", { pattern: "load.", regex: true })) as unknown[];
+    expect(regex.length).toBeGreaterThan(literal.length);
+    await expect(call(vault, "neiro_grep", { pattern: "x".repeat(201) })).rejects.toThrow(ToolInputError);
+    await expect(call(vault, "neiro_grep", { pattern: "(", regex: true })).rejects.toThrow(ToolInputError);
   });
 
   test("writes take the model's guards and the consumer's commit policy", async () => {

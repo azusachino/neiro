@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   CaptureError,
+  ConfigError,
   captureInputFromMarkdown,
   HistoryError,
   type NeiroConfig,
@@ -39,6 +40,12 @@ describe("default capture settings", () => {
     expect(defaults).toMatchObject({ folder: "Inbox", filename: "title", properties: ["tags", "source"] });
     const { content } = renderCapture({ text: "Body line", title: "A Title", tags: ["learning"], now: NOW }, defaults);
     expect(content).toBe("---\ntags:\n  - learning\n---\n\nBody line\n");
+  });
+
+  test("shorten a long title without splitting an emoji", () => {
+    const { title } = renderCapture({ text: "Body", title: `${"a".repeat(79)}😀😀`, now: NOW }, defaults);
+    expect(title).toBe(`${"a".repeat(79)}😀…`);
+    expect(title.isWellFormed()).toBe(true);
   });
 
   test("write no frontmatter when there is nothing to record", () => {
@@ -133,6 +140,32 @@ describe("configured capture settings", () => {
     writeFileSync(join(root, "neiro.toml"), '[capture]\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n');
     const result = await new Vault(root).capture({ text: "Trying OpenAI Tools" }, { dryRun: true });
     expect(result.path).toBe("Inbox/trying OpenAI tools.md");
+  });
+});
+
+describe("settings shape", () => {
+  const withToml = (toml: string) => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-config-"));
+    writeFileSync(join(root, "neiro.toml"), toml);
+    return () => resolveSettings(root);
+  };
+
+  test("rejects a misspelled key, naming the keys the table takes", () => {
+    expect(withToml('[capture]\ntag-style = "kebab"\n')).toThrow(
+      /unknown key capture\.tag-style; capture takes folder/,
+    );
+    expect(withToml('[journals.day]\nformat = "YYYY"\n')).toThrow(/unknown key journals/);
+    expect(withToml('[journal.days]\nformat = "YYYY"\n')).toThrow(/unknown key journal\.days/);
+  });
+
+  test("rejects a value outside a setting's choices or type", () => {
+    expect(withToml('[capture]\nfilename = "Slug"\n')).toThrow("capture.filename must be one of title, slug");
+    expect(withToml("[capture]\nrequire_tags = 1\n")).toThrow("capture.require_tags must be a boolean");
+    expect(withToml('[capture]\nreject_tags = "todo"\n')).toThrow("reject_tags must be a list of strings");
+    expect(withToml("[journal.week]\nformat = 3\n")).toThrow(ConfigError);
+    expect(() => resolveSettings(FIXTURE, { capture: { tag_style: "Kebab" } } as unknown as NeiroConfig)).toThrow(
+      "options: capture.tag_style must be one of as-written, kebab",
+    );
   });
 });
 

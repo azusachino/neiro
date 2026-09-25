@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "../src/index.ts";
 
@@ -113,6 +115,58 @@ describe("links", () => {
     expect(links.map((link) => link.target)).not.toContain("fenced");
     expect(links.find((link) => link.display === "capacity")?.target).toBe("Working memory");
     expect(links.filter((link) => link.display === "wm")).toHaveLength(2);
+  });
+
+  test("counts frontmatter wikilinks and local Markdown links, as Obsidian does", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-links-"));
+    writeFileSync(join(root, "Target.md"), "t\n");
+    writeFileSync(join(root, "My Note.md"), "m\n");
+    writeFileSync(join(root, "Linked.md"), '---\nrelated:\n  - "[[Target]]"\n---\n');
+    writeFileSync(
+      join(root, "Markdown.md"),
+      "[t](Target.md#part) [m](My%20Note.md) [a](<My Note.md>) [web](https://example.com/x.md) `[c](Code.md)`\n",
+    );
+    const linked = new Vault(root);
+    expect((await linked.links("Linked")).map((link) => link.target)).toEqual(["Target"]);
+    expect((await linked.links("Markdown")).map(({ target, display }) => `${target}|${display}`)).toEqual([
+      "Target.md|t",
+      "My Note.md|m",
+      "My Note.md|a",
+    ]);
+    expect((await linked.backlinks("Target")).map((note) => note.path)).toEqual(["Linked.md", "Markdown.md"]);
+    expect((await linked.orphans()).map((note) => note.path)).toEqual(["Linked.md", "Markdown.md"]);
+  });
+
+  test("resolves a note whose name has a dot before calling it an attachment", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-dotted-"));
+    writeFileSync(join(root, "Node.js.md"), "n\n");
+    writeFileSync(join(root, "From.md"), "[[Node.js]] ![[image.png]]\n");
+    const byTarget = Object.fromEntries(
+      (await new Vault(root).links("From")).map((link) => [link.target, link.resolution]),
+    );
+    expect(byTarget["Node.js"]).toEqual({ status: "resolved", path: "Node.js.md" });
+    expect(byTarget["image.png"]).toEqual({ status: "asset" });
+  });
+
+  test("skips links in a fence that holds a shorter fence, as headings do", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-fences-"));
+    const note = "````md\n```\n[[Inner]]\n# not a heading\n```\n````\n[[Outer]]\n## real\n";
+    writeFileSync(join(root, "index.md"), note);
+    const fenced = new Vault(root);
+    expect((await fenced.links("index")).map((link) => link.target)).toEqual(["Outer"]);
+    expect((await fenced.outline("index")).map((heading) => heading.text)).toEqual(["real"]);
+    expect((await fenced.nav()).index?.headings).toEqual(["real"]);
+  });
+
+  test("sees a new link after a write, since the link graph goes with the scan", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-graph-"));
+    writeFileSync(join(root, "A.md"), "a\n");
+    writeFileSync(join(root, "B.md"), "b\n");
+    const graph = new Vault(root);
+    expect((await graph.orphans()).map((note) => note.path)).toEqual(["A.md", "B.md"]);
+    await graph.append("A", "[[B]]");
+    expect((await graph.backlinks("B")).map((note) => note.path)).toEqual(["A.md"]);
+    expect((await graph.orphans()).map((note) => note.path)).toEqual(["A.md"]);
   });
 
   test("finds backlinks and unresolved links", async () => {

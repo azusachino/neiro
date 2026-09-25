@@ -1,6 +1,6 @@
 /** The steps of docs/container.md, run against a temporary bare remote standing in for the vault's repository. */
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { agentTools, Vault, validateInput, WriteConflictError } from "../src/index.ts";
@@ -43,7 +43,7 @@ describe("running against a Git clone", () => {
     await vault.notes();
 
     owner.push("Notes/From the owner.md", "Written in Obsidian.\n");
-    vault.sync();
+    await vault.sync();
     expect((await vault.find("From the owner")).path).toBe("Notes/From the owner.md");
 
     await vault.capture({ text: "Captured by the bot", tags: ["inbox"] }, { push: true, author: BOT });
@@ -72,12 +72,46 @@ describe("running against a Git clone", () => {
     const vault = new Vault(botClone(remote));
     const { hash } = await vault.get("Home");
     owner.push("Home.md", "The owner's newer text.\n");
-    vault.sync();
-    expect(vault.append("Home", "- from the bot", { ifHash: hash, commit: true })).rejects.toThrow(WriteConflictError);
+    await vault.sync();
+    await expect(vault.append("Home", "- from the bot", { ifHash: hash, commit: true })).rejects.toThrow(
+      WriteConflictError,
+    );
     const fresh = await vault.get("Home");
     await vault.append("Home", "- from the bot", { ifHash: fresh.hash, commit: true });
-    vault.sync();
+    await vault.sync();
     expect(git(remote, "show", "main:Home.md")).toBe("The owner's newer text.\n- from the bot");
+  });
+
+  test("a tool write with push pulls first, so a stale hash is refused against the remote", async () => {
+    const { remote } = gitVault();
+    const owner = ownerClone(remote);
+    const vault = new Vault(botClone(remote));
+    const append = agentTools().find((tool) => tool.name === "neiro_append");
+    if (!append) throw new Error("no append tool");
+    const { hash } = await vault.get("Home");
+    owner.push("Home.md", "The owner's newer text.\n");
+    const input = { note: "Home", text: "- from the bot", ifHash: hash };
+    await expect(append.run(vault, validateInput(append, input), { push: true, author: BOT })).rejects.toThrow(
+      WriteConflictError,
+    );
+    await append.run(vault, validateInput(append, { note: "Home", text: "- from the bot" }), {
+      push: true,
+      author: BOT,
+    });
+    expect(git(remote, "show", "main:Home.md")).toBe("The owner's newer text.\n- from the bot");
+  });
+
+  test("a sync that conflicts aborts the rebase and keeps the local commit", async () => {
+    const { remote } = gitVault();
+    const owner = ownerClone(remote);
+    const dir = botClone(remote);
+    const vault = new Vault(dir);
+    await vault.append("Home", "- from the bot", { commit: true, author: BOT });
+    owner.push("Home.md", "The owner rewrote it all.\n");
+    await expect(vault.sync()).rejects.toThrow(/rebase was aborted and local commits kept/);
+    expect(git(dir, "status", "--porcelain=v2", "--branch")).not.toContain("rebase");
+    expect(existsSync(join(dir, ".git", "rebase-merge"))).toBe(false);
+    expect(git(dir, "log", "-1", "--format=%an|%s")).toBe("vault-bot|docs: append to Home.md");
   });
 
   test("the tools push through the consumer's policy", async () => {

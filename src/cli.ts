@@ -5,92 +5,407 @@ import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
 import {
-  CaptureError,
   captureInputFromMarkdown,
   type Filter,
   formatGrep,
   type GrepHit,
-  HistoryError,
-  LineRangeError,
-  NotFoundError,
+  NeiroError,
   PERIODS,
   type Period,
   parseDate,
   propertyValue,
-  SectionError,
   type SectionWriteOptions,
   SORT_KEYS,
-  UnsupportedError,
+  TOOLS,
   Vault,
-  WriteConflictError,
   type WriteOptions,
   type WriteResult,
 } from "./index.ts";
 
-const USAGE = `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault
+class UsageError extends Error {
+  override name = "UsageError";
+}
 
-usage: neiro <command> [options]
+/** `--json` or `--format json`, read from the raw arguments so it holds even when parsing them failed. */
+const jsonErrors = (() => {
+  const args = process.argv.slice(2);
+  return (
+    args.includes("--json") ||
+    args.includes("--format=json") ||
+    args.some((arg, i) => arg === "--format" && args[i + 1] === "json")
+  );
+})();
 
-commands:
-  get <note>                   print one note (path, filename, title, or alias)
-  search <query...>            rank notes by relevance
-  grep <pattern>               matching lines as path:line:text, like rg -n (smart case)
-  tags                         every tag with its note count, parents of nested tags included
-  find <query...>              fuzzy match over paths, titles, and aliases, ranked as fzf ranks
-  list                         list notes matching the filters
-  nav [folder]                 a folder's index, subfolders, and notes
-  links <note>                 outgoing wikilinks and how each resolves
-  backlinks <note>             notes that link to a note
-  history <note>               revisions of a note, newest first (--limit, default 20)
-  show <note> --rev <rev>      a note's content at a revision
-  diff <note> [--rev r] [--to r]
-                               a note's changes since --rev (default HEAD), or between two revisions
-  orphans                      notes no other note links to or embeds
-  outline <note>               a note's headings with their line numbers
-  prop get <note> <key>        one frontmatter value
-  unresolved                   links pointing at no note, or at several
-  journal <period>             the day, week, month, quarter, or year note for a date
-  capture [text...]            create a new note from text, --file, or stdin
-  new <type> <title...>        create a note from the vault's template for type, placed as capture places it
+/**
+ * Report a failure and exit: prose for people, or one JSON line for agents, carrying the error's own fields such as
+ * `suggestions`, or a partial write's `path`, `hash`, and `committed`.
+ */
+function fail(error: Error, code: 1 | 2): never {
+  if (jsonErrors) {
+    const { name: _, ...fields } = Object.fromEntries(Object.entries(error));
+    console.error(JSON.stringify({ error: { name: error.name, message: error.message, ...fields } }));
+  } else {
+    console.error(`neiro: ${error.message}${code === 2 ? `\n\n${usage()}` : ""}`);
+  }
+  process.exit(code);
+}
 
-writes (each takes --dry-run for a diff, --if-hash <hash>, --commit, and --author):
-  append <note> [text...]      add text at the end, or at the end of --heading H (--create-heading, --level)
-  section put <note> [text...] replace the body of section --heading H, or add the section
-  prop set <note> <key> <value>
-                               set one frontmatter key (value read as YAML), keeping comments and order
-  put <path> [text...]         create a note, or replace it only with --if-hash (text, --file, or stdin)
-  journal append <period> [text...]
-                               append to the period's note for --date (default: today)
+/** One option: its parseArgs type, the value it takes, and what it does. `--tag` and friends are declared once here. */
+interface OptionSpec {
+  type: "string" | "boolean";
+  short?: string;
+  multiple?: boolean;
+  /** The value placeholder in help, such as `<n>`. */
+  value?: string;
+  summary: string;
+}
 
-options:
-  --vault <dir>                vault root (default: $NEIRO_VAULT, then the current directory)
-  --json                       machine-readable output, the same as --format json
-  --format <text|json|paths>   paths prints one path per line, for xargs and fzf
-  --fields <a,b,...>           only these fields: summary fields such as score, or any frontmatter key
-  --type, --tag, --status, --under <value>
-                               filters for search, list, grep, and tags; --tag may repeat,
-                               matches case-insensitively, and area matches area/sub
-  --where <key=value|key>      filter on any frontmatter property; may repeat; a bare key means present
-  --sort <modified|created|title|path>, --desc
-                               list order; notes without the value sort last
-  --limit <n>                  results for search and find (default 10), or list (default all)
-  --max-chars <n>              truncate a note body in get
-  --lines <a:b>                get: lines a to b, counted from the top of the file (a:, :b, or one line)
-  --around <line|path:line>    get: a line and --context lines either side; accepts rg -n output
-  -C, --context <n>            lines either side: for get --around (default 5), and for grep
-  -F, --fixed-strings          grep: match the pattern as literal text
-  --date <YYYY-MM-DD>          date for journal (default: today)
-  --title, --source <value>    capture metadata; --tag may repeat
-  --file <path>                capture: a Markdown file, keeping its title, tags, source, and other properties
-  --dry-run                    capture and writes: show the result without writing
-  --commit                     capture and writes: commit the note, and only it
-  --if-hash <sha256>           writes: refuse unless the note still has the hash get returned
-  --push                       capture: pull --rebase, commit, and push
-  --author <"Name <email>">    capture and writes: commit author
-  -h, --help                   show this help
-  -v, --version                show the version`;
+const OPTIONS = {
+  vault: { type: "string", value: "<dir>", summary: "vault root (default: $NEIRO_VAULT, then the current directory)" },
+  json: { type: "boolean", summary: "machine-readable output and errors, the same as --format json" },
+  format: { type: "string", value: "<text|json|paths>", summary: "paths prints one path per line, for xargs and fzf" },
+  fields: {
+    type: "string",
+    value: "<a,b,...>",
+    summary: "only these fields: summary fields such as score, or any frontmatter key",
+  },
+  type: { type: "string", value: "<type>", summary: "only notes whose type property is this" },
+  tag: {
+    type: "string",
+    multiple: true,
+    value: "<tag>",
+    summary:
+      "a tag, may repeat: capture and new add it; elsewhere every tag must match, case-insensitively, and area matches area/sub",
+  },
+  status: { type: "string", value: "<status>", summary: "only notes whose status property is this" },
+  under: { type: "string", value: "<folder>", summary: "only notes in this folder" },
+  where: {
+    type: "string",
+    multiple: true,
+    value: "<key=value|key>",
+    summary: "filter on any frontmatter property; may repeat; a bare key means present",
+  },
+  sort: { type: "string", value: "<modified|created|title|path>", summary: "order; notes without the value sort last" },
+  desc: { type: "boolean", summary: "sort descending" },
+  limit: { type: "string", value: "<n>", summary: "most results" },
+  "max-chars": { type: "string", value: "<n>", summary: "truncate the note body" },
+  lines: {
+    type: "string",
+    value: "<a:b>",
+    summary: "lines a to b, counted from the top of the file (a:, :b, or one line)",
+  },
+  around: {
+    type: "string",
+    value: "<line|path:line>",
+    summary: "a line and --context lines either side; accepts rg -n output",
+  },
+  context: { type: "string", short: "C", value: "<n>", summary: "lines either side (get --around: 5 by default)" },
+  "fixed-strings": { type: "boolean", short: "F", summary: "match the pattern as literal text" },
+  rev: { type: "string", value: "<rev>", summary: "a Git revision" },
+  to: { type: "string", value: "<rev>", summary: "the revision to diff to (default: the working file)" },
+  date: { type: "string", value: "<YYYY-MM-DD>", summary: "the date whose note to use (default: today)" },
+  title: { type: "string", value: "<title>", summary: "the note's title (default: the first line of text)" },
+  source: { type: "string", value: "<url>", summary: "where the note came from" },
+  file: { type: "string", value: "<path>", summary: "read the note from a Markdown file" },
+  heading: { type: "string", value: "<heading>", summary: "the section, by heading text" },
+  "create-heading": { type: "boolean", summary: "add a missing heading at the end of the note instead of refusing" },
+  level: { type: "string", value: "<1-6>", summary: "the level of a created heading (default: 2)" },
+  "dry-run": { type: "boolean", summary: "show the result, a diff for edits, without writing" },
+  "if-hash": { type: "string", value: "<sha256>", summary: "refuse unless the note still has the hash get returned" },
+  commit: { type: "boolean", summary: "commit the note, and only it" },
+  push: { type: "boolean", summary: "pull --rebase first, then commit and push" },
+  author: { type: "string", value: '<"Name <email>">', summary: "commit author" },
+  help: { type: "boolean", short: "h", summary: "show help, for one command when one is given" },
+  version: { type: "boolean", short: "v", summary: "show the version" },
+} as const satisfies Record<string, OptionSpec>;
 
-class UsageError extends Error {}
+type OptionName = keyof typeof OPTIONS;
+
+/** One command: its arguments, the options it takes beyond the global ones, and an example that runs. */
+interface CommandSpec {
+  name: string;
+  args: string;
+  summary: string;
+  writes?: boolean;
+  options: readonly OptionName[];
+  example: string;
+}
+
+const GLOBAL: readonly OptionName[] = ["vault", "json", "format", "help", "version"];
+const FILTERS: readonly OptionName[] = ["type", "tag", "status", "under", "where"];
+const WRITE: readonly OptionName[] = ["dry-run", "if-hash", "commit", "author"];
+const SECTION: readonly OptionName[] = ["heading", "create-heading", "level"];
+
+const COMMANDS: readonly CommandSpec[] = [
+  {
+    name: "get",
+    args: "<note>",
+    summary: "print one note by path, file name, title, or alias; the JSON carries its hash for --if-hash",
+    options: ["lines", "around", "context", "max-chars", "fields"],
+    example: 'neiro get "Working memory" --lines 1:20 --json',
+  },
+  {
+    name: "search",
+    args: "<query...>",
+    summary: "rank notes by relevance (BM25; CJK matches as substrings)",
+    options: [...FILTERS, "limit", "fields"],
+    example: "neiro search cognitive load --limit 5 --json",
+  },
+  {
+    name: "grep",
+    args: "<pattern>",
+    summary: "matching lines as path:line:text, like rg -n (smart case)",
+    options: [...FILTERS, "fixed-strings", "context"],
+    example: 'neiro grep -F "working memory" -C 2',
+  },
+  {
+    name: "find",
+    args: "<query...>",
+    summary: "fuzzy match over paths, titles, and aliases, ranked as fzf ranks",
+    options: [...FILTERS, "limit", "fields"],
+    example: "neiro find cogload --json",
+  },
+  {
+    name: "list",
+    args: "",
+    summary: "notes matching the filters, optionally sorted",
+    options: [...FILTERS, "sort", "desc", "limit", "fields"],
+    example: "neiro list --tag psychology --sort modified --desc --limit 10",
+  },
+  {
+    name: "tags",
+    args: "",
+    summary: "every tag with its note count, parents of nested tags included",
+    options: FILTERS,
+    example: "neiro tags --json",
+  },
+  {
+    name: "nav",
+    args: "[folder]",
+    summary: "a folder's index note and headings, subfolders, and notes",
+    options: ["fields"],
+    example: "neiro nav Topics",
+  },
+  {
+    name: "links",
+    args: "<note>",
+    summary: "a note's outgoing links and how each resolves",
+    options: [],
+    example: 'neiro links "Cognitive load" --json',
+  },
+  {
+    name: "backlinks",
+    args: "<note>",
+    summary: "notes that link to a note",
+    options: ["fields"],
+    example: 'neiro backlinks "Cognitive load"',
+  },
+  {
+    name: "unresolved",
+    args: "",
+    summary: "links pointing at no note, or at several",
+    options: [],
+    example: "neiro unresolved --json",
+  },
+  {
+    name: "orphans",
+    args: "",
+    summary: "notes no other note links to or embeds",
+    options: [...FILTERS, "fields"],
+    example: "neiro orphans --under Topics",
+  },
+  {
+    name: "outline",
+    args: "<note>",
+    summary: "a note's headings with their line numbers",
+    options: [],
+    example: 'neiro outline "Cognitive load"',
+  },
+  {
+    name: "prop get",
+    args: "<note> <key>",
+    summary: "one frontmatter value",
+    options: [],
+    example: 'neiro prop get "Cognitive load" tags --json',
+  },
+  {
+    name: "journal",
+    args: "<day|week|month|quarter|year>",
+    summary: "the periodic note for a date, from the vault's journal settings",
+    options: ["date"],
+    example: "neiro journal day --date 2026-09-16",
+  },
+  {
+    name: "history",
+    args: "<note>",
+    summary: "a note's revisions through Git, newest first (default: 20)",
+    options: ["limit"],
+    example: 'neiro history "Cognitive load" --limit 5',
+  },
+  {
+    name: "show",
+    args: "<note>",
+    summary: "a note's content at a Git revision",
+    options: ["rev"],
+    example: 'neiro show "Cognitive load" --rev HEAD~1',
+  },
+  {
+    name: "diff",
+    args: "<note>",
+    summary: "a note's changes since --rev (default: HEAD), or between --rev and --to",
+    options: ["rev", "to"],
+    example: 'neiro diff "Cognitive load"',
+  },
+  {
+    name: "capture",
+    args: "[text...]",
+    summary: "create a new note in the capture folder from text, --file, or stdin; never edits a note",
+    writes: true,
+    options: ["title", "source", "tag", "file", "dry-run", "commit", "push", "author"],
+    example: 'neiro capture --tag reading --source https://example.com "Read: how agents plan" --dry-run',
+  },
+  {
+    name: "new",
+    args: "<type> <title...>",
+    summary: "create a note from the vault's template for type, placed as capture places it",
+    writes: true,
+    options: ["tag", "dry-run", "commit", "push", "author"],
+    example: "neiro new Book The Pragmatic Programmer --dry-run",
+  },
+  {
+    name: "append",
+    args: "<note> [text...]",
+    summary: "add text at the end of a note, or at the end of section --heading",
+    writes: true,
+    options: [...SECTION, ...WRITE],
+    example: 'neiro append Home "- a new line" --heading "start here" --dry-run',
+  },
+  {
+    name: "section put",
+    args: "<note> [text...]",
+    summary: "replace the body of section --heading, or add the section",
+    writes: true,
+    options: ["heading", "level", ...WRITE],
+    example: 'neiro section put Home "Fresh text." --heading reading --dry-run',
+  },
+  {
+    name: "prop set",
+    args: "<note> <key> <value>",
+    summary: "set one frontmatter key, the value read as YAML, keeping comments and order",
+    writes: true,
+    options: WRITE,
+    example: 'neiro prop set "Cognitive load" rating 4 --dry-run',
+  },
+  {
+    name: "put",
+    args: "<path> [text...]",
+    summary: "create a note, or replace one only with --if-hash (text, --file, or stdin)",
+    writes: true,
+    options: ["file", ...WRITE],
+    example: 'neiro put "Inbox/Fresh.md" "A whole new note." --dry-run',
+  },
+  {
+    name: "journal append",
+    args: "<day|week|month|quarter|year> [text...]",
+    summary: "append to the periodic note for --date, which must exist",
+    writes: true,
+    options: ["date", ...SECTION, ...WRITE],
+    example: 'neiro journal append day "- a line for the day" --date 2026-09-16 --dry-run',
+  },
+  {
+    name: "tools",
+    args: "",
+    summary: "the agent tool definitions: names, exposure, JSON Schemas, and read-only or destructive hints",
+    options: [],
+    example: "neiro tools --json",
+  },
+  {
+    name: "help",
+    args: "[command]",
+    summary: "this usage, one command's help, or every command as JSON with --json",
+    options: [],
+    example: "neiro help get",
+  },
+];
+
+function optionLabel(name: OptionName): string {
+  const spec: OptionSpec = OPTIONS[name];
+  return `${spec.short ? `-${spec.short}, ` : ""}--${name}${spec.value ? ` ${spec.value}` : ""}`;
+}
+
+function optionLines(names: readonly OptionName[]): string {
+  return names.map((name) => `  ${optionLabel(name).padEnd(30)} ${OPTIONS[name].summary}`).join("\n");
+}
+
+function commandLine(spec: CommandSpec): string {
+  const call = `${spec.name} ${spec.args}`.trimEnd();
+  return call.length <= 30 ? `  ${call.padEnd(30)} ${spec.summary}` : `  ${call}\n  ${"".padEnd(30)} ${spec.summary}`;
+}
+
+function usage(): string {
+  const reads = COMMANDS.filter((spec) => !spec.writes).map(commandLine);
+  const writes = COMMANDS.filter((spec) => spec.writes).map(commandLine);
+  return [
+    `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault`,
+    "usage: neiro <command> [options]",
+    `commands:\n${reads.join("\n")}`,
+    `writes:\n${writes.join("\n")}`,
+    `options:\n${optionLines(Object.keys(OPTIONS) as OptionName[])}`,
+    "Run neiro help <command> for one command's options and an example, or neiro help --json for every command.",
+  ].join("\n\n");
+}
+
+function commandHelp(spec: CommandSpec): string {
+  return [
+    `usage: neiro ${spec.name} ${spec.args}`.trimEnd(),
+    spec.summary,
+    spec.options.length > 0 ? `options:\n${optionLines(spec.options)}` : "options: none beyond the global ones",
+    `global options: ${GLOBAL.map((name) => `--${name}`).join(", ")}`,
+    `example:\n  ${spec.example}`,
+  ].join("\n\n");
+}
+
+function optionJson(name: OptionName) {
+  const spec: OptionSpec = OPTIONS[name];
+  return {
+    name: `--${name}`,
+    ...(spec.short ? { short: `-${spec.short}` } : {}),
+    ...(spec.value ? { value: spec.value } : {}),
+    ...(spec.multiple ? { multiple: true } : {}),
+    summary: spec.summary,
+  };
+}
+
+function helpJson(specs: readonly CommandSpec[]) {
+  return {
+    version: pkg.version,
+    global: GLOBAL.map(optionJson),
+    commands: specs.map((spec) => ({
+      name: spec.name,
+      args: spec.args,
+      summary: spec.summary,
+      writes: spec.writes ?? false,
+      options: spec.options.map(optionJson),
+      example: spec.example,
+    })),
+  };
+}
+
+/** The command a command line runs: `prop set` before `prop`, so a subcommand wins. */
+function commandFor(words: string[]): CommandSpec | undefined {
+  const [first, second] = words;
+  return COMMANDS.find((spec) => spec.name === `${first} ${second}`) ?? COMMANDS.find((spec) => spec.name === first);
+}
+
+/** The commands `help` names: `help journal` gives `journal` and `journal append`. */
+function commandsNamed(words: string[]): CommandSpec[] {
+  for (let length = words.length; length > 0; length--) {
+    const key = words.slice(0, length).join(" ");
+    const found = COMMANDS.filter((spec) => spec.name === key || spec.name.startsWith(`${key} `));
+    if (found.length > 0) return found;
+  }
+  throw new UsageError(`no command "${words.join(" ")}"; run neiro help for the list`);
+}
 
 // A Markdown bullet such as "- read the paper", or a negative number such as -428, is text to write, not an option;
 // parseArgs would read either as one.
@@ -103,45 +418,10 @@ function parse() {
       args: argv,
       allowPositionals: true,
       strict: true,
-      options: {
-        vault: { type: "string" },
-        json: { type: "boolean" },
-        format: { type: "string" },
-        fields: { type: "string" },
-        type: { type: "string" },
-        tag: { type: "string", multiple: true },
-        status: { type: "string" },
-        under: { type: "string" },
-        limit: { type: "string" },
-        where: { type: "string", multiple: true },
-        sort: { type: "string" },
-        desc: { type: "boolean" },
-        "max-chars": { type: "string" },
-        lines: { type: "string" },
-        around: { type: "string" },
-        rev: { type: "string" },
-        to: { type: "string" },
-        context: { type: "string", short: "C" },
-        "fixed-strings": { type: "boolean", short: "F" },
-        date: { type: "string" },
-        title: { type: "string" },
-        source: { type: "string" },
-        "dry-run": { type: "boolean" },
-        file: { type: "string" },
-        commit: { type: "boolean" },
-        push: { type: "boolean" },
-        author: { type: "string" },
-        heading: { type: "string" },
-        "create-heading": { type: "boolean" },
-        level: { type: "string" },
-        "if-hash": { type: "string" },
-        help: { type: "boolean", short: "h" },
-        version: { type: "boolean", short: "v" },
-      },
+      options: OPTIONS,
     });
   } catch (error) {
-    console.error(`neiro: ${(error as Error).message}\n\n${USAGE}`);
-    process.exit(2);
+    fail(new UsageError((error as Error).message), 2);
   }
 }
 
@@ -247,7 +527,25 @@ async function emitNotes(vault: Vault, notes: { path: string }[], value: unknown
 async function main(): Promise<void> {
   if (opts.version) return console.log(pkg.version);
   const [command, ...args] = positionals;
-  if (opts.help || !command) return console.log(USAGE);
+  if (!command) return console.log(usage());
+  if (command === "help" || opts.help) {
+    const words = command === "help" ? args : positionals;
+    if (words.length === 0)
+      return console.log(format === "json" ? JSON.stringify(helpJson(COMMANDS), null, 2) : usage());
+    const specs = command === "help" ? commandsNamed(words) : [commandFor(words) ?? commandsNamed(words)].flat();
+    return console.log(
+      format === "json" ? JSON.stringify(helpJson(specs), null, 2) : specs.map(commandHelp).join("\n\n---\n\n"),
+    );
+  }
+  const spec = commandFor(positionals);
+  if (spec) {
+    const allowed = new Set<string>([...GLOBAL, ...spec.options]);
+    for (const [name, value] of Object.entries(opts)) {
+      if (value !== undefined && !allowed.has(name)) {
+        throw new UsageError(`${spec.name} does not take --${name}; run neiro help ${spec.name}`);
+      }
+    }
+  }
 
   if (!FORMATS.includes(format)) throw new UsageError(`--format takes ${FORMATS.join(", ")}`);
   const vault = new Vault(opts.vault ?? process.env.NEIRO_VAULT ?? process.cwd());
@@ -355,7 +653,7 @@ async function main(): Promise<void> {
     }
     case "history": {
       const note = await vault.find(one(args, "note"));
-      const revisions = vault.history.log(note.path, count("limit", opts.limit));
+      const revisions = await vault.history.log(note.path, count("limit", opts.limit));
       return emit(revisions, () =>
         revisions
           .map(({ rev, date, author, message }) => `${rev.slice(0, 12)}\t${date}\t${author}\t${message}`)
@@ -365,12 +663,12 @@ async function main(): Promise<void> {
     case "show": {
       if (!opts.rev) throw new UsageError("show needs --rev <rev>");
       const note = await vault.find(one(args, "note"));
-      const content = vault.history.show(note.path, opts.rev);
+      const content = await vault.history.show(note.path, opts.rev);
       return emit({ path: note.path, rev: opts.rev, content }, () => content.replace(/\n$/, ""));
     }
     case "diff": {
       const note = await vault.find(one(args, "note"));
-      const patch = vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
+      const patch = await vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
       return emit({ path: note.path, from: opts.rev ?? "HEAD", to: opts.to ?? null, diff: patch }, () =>
         patch.replace(/\n$/, ""),
       );
@@ -468,6 +766,18 @@ async function main(): Promise<void> {
       );
       return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
     }
+    case "tools": {
+      if (args.length > 0) throw new UsageError("tools takes no arguments");
+      const definitions = TOOLS.map(({ run: _, ...definition }) => definition);
+      return emit(definitions, () =>
+        definitions
+          .map(({ name, exposure, annotations, description }) => {
+            const effect = annotations.readOnlyHint ? "reads" : annotations.destructiveHint ? "changes" : "adds";
+            return `${name}\t${exposure}\t${effect}\t${description}`;
+          })
+          .join("\n"),
+      );
+    }
     default:
       throw new UsageError(`unknown command "${command}"`);
   }
@@ -476,21 +786,7 @@ async function main(): Promise<void> {
 try {
   await main();
 } catch (error) {
-  if (error instanceof UsageError) {
-    console.error(`neiro: ${error.message}\n\n${USAGE}`);
-    process.exit(2);
-  }
-  if (
-    error instanceof NotFoundError ||
-    error instanceof LineRangeError ||
-    error instanceof HistoryError ||
-    error instanceof SectionError ||
-    error instanceof WriteConflictError ||
-    error instanceof CaptureError ||
-    error instanceof UnsupportedError
-  ) {
-    console.error(`neiro: ${error.message}`);
-    process.exit(1);
-  }
+  if (error instanceof UsageError) fail(error, 2);
+  if (error instanceof NeiroError) fail(error, 1);
   throw error;
 }

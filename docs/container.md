@@ -50,7 +50,7 @@ import { agentTools, Vault } from "neiro";
 
 const vault = new Vault("/data/vault", { watch: 5000 });
 
-vault.sync(); // before a burst of reads: pull the owner's changes, then reload
+await vault.sync(); // before a burst of reads: pull the owner's changes, then reload
 const today = await vault.journalFor("day");
 
 await vault.capture({ text, tags: ["inbox"] }, { push: true, author: "vault-bot <vault-bot@example.com>" });
@@ -60,9 +60,9 @@ const tools = agentTools(); // for a model; run each call with the consumer's po
 ```
 
 - `watch` rescans when the notes' modification times change, at most once per interval, so edits arriving by other means are seen without a rescan on every read.
-- `push: true` pulls with rebase before writing, commits the one note, and pushes. `capture` only ever creates a new file, so its rebase does not conflict with the owner's edits.
+- `push: true` pulls with rebase before writing, commits the one note, and pushes; the agent tools do the same for every write. `capture` only ever creates a new file, so its rebase does not conflict with the owner's edits.
 - A targeted write passes the `hash` from `get` as `ifHash`; if the owner changed the note since, the write is refused with `WriteConflictError` instead of overwriting their change. Read the note again and retry.
-- A failed pull or push raises `HistoryError`. The local commit stays; call `vault.sync()` to retry.
+- A failed pull or push raises `HistoryError`. After the note is written it is a `PartialWriteError` with the note's `path`, `hash`, and `committed`: do not repeat the write; call `await vault.sync()` to retry the push. A pull whose rebase conflicts is aborted, leaving the clone as it was, and its `HistoryError` means a person must reconcile the two histories: retrying will not.
 
 ## 5. what the container must not do
 

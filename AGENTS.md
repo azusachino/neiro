@@ -12,9 +12,10 @@ neiro is an SDK and CLI over an Obsidian-compatible Markdown vault, working on t
 src/index.ts         The public SDK surface; everything a library consumer may import
 src/vault.ts         Vault: scanning, lookup, list, links, nav, and journal
 src/settings.ts      The settings chain: code options, neiro.toml, .obsidian settings, defaults
+src/errors.ts        NeiroError, the base of every error neiro raises on purpose
 src/chain.ts         Fallback chains: the first available provider serves a capability
 src/providers.ts     The capability chains; the only place a Bun-only API may appear
-src/links.ts         Wikilink extraction and Obsidian-style resolution
+src/links.ts         Link extraction (wikilinks, Markdown links, frontmatter) and Obsidian-style resolution
 src/search.ts        BM25 ranking over a scan
 src/capture.ts       The one write: a new note, optionally committed and pushed
 src/title.ts         Title casing and Latin/CJK spacing
@@ -24,7 +25,9 @@ src/frontmatter.ts   YAML frontmatter parsing and scalar quoting
 src/cli.ts           The CLI, a thin front end over src/index.ts
 test/fixtures/vault  A small synthetic vault for edge cases; never copy personal notes into it
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
+skills/neiro/        SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
+docs/cli.md          Every CLI command, option, and JSON output; a test checks it against the CLI's command table
 docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
 docs/container.md    Running neiro against a Git clone of a vault in a container
 ```

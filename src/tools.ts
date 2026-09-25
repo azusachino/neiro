@@ -3,7 +3,9 @@
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
 import { parseDate } from "./dateformat.ts";
+import { InputError } from "./errors.ts";
 import { propertyValue } from "./frontmatter.ts";
+import { PartialWriteError } from "./history.ts";
 import { PERIODS, type Period } from "./settings.ts";
 import { SORT_KEYS, type Vault } from "./vault.ts";
 
@@ -16,6 +18,8 @@ export interface PropertySchema {
   enum?: readonly string[];
   items?: { type: "string" };
   minimum?: number;
+  /** For an object: the JSON types its values may take. */
+  additionalProperties?: { type: readonly ("string" | "null")[] };
 }
 
 export interface InputSchema {
@@ -40,13 +44,13 @@ export interface ToolDefinition {
 export interface ToolContext {
   /** Commit each write, as one revision of the note alone. */
   commit?: boolean;
-  /** Pull before and push after each write, through `History`. Implies `commit`. */
+  /** Pull before and push after each write, through `History`, so `ifHash` meets the remote's latest. Implies `commit`. */
   push?: boolean;
   /** Commit author, as `Name <email>`. */
   author?: string;
 }
 
-export class ToolInputError extends Error {}
+export class ToolInputError extends InputError {}
 
 const str = (description: string): PropertySchema => ({ type: "string", description });
 const int = (description: string): PropertySchema => ({ type: "integer", description, minimum: 1 });
@@ -68,6 +72,8 @@ const GUARDS = {
   dryRun: bool("Return the unified diff without writing"),
   ifHash: str("Write only if the note still has this hash, as get returned it"),
 };
+/** The longest pattern `neiro_grep` takes from a model. */
+const GREP_PATTERN_LIMIT = 200;
 const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
 
 /** Check `input` against a tool's schema, so a model's mistake comes back as a clear error, not a crash. */
@@ -93,6 +99,15 @@ export function validateInput(tool: ToolDefinition, input: unknown): Record<stri
             ? typeof value === "object" && value !== null && !Array.isArray(value)
             : typeof value === property.type;
     if (!ok) throw new ToolInputError(`${tool.name}: ${key} must be ${property.type}`);
+    const values = property.additionalProperties?.type;
+    if (
+      values &&
+      !Object.values(value as object).every((item) =>
+        values.includes(item === null ? "null" : (typeof item as "string")),
+      )
+    ) {
+      throw new ToolInputError(`${tool.name}: ${key} values must be ${values.join(" or ")}`);
+    }
     if (property.enum && !property.enum.includes(value as string)) {
       throw new ToolInputError(`${tool.name}: ${key} must be one of ${property.enum.join(", ")}`);
     }
@@ -123,9 +138,21 @@ function writeOf(input: Record<string, unknown>, context: ToolContext = {}) {
   };
 }
 
-/** After a committed write, publish it when the consumer asked for push. */
-async function published<T extends { committed: boolean }>(vault: Vault, result: T, context: ToolContext = {}) {
-  if (context.push && result.committed) vault.sync();
+/** With push: take the remote's revisions before the write, so its guards see them, and publish the write after. */
+async function published<T extends { path: string; hash: string; committed: boolean }>(
+  vault: Vault,
+  context: ToolContext = {},
+  write: () => Promise<T>,
+): Promise<T> {
+  if (context.push) await vault.sync();
+  const result = await write();
+  if (context.push && result.committed) {
+    try {
+      await vault.sync();
+    } catch (error) {
+      throw new PartialWriteError(result, error);
+    }
+  }
   return result;
 }
 
@@ -146,7 +173,11 @@ export const TOOLS: ToolDefinition[] = [
     annotations: READ,
     exposure: "direct",
     run: async (vault, input) => {
-      const span = o<string>(input, "lines")?.split(":");
+      const lines = o<string>(input, "lines");
+      if (lines !== undefined && !/^(?:\d+:\d*|:\d+|\d+)$/.test(lines)) {
+        throw new ToolInputError(`neiro_get: lines must be a:b, a:, :b, or a line, not "${lines}"`);
+      }
+      const span = lines?.split(":");
       const around = o<number>(input, "around");
       return vault.get(s(input, "note"), {
         maxChars: o<number>(input, "maxChars"),
@@ -167,11 +198,12 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "neiro_grep",
-    description: "Lines matching a regular expression, as path, line, and text; smart case. Read around a hit next.",
+    description:
+      "Lines containing text, as path, line, and text; smart case. Literal unless regex is set. Read around a hit next.",
     inputSchema: schema(
       {
-        pattern: str("A regular expression, or literal text with fixed"),
-        fixed: bool("Match the pattern as literal text"),
+        pattern: str(`Text to find, at most ${GREP_PATTERN_LIMIT} characters; a regular expression with regex`),
+        regex: bool("Read the pattern as a JavaScript regular expression instead of literal text"),
         context: { type: "integer", description: "Lines of context either side", minimum: 0 },
         ...FILTERS,
       },
@@ -179,12 +211,24 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: READ,
     exposure: "direct",
-    run: (vault, input) =>
-      vault.grep(s(input, "pattern"), {
-        ...filterOf(input),
-        fixed: o<boolean>(input, "fixed"),
-        context: o<number>(input, "context"),
-      }),
+    run: async (vault, input) => {
+      const pattern = s(input, "pattern");
+      // A model's regular expression runs in the host's process; literal text by default and a length cap keep a
+      // backtracking pattern from stalling it.
+      if (pattern.length > GREP_PATTERN_LIMIT) {
+        throw new ToolInputError(`neiro_grep: pattern is longer than ${GREP_PATTERN_LIMIT} characters`);
+      }
+      try {
+        return await vault.grep(pattern, {
+          ...filterOf(input),
+          fixed: o<boolean>(input, "regex") !== true,
+          context: o<number>(input, "context"),
+        });
+      } catch (error) {
+        if (error instanceof SyntaxError) throw new ToolInputError(`neiro_grep: ${error.message}`);
+        throw error;
+      }
+    },
   },
   {
     name: "neiro_find",
@@ -199,7 +243,11 @@ export const TOOLS: ToolDefinition[] = [
     description: "List note summaries, filtered on any frontmatter property and sorted, such as the latest books.",
     inputSchema: schema({
       ...FILTERS,
-      where: { type: "object", description: "Frontmatter key to required text value; null asks only for presence" },
+      where: {
+        type: "object",
+        description: "Frontmatter key to required text value; null asks only for presence",
+        additionalProperties: { type: ["string", "null"] },
+      },
       sort: { type: "string", description: "Sort key", enum: SORT_KEYS },
       desc: bool("Sort descending"),
       limit: int("Most results"),
@@ -225,7 +273,8 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "neiro_links",
-    description: "A note's outgoing wikilinks and what each resolves to.",
+    description:
+      "A note's outgoing links (wikilinks, Markdown links, and frontmatter links) and what each resolves to.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
     exposure: "direct",
@@ -323,14 +372,12 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "direct",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
+      published(vault, context, () =>
+        vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
           ...writeOf(input, context),
           heading: o(input, "heading"),
           date: dateOf(input),
         }),
-        context,
       ),
   },
   {
@@ -349,14 +396,12 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.append(s(input, "note"), s(input, "text"), {
+      published(vault, context, () =>
+        vault.append(s(input, "note"), s(input, "text"), {
           ...writeOf(input, context),
           heading: o(input, "heading"),
           createHeading: o(input, "createHeading"),
         }),
-        context,
       ),
   },
   {
@@ -370,10 +415,8 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input, context)),
-        context,
+      published(vault, context, () =>
+        vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input, context)),
       ),
   },
   {
@@ -391,15 +434,8 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
     run: async (vault, input, context) =>
-      published(
-        vault,
-        await vault.setProperty(
-          s(input, "note"),
-          s(input, "key"),
-          propertyValue(s(input, "value")),
-          writeOf(input, context),
-        ),
-        context,
+      published(vault, context, () =>
+        vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input, context)),
       ),
   },
   {
@@ -435,7 +471,7 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "cli-only",
     run: async (vault, input, context) =>
-      published(vault, await vault.put(s(input, "path"), s(input, "content"), writeOf(input, context)), context),
+      published(vault, context, () => vault.put(s(input, "path"), s(input, "content"), writeOf(input, context))),
   },
 ];
 

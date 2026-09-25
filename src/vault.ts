@@ -11,12 +11,13 @@ import {
   captureInputFromMarkdown,
 } from "./capture.ts";
 import type { Chain } from "./chain.ts";
+import { NeiroError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
-import { type History, historyChain } from "./history.ts";
+import { type History, historyChain, PartialWriteError } from "./history.ts";
 import { journalPath } from "./journal.ts";
-import { extractLinks, LinkIndex, type Resolution } from "./links.ts";
+import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { type NeiroConfig, type Period, resolveSettings, UnsupportedError, type VaultSettings } from "./settings.ts";
@@ -150,7 +151,23 @@ export interface VaultOptions {
   watch?: number;
 }
 
-export class NotFoundError extends Error {
+/** The notes as last read, their link index, and the fingerprint `watch` compares. */
+interface Scan {
+  notes: Note[];
+  index: LinkIndex;
+  fingerprint: string;
+  /** Every note's resolved links, built on the first link query and dropped with the scan. */
+  graph?: LinkGraph;
+}
+
+interface LinkGraph {
+  /** Each note's links in order, each with its resolution. */
+  outgoing: Map<string, OutgoingLink[]>;
+  /** For each note, the other notes whose links resolve to it. */
+  incoming: Map<string, Set<string>>;
+}
+
+export class NotFoundError extends NeiroError {
   /** The closest notes by fuzzy match, when a reference resolved to none. */
   readonly suggestions: string[];
 
@@ -167,14 +184,18 @@ export interface Suggestion extends NoteSummary {
 }
 
 /** A line range that does not fit the note; the message gives the note's line count. */
-export class LineRangeError extends Error {}
+export class LineRangeError extends NeiroError {}
 
 export class Vault {
   readonly root: string;
   /** Resolved from code options, `neiro.toml`, the vault's Obsidian settings, then neutral defaults. */
   readonly settings: VaultSettings;
   private readonly exclude: string[];
-  private cache?: { notes: Note[]; index: LinkIndex; fingerprint: string };
+  private cache?: Scan;
+  /** The scan in flight, shared by every read that arrives while it runs. */
+  private loading?: Promise<Scan>;
+  /** Bumped by `reload`, so a scan that started before it does not become the cache. */
+  private generation = 0;
   private readonly watch?: number;
   private checked = 0;
   private historyChain?: Chain<History>;
@@ -191,6 +212,8 @@ export class Vault {
   /** Forget the scanned notes, e.g. after a `git pull`. */
   reload(): void {
     this.cache = undefined;
+    this.loading = undefined;
+    this.generation++;
   }
 
   async notes(): Promise<Note[]> {
@@ -249,35 +272,19 @@ export class Vault {
 
   async links(ref: string): Promise<OutgoingLink[]> {
     const note = await this.find(ref);
-    const { index } = await this.load();
-    return extractLinks(note.body).map((link) => ({ ...link, resolution: index.resolve(note.path, link.target) }));
+    return [...((await this.graph()).outgoing.get(note.path) ?? [])];
   }
 
   async backlinks(ref: string): Promise<NoteSummary[]> {
     const target = await this.find(ref);
-    const { notes, index } = await this.load();
-    return notes
-      .filter((note) => note.path !== target.path)
-      .filter((note) =>
-        extractLinks(note.body).some((link) => {
-          const resolution = index.resolve(note.path, link.target);
-          return resolution.status === "resolved" && resolution.path === target.path;
-        }),
-      )
-      .map(summarize);
+    const sources = (await this.graph()).incoming.get(target.path) ?? new Set();
+    return (await this.notes()).filter((note) => sources.has(note.path)).map(summarize);
   }
 
   /** Notes no other note links to or embeds, narrowed by the filters; a note linking only to itself is an orphan. */
   async orphans(filter: Filter = {}): Promise<NoteSummary[]> {
-    const { notes, index } = await this.load();
-    const linked = new Set<string>();
-    for (const note of notes) {
-      for (const link of extractLinks(note.body)) {
-        const resolution = index.resolve(note.path, link.target);
-        if (resolution.status === "resolved" && resolution.path !== note.path) linked.add(resolution.path);
-      }
-    }
-    return (await this.filtered(filter)).filter((note) => !linked.has(note.path)).map(summarize);
+    const { incoming } = await this.graph();
+    return (await this.filtered(filter)).filter((note) => !incoming.has(note.path)).map(summarize);
   }
 
   /** A note's ATX headings with their line numbers, counted as `get --lines` counts; fenced code is skipped. */
@@ -344,7 +351,8 @@ export class Vault {
       }
       doc.set(key, value);
       const yaml = doc.toString({ flowCollectionPadding: false, lineWidth: 0 }).replace(/\n$/, "");
-      return splice(current, range.start, range.end, yaml);
+      // An empty block has no line break of its own before the closing fence.
+      return splice(current, range.start, range.end, range.start === range.end ? `${yaml}\n` : yaml);
     });
   }
 
@@ -357,38 +365,55 @@ export class Vault {
     if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
       throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
     }
-    const result = writeNote(
-      this.root,
-      target,
-      (current) => {
-        if (current !== undefined && options.ifHash === undefined) {
-          throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
-        }
-        return content;
-      },
-      `docs: put ${target}`,
-      options,
-      () => this.history,
+    return this.recorded(
+      writeNote(
+        this.root,
+        target,
+        (current) => {
+          if (current !== undefined && options.ifHash === undefined) {
+            throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
+          }
+          return content;
+        },
+        `docs: put ${target}`,
+        options,
+        () => this.history,
+      ),
     );
-    if (result.written) this.reload();
-    return result;
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
-  private change(path: string, message: string, options: WriteOptions, next: (current: string) => string): WriteResult {
-    const result = writeNote(
-      this.root,
-      path,
-      (current) => {
-        if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
-        return next(current);
-      },
-      message,
-      options,
-      () => this.history,
+  private async change(
+    path: string,
+    message: string,
+    options: WriteOptions,
+    next: (current: string) => string,
+  ): Promise<WriteResult> {
+    return this.recorded(
+      writeNote(
+        this.root,
+        path,
+        (current) => {
+          if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
+          return next(current);
+        },
+        message,
+        options,
+        () => this.history,
+      ),
     );
-    if (result.written) this.reload();
-    return result;
+  }
+
+  /** Forget the scan after a write, including one whose commit or push then failed, so reads see the file. */
+  private async recorded<T extends { written: boolean }>(write: Promise<T>): Promise<T> {
+    try {
+      const result = await write;
+      if (result.written) this.reload();
+      return result;
+    } catch (error) {
+      if (error instanceof PartialWriteError) this.reload();
+      throw error;
+    }
   }
 
   /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
@@ -400,11 +425,12 @@ export class Vault {
 
   /** Links that point at no note, or at more than one. Attachments are not checked. */
   async unresolved(): Promise<{ from: string; target: string; resolution: Resolution }[]> {
-    const { notes, index } = await this.load();
+    const { notes } = await this.load();
+    const { outgoing } = await this.graph();
     return notes.flatMap((note) =>
-      extractLinks(note.body)
-        .map((link) => ({ from: note.path, target: link.target, resolution: index.resolve(note.path, link.target) }))
-        .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous"),
+      (outgoing.get(note.path) ?? [])
+        .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous")
+        .map(({ target, resolution }) => ({ from: note.path, target, resolution })),
     );
   }
 
@@ -432,7 +458,7 @@ export class Vault {
         ? {
             index: {
               ...summarize(indexNote),
-              headings: [...indexNote.body.matchAll(/^#{1,6}\s+(.+?)\s*$/gm)].map((match) => match[1] as string),
+              headings: headingsOf(indexNote.raw).map((heading) => heading.text),
             },
           }
         : {}),
@@ -490,9 +516,7 @@ export class Vault {
   }
 
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    const result = await capture(this.root, input, this.settings.capture, options, () => this.history);
-    if (result.written) this.reload();
-    return result;
+    return this.recorded(capture(this.root, input, this.settings.capture, options, () => this.history));
   }
 
   /**
@@ -567,17 +591,57 @@ export class Vault {
   }
 
   /** Take others' revisions and publish this one's through `History`, then reload so reads see what arrived. */
-  sync(): void {
-    this.history.sync();
+  async sync(): Promise<void> {
+    await this.history.sync();
     this.reload();
   }
 
-  private async load(): Promise<{ notes: Note[]; index: LinkIndex }> {
+  private async load(): Promise<Scan> {
     if (this.cache && this.watch !== undefined && Date.now() - this.checked >= this.watch) {
       this.checked = Date.now();
       if ((await this.fingerprint()) !== this.cache.fingerprint) this.cache = undefined;
     }
     if (this.cache) return this.cache;
+    if (!this.loading) {
+      const generation = this.generation;
+      this.loading = this.scan().then(
+        (scan) => {
+          if (generation === this.generation) [this.cache, this.loading] = [scan, undefined];
+          return scan;
+        },
+        (error) => {
+          if (generation === this.generation) this.loading = undefined;
+          throw error;
+        },
+      );
+    }
+    return this.loading;
+  }
+
+  /** The scan's link graph: every note's links resolved once, then reused until the next rescan. */
+  private async graph(): Promise<LinkGraph> {
+    const scan = await this.load();
+    if (!scan.graph) {
+      const outgoing = new Map<string, OutgoingLink[]>();
+      const incoming = new Map<string, Set<string>>();
+      for (const note of scan.notes) {
+        const links = linksOf(note).map((link) => ({
+          ...link,
+          resolution: scan.index.resolve(note.path, link.target),
+        }));
+        outgoing.set(note.path, links);
+        for (const { resolution } of links) {
+          if (resolution.status !== "resolved" || resolution.path === note.path) continue;
+          const sources = incoming.get(resolution.path) ?? new Set<string>();
+          incoming.set(resolution.path, sources.add(note.path));
+        }
+      }
+      scan.graph = { outgoing, incoming };
+    }
+    return scan.graph;
+  }
+
+  private async scan(): Promise<Scan> {
     const paths = await this.paths();
     // TextDecoder drops a leading byte order mark, so frontmatter after one is still found.
     const decoder = new TextDecoder();
@@ -586,8 +650,7 @@ export class Vault {
     );
     const fingerprint = this.watch === undefined ? "" : await this.fingerprint(paths);
     this.checked = Date.now();
-    this.cache = { notes, index: new LinkIndex(paths), fingerprint };
-    return this.cache;
+    return { notes, index: new LinkIndex(paths), fingerprint };
   }
 
   private async paths(): Promise<string[]> {
@@ -722,4 +785,9 @@ async function markdownFiles(root: string, prefix = ""): Promise<string[]> {
     }),
   );
   return nested.flat();
+}
+
+/** A note's links as Obsidian counts them: wikilinks in its frontmatter values, then links in its body. */
+function linksOf(note: Note): WikiLink[] {
+  return [...frontmatterLinks(note.frontmatter), ...extractLinks(note.body)];
 }

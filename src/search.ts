@@ -27,16 +27,20 @@ export function terms(query: string): Term[] {
   return [...found.values()];
 }
 
-function occurrences(haystack: string, term: Term): number {
+/** A counter of a term's occurrences, its word-boundary pattern compiled once for every note it scans. */
+function counter(term: Term): (haystack: string) => number {
   if (term.cjk) {
-    let count = 0;
-    for (let at = haystack.indexOf(term.text); at !== -1; at = haystack.indexOf(term.text, at + term.text.length)) {
-      count++;
-    }
-    return count;
+    return (haystack) => {
+      let count = 0;
+      for (let at = haystack.indexOf(term.text); at !== -1; at = haystack.indexOf(term.text, at + term.text.length)) {
+        count++;
+      }
+      return count;
+    };
   }
   const escaped = term.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return haystack.match(new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "gu"))?.length ?? 0;
+  const pattern = new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, "gu");
+  return (haystack) => haystack.match(pattern)?.length ?? 0;
 }
 
 function snippet(body: string, lowered: string, query: Term[]): string {
@@ -54,9 +58,10 @@ export function rank(notes: Note[], query: string, limit: number): Ranked[] {
   const wanted = terms(query);
   if (wanted.length === 0 || notes.length === 0) return [];
 
+  const counters = wanted.map(counter);
   const docs = notes.map((note) => {
     const lowered = note.body.toLowerCase();
-    return { note, lowered, counts: wanted.map((term) => occurrences(lowered, term)) };
+    return { note, lowered, counts: counters.map((count) => count(lowered)) };
   });
   const averageLength = docs.reduce((sum, doc) => sum + doc.lowered.length, 0) / docs.length || 1;
   const idf = wanted.map((_, i) => {
@@ -69,12 +74,12 @@ export function rank(notes: Note[], query: string, limit: number): Ranked[] {
     const title = note.title.toLowerCase();
     const tags = note.tags.join(" ");
     let score = 0;
-    wanted.forEach((term, i) => {
+    counters.forEach((count, i) => {
       const tf = counts[i] ?? 0;
       const weight = idf[i] ?? 0;
       if (tf > 0) score += (weight * tf * (K1 + 1)) / (tf + K1 * (1 - B + (B * lowered.length) / averageLength));
-      if (occurrences(title, term) > 0) score += TITLE_BOOST * weight;
-      if (occurrences(tags, term) > 0) score += TAG_BOOST * weight;
+      if (count(title) > 0) score += TITLE_BOOST * weight;
+      if (count(tags) > 0) score += TAG_BOOST * weight;
     });
     if (score > 0) {
       hits.push({

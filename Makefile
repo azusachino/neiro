@@ -15,11 +15,13 @@ validate: check build ## Pre-PR gate: check, then run the compiled binary agains
 	./dist/neiro --vault test/fixtures/vault nav --json > /dev/null
 	./dist/neiro --vault test/fixtures/vault search "cognitive load" --json > /dev/null
 
-node-smoke: ## Run the read commands on Node and require the same output as on Bun
+node-smoke: ## Run the read commands on Node, and import the built package there, requiring Bun's output
+	bun run build:lib
 	bun test/node-smoke.ts
 
-build: ## Compile the CLI into one binary at dist/neiro
+build: ## Compile the CLI into one binary at dist/neiro, and the library into JavaScript and declarations at dist/lib
 	bun run build
+	bun run build:lib
 
 format: ## Apply Biome and rumdl formatting
 	bun run format
