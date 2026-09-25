@@ -12,6 +12,7 @@
 - The agent tools' `push` now pulls before each write as documented, so `ifHash` is checked against the remote's latest. A `sync` whose rebase conflicts aborts it and raises `HistoryError`, instead of leaving the clone mid-rebase. ([#55](https://github.com/azusachino/neiro/issues/55))
 - A write whose commit or push fails after the file is written raises `PartialWriteError`, a `HistoryError` carrying the note's `path`, its new `hash`, and whether it `committed`, and the `Vault` rereads the file; before, the caller could not tell the note was written. ([#56](https://github.com/azusachino/neiro/issues/56))
 - Targeted writes replace a note atomically, through a temporary file renamed over it, keeping its mode and any symbolic link, so a crash or a reader never sees half a note. ([#58](https://github.com/azusachino/neiro/issues/58))
+- `neiro_grep` reads a model's pattern as literal text unless `regex` is set, refuses a pattern over 200 characters, and reports an invalid regular expression as `ToolInputError`, so a backtracking pattern cannot stall the host. Its `fixed` input is replaced by `regex`. ([#59](https://github.com/azusachino/neiro/issues/59))
 
 ## 0.4.0
 

@@ -85,6 +85,15 @@ describe("running tools", () => {
     expect(await call(vault, "neiro_prop_get", { note: "People/Plato.md", key: "born" })).toBe(-428);
   });
 
+  test("grep reads a model's pattern as literal text unless regex is set, and caps its length", async () => {
+    const vault = new Vault(copyVault());
+    const literal = (await call(vault, "neiro_grep", { pattern: "load." })) as unknown[];
+    const regex = (await call(vault, "neiro_grep", { pattern: "load.", regex: true })) as unknown[];
+    expect(regex.length).toBeGreaterThan(literal.length);
+    await expect(call(vault, "neiro_grep", { pattern: "x".repeat(201) })).rejects.toThrow(ToolInputError);
+    await expect(call(vault, "neiro_grep", { pattern: "(", regex: true })).rejects.toThrow(ToolInputError);
+  });
+
   test("writes take the model's guards and the consumer's commit policy", async () => {
     const { root, remote } = gitVault();
     const vault = new Vault(root);

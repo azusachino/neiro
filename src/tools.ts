@@ -70,6 +70,8 @@ const GUARDS = {
   dryRun: bool("Return the unified diff without writing"),
   ifHash: str("Write only if the note still has this hash, as get returned it"),
 };
+/** The longest pattern `neiro_grep` takes from a model. */
+const GREP_PATTERN_LIMIT = 200;
 const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true };
 
 /** Check `input` against a tool's schema, so a model's mistake comes back as a clear error, not a crash. */
@@ -181,11 +183,12 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "neiro_grep",
-    description: "Lines matching a regular expression, as path, line, and text; smart case. Read around a hit next.",
+    description:
+      "Lines containing text, as path, line, and text; smart case. Literal unless regex is set. Read around a hit next.",
     inputSchema: schema(
       {
-        pattern: str("A regular expression, or literal text with fixed"),
-        fixed: bool("Match the pattern as literal text"),
+        pattern: str(`Text to find, at most ${GREP_PATTERN_LIMIT} characters; a regular expression with regex`),
+        regex: bool("Read the pattern as a JavaScript regular expression instead of literal text"),
         context: { type: "integer", description: "Lines of context either side", minimum: 0 },
         ...FILTERS,
       },
@@ -193,12 +196,24 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: READ,
     exposure: "direct",
-    run: (vault, input) =>
-      vault.grep(s(input, "pattern"), {
-        ...filterOf(input),
-        fixed: o<boolean>(input, "fixed"),
-        context: o<number>(input, "context"),
-      }),
+    run: async (vault, input) => {
+      const pattern = s(input, "pattern");
+      // A model's regular expression runs in the host's process; literal text by default and a length cap keep a
+      // backtracking pattern from stalling it.
+      if (pattern.length > GREP_PATTERN_LIMIT) {
+        throw new ToolInputError(`neiro_grep: pattern is longer than ${GREP_PATTERN_LIMIT} characters`);
+      }
+      try {
+        return await vault.grep(pattern, {
+          ...filterOf(input),
+          fixed: o<boolean>(input, "regex") !== true,
+          context: o<number>(input, "context"),
+        });
+      } catch (error) {
+        if (error instanceof SyntaxError) throw new ToolInputError(`neiro_grep: ${error.message}`);
+        throw error;
+      }
+    },
   },
   {
     name: "neiro_find",
