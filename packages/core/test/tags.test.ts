@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { countTags, noteTags, tagMatches, Vault } from "../src/index.ts";
+import { Vault } from "../src/index.ts";
+import { countTags, noteTags, tagMatches } from "../src/tags.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);

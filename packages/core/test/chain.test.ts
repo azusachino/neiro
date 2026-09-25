@@ -3,7 +3,8 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } fro
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Chain } from "../src/chain.ts";
-import { splitFrontmatter, UnsupportedError, Vault } from "../src/index.ts";
+import { splitFrontmatter } from "../src/frontmatter.ts";
+import { UnsupportedError, Vault } from "../src/index.ts";
 import { parseToml, parseYaml } from "../src/providers.ts";
 import { FIXTURE } from "./vault.test.ts";
 

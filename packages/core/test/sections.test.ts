@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { findSection, headingsOf, NotFoundError, SectionError, Vault, WriteConflictError } from "../src/index.ts";
+import { NotFoundError, SectionError, Vault, WriteConflictError } from "../src/index.ts";
+import { findSection, headingsOf } from "../src/sections.ts";
 import { copyVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");

@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { chmodSync, lstatSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { contentHash, splice, Vault, WriteConflictError, writeNote } from "../src/index.ts";
+import { Vault, WriteConflictError } from "../src/index.ts";
+import { contentHash, splice, writeNote } from "../src/write.ts";
 import { copyVault } from "./git.ts";
 
 const NOTE = "Topics/Cognitive load.md";

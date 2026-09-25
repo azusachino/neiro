@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { fuzzyRank, fuzzyScore, NotFoundError, Vault } from "../src/index.ts";
+import { fuzzyRank, fuzzyScore } from "../src/fuzzy.ts";
+import { NotFoundError, Vault } from "../src/index.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);

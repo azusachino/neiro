@@ -1,16 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import {
-  type NeiroConfig,
-  NotFoundError,
-  renderTemplate,
-  resolveSettings,
-  splitFrontmatter,
-  templateFor,
-  UnsupportedError,
-  Vault,
-} from "../src/index.ts";
+import { splitFrontmatter } from "../src/frontmatter.ts";
+import { type NeiroConfig, NotFoundError, UnsupportedError, Vault } from "../src/index.ts";
+import { resolveSettings } from "../src/settings.ts";
+import { renderTemplate, templateFor } from "../src/templates.ts";
 import { copyVault, FIXTURE } from "./git.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);

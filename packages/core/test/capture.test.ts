@@ -2,16 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-  CaptureError,
-  ConfigError,
-  captureInputFromMarkdown,
-  type NeiroConfig,
-  renderCapture,
-  resolveSettings,
-  splitFrontmatter,
-  Vault,
-} from "../src/index.ts";
+import { renderCapture } from "../src/capture.ts";
+import { splitFrontmatter } from "../src/frontmatter.ts";
+import { CaptureError, ConfigError, captureInputFromMarkdown, type NeiroConfig, Vault } from "../src/index.ts";
+import { resolveSettings } from "../src/settings.ts";
 import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 

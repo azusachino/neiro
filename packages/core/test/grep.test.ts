@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { formatGrep, grepPattern, Vault } from "../src/index.ts";
+import { grepPattern } from "../src/grep.ts";
+import { formatGrep, Vault } from "../src/index.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
