@@ -26,6 +26,7 @@ src/cli.ts           The CLI, a thin front end over src/index.ts
 test/fixtures/vault  A small synthetic vault for edge cases; never copy personal notes into it
 test/vaults/         Public Obsidian vaults pinned as submodules; tests assert invariants on them
 skills/neiro/        SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
+docs/decisions/      Architecture decision records: every rule below, with its reasons
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
 docs/cli.md          Every CLI command, option, and JSON output; a test checks it against the CLI's command table
 docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
@@ -41,9 +42,14 @@ docs/container.md    Running neiro against a Git clone of a vault in a container
 
 ## Rules
 
-- **Files are the only truth.** Do not add an index, cache file, or database until a measurement shows the scan is too slow; any index must be derived and deletable.
-- **Never require the Obsidian app.** The bot runs in a container with no GUI.
-- **Capture creates, never edits.** It writes one new file in the capture folder, and `--commit` commits only that file. A new write verb needs the owner's agreement first, and must target a heading or a frontmatter key rather than rewriting a note.
-- **Assume no layout or house style.** Folders, frontmatter fields, file naming, title and tag rules, and journal paths come from the settings chain. A default must be neutral Obsidian behaviour, never one vault's convention; where Obsidian has no default, raise `UnsupportedError`.
-- **The CLI imports only `src/index.ts`,** so it cannot depend on anything a library consumer cannot use.
-- **Test data is synthetic or public.** Tests use the fixture or the pinned public vaults, never a personal vault or text copied from one. A vault-specific behaviour is tested through `VaultOptions.config`.
+Each rule below is a decision record in [`docs/decisions/`](docs/decisions/README.md), which holds its reasons and the alternatives it rejected. Change a rule with a new record, not by editing this list.
+
+- **Files are the only truth,** and neiro keeps no index until a measurement asks for one. ([0002](docs/decisions/0002-files-are-the-only-truth.md))
+- **Obsidian semantics, never the Obsidian app.** ([0003](docs/decisions/0003-obsidian-semantics-without-the-app.md))
+- **Assume no layout or house style;** settings come from the settings chain, and test data is synthetic or public. ([0004](docs/decisions/0004-assume-no-layout-or-house-style.md))
+- **Capture creates; an edit targets one heading or key,** guarded by `--dry-run` and `--if-hash`. A new write verb needs the owner's agreement. ([0005](docs/decisions/0005-the-write-model.md))
+- **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
+- **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))
+- **Files only:** no Git and no server. ([0008](docs/decisions/0008-files-only-no-git-no-server.md))
+- **The CLI imports only the prelude** in `src/index.ts`, the one public entry. ([0009](docs/decisions/0009-the-core-contract-and-prelude.md))
+- **Agent tools live in the `neiro-tools` extension,** which imports only the prelude. ([0010](docs/decisions/0010-agent-tools-as-an-extension-package.md))
