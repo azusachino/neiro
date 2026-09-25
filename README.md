@@ -7,7 +7,7 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 ## Quick start
 
 ```sh
-make install && make build          # the CLI at dist/neiro
+make install && make build          # the CLI at packages/core/dist/neiro
 export NEIRO_VAULT=~/notes          # or pass --vault <dir>; the default is the current directory
 
 neiro nav                           # the vault's top folders and notes
@@ -44,16 +44,6 @@ neiro capture --tag reading "Read: how agents plan"
 | `orphans` | notes nothing links to or embeds |
 | `unresolved` | links pointing at no note, or at several |
 
-### History
-
-These read a note's revisions through Git. Without Git they raise `UnsupportedError`, and every other command still works.
-
-| Command | What it returns |
-| --- | --- |
-| `history <note>` | the note's revisions, newest first |
-| `show <note> --rev <rev>` | the note's content at a revision |
-| `diff <note> [--rev r] [--to r]` | the note's changes since a revision, or between two |
-
 ### Write
 
 | Command | What it changes |
@@ -66,9 +56,9 @@ These read a note's revisions through Git. Without Git they raise `UnsupportedEr
 | `journal append <period> [text...]` | appends to the periodic note for `--date`, which must exist |
 | `put <path> [text...]` | creates a note, or replaces one only with `--if-hash` |
 
-`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes three guards: `--dry-run` shows a unified diff, `--if-hash <hash>` refuses a note changed since `get` returned that hash, and `--commit` records one commit of that note alone. A text argument that starts with a dash and a space is a Markdown bullet, not an option.
+`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. neiro only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 
-`neiro tools` lists the same operations as agent tools, and `neiro tools --json` prints their definitions.
+The [`neiro-tools`](packages/tools/README.md) package offers the same operations as agent tools, and `neiro-tools --json` prints their definitions.
 
 ## Output and errors
 
@@ -89,15 +79,15 @@ neiro assumes no folder layout or house style. Each setting is resolved in this 
 
 1. options passed in code (`new Vault(root, { config })`), in the shape of `neiro.toml`
 2. `neiro.toml` at the vault root
-3. the vault's own Obsidian settings in `.obsidian/`
-4. a neutral default, or an `UnsupportedError` naming what is missing
+3. a neutral default, or an `UnsupportedError` naming what to set
 
-| Setting | Read from Obsidian | Default |
+| Setting | `neiro.toml` | Default |
 | --- | --- | --- |
-| capture folder | "Default location for new notes" (`app.json`) | the vault root |
-| day journal | Periodic Notes, then core Daily Notes (`daily-notes.json`) | `UnsupportedError` |
-| week, month, quarter, and year journals | Periodic Notes (`plugins/periodic-notes/data.json`) | `UnsupportedError` |
-| template folder | core Templates (`templates.json`) | `UnsupportedError` for `new` |
+| capture folder | `[capture] folder` | the vault root |
+| journals, day to year | `[journal.<period>] folder` and `format` | `UnsupportedError` |
+| template folder | `[templates] folder` | `UnsupportedError` for `new` |
+
+neiro reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `neiro.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
 An unknown key, or a value of the wrong type or choice, in `neiro.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
 
@@ -123,7 +113,7 @@ folder = "journal"
 format = "GGGG/[weekly]/GGGG-[W]WW"
 
 [templates]
-folder = "templates"               # else Obsidian's Templates folder
+folder = "templates"               # without it, `new` raises UnsupportedError
 ```
 
 Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `.trash`, `node_modules`, and anything the vault root's `.gitignore` ignores are never scanned, as ripgrep skips them.
@@ -141,7 +131,7 @@ neiro capture --file tmp/draft.md --tag reading     # a whole Markdown file, fro
 - By default the frontmatter holds only the tags and source, when given, and a note without either has no frontmatter. `properties` and `[capture.values]` in `neiro.toml` declare more, and capture always fills the properties the vault declares.
 - By default the file is named after the title, without the characters Obsidian refuses in file names, and a taken name gets a number, as in `Idea 2.md`. The `slug` style uses an ASCII kebab-case stem with a `-2` suffix, falling back to `capture-YYYYMMDD-HHmm` for a title with no ASCII letters.
 - Tags use Obsidian's tag syntax: letters, numbers, `_`, `-`, and `/` for nesting, with at least one non-digit.
-- `--dry-run` prints the note without writing. `--commit` commits only the new file, optionally as `--author "Name <email>"`. `--push` pulls with rebase first, then commits and pushes.
+- `--dry-run` prints the note without writing.
 
 ## SDK
 
@@ -151,24 +141,21 @@ import { Vault } from "neiro";
 const vault = new Vault(process.env.NEIRO_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
-const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json or neiro.toml
-await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
+const today = await vault.journalFor("day"); // from [journal.day] in neiro.toml
+await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 
-- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too.
+- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too. The installed `neiro` command runs on Node as well as Bun.
 - Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
-- `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault.
 
 ### Agent tools
 
-`agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input, { commit, push, author })`; the consumer, not the model, decides whether writes commit and push.
-
-The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `neiro_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+The [`neiro-tools`](packages/tools/README.md) package, released with neiro at the same version, turns the SDK's operations into tool definitions for a tool-calling model. Install it beside `neiro` when a model should call the vault; neiro itself carries no tool code ([ADR 0010](docs/decisions/0010-agent-tools-as-an-extension-package.md)).
 
 ### Agent skill
 
-[`skills/neiro/SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+[`SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
 
 ## Development
 
@@ -177,13 +164,13 @@ Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then
 ```sh
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
-make validate   # check, then build dist/neiro and run it against the fixture vault
-make build      # compile the CLI into a single binary at dist/neiro, and the SDK into dist/lib
+make validate   # check, then build the CLI and run it against the fixture vault
+make build      # compile the CLI into one binary, and the SDK into dist/lib, in packages/core
 make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
-Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `test/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
+Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/tests/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
 
 ## License
 

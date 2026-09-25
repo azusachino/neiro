@@ -1,0 +1,17 @@
+# decisions
+
+neiro's architecture decision records. Each one says what was decided, what it replaced or ruled out, and what it costs, so a later change can tell a deliberate choice from an accident. [ADR 0001](0001-record-decisions-as-adrs.md) describes the format.
+
+| ADR | Decision | Status |
+| --- | --- | --- |
+| [0001](0001-record-decisions-as-adrs.md) | Record decisions as ADRs | accepted |
+| [0002](0002-files-are-the-only-truth.md) | Files are the only truth | accepted |
+| [0003](0003-obsidian-semantics-without-the-app.md) | Obsidian semantics without the Obsidian app | accepted |
+| [0004](0004-assume-no-layout-or-house-style.md) | Assume no layout or house style | accepted; Obsidian settings superseded by 0011 |
+| [0005](0005-the-write-model.md) | Capture creates; edits target one part, guarded | accepted |
+| [0006](0006-portable-core-and-fallback-chains.md) | A portable core, with fallback chains for runtime speed-ups | accepted |
+| [0007](0007-maintained-dependencies-or-own-code.md) | Maintained dependencies or neiro's own code | accepted |
+| [0008](0008-files-only-no-git-no-server.md) | Files only: no Git and no server | accepted |
+| [0009](0009-the-core-contract-and-prelude.md) | The core contract and its prelude | accepted |
+| [0010](0010-agent-tools-as-an-extension-package.md) | Agent tools as an extension package | accepted |
+| [0011](0011-settings-from-neiro-toml-only.md) | Settings from `neiro.toml` only | accepted |

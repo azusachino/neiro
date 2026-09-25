@@ -4,12 +4,7 @@ What neiro does, what comes next, and what it will not do. Each planned item lin
 
 ## principles
 
-- **Files are the only truth.** Every answer comes from the Markdown on disk. An index or cache may be added only when a measurement shows a need, and it must be derived, disposable, and rebuildable from the files.
-- **One note model everywhere.** Every command that returns notes returns the same metadata, so a consumer never needs a second call to learn a hit's type, tags, or dates.
-- **Reads are free, writes are earned.** A new write needs the owner's agreement, targets a heading or a frontmatter key rather than rewriting a note, and refuses to run if the note changed since it was read.
-- **Obsidian semantics, not the Obsidian app.** Links, tags, and properties behave as Obsidian defines them, and nothing requires Obsidian to run.
-- **Mostly portable.** The SDK runs on Bun and Node, on macOS and Linux, through standard `node:` modules. Windows is best-effort: paths are POSIX inside neiro and converted only at the file system. Runtime-specific speed-ups sit behind a fallback chain, never in the core.
-- **Maintained dependencies or our own code.** A library must have released within the past year, have few or no dependencies of its own, and do something hard to get right. Otherwise neiro implements the part it needs.
+The rules that bound this roadmap are [decision records](decisions/README.md): files are the only truth ([0002](decisions/0002-files-are-the-only-truth.md)), Obsidian semantics without the app ([0003](decisions/0003-obsidian-semantics-without-the-app.md)), no assumed layout ([0004](decisions/0004-assume-no-layout-or-house-style.md)), earned and guarded writes ([0005](decisions/0005-the-write-model.md)), a portable core ([0006](decisions/0006-portable-core-and-fallback-chains.md)), maintained dependencies or own code ([0007](decisions/0007-maintained-dependencies-or-own-code.md)), files only with no Git or server ([0008](decisions/0008-files-only-no-git-no-server.md)), one note model and a public contract ([0009](decisions/0009-the-core-contract-and-prelude.md)), and agent tools as an extension ([0010](decisions/0010-agent-tools-as-an-extension-package.md)).
 
 ## shipped
 
@@ -33,6 +28,8 @@ The fixes from a best-practice review, and a CLI made for agents, in [#63](https
 - A documented way to run neiro against a Git clone of the vault in a container, synced through `History`. ([#21](https://github.com/azusachino/neiro/issues/21))
 
 ### 0.3.0: history and targeted writes
+
+The Git features of 0.1 to 0.5 (commits, pushes, `History`, `sync()`, and the history commands) were removed in 0.6 by [ADR 0008](decisions/0008-files-only-no-git-no-server.md); these entries record what shipped at the time.
 
 Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
 
@@ -85,9 +82,8 @@ Each capability has a chain of providers, and the first one available in the cur
 | --- | --- | --- |
 | parse YAML | `Bun.YAML` → [`yaml`](https://www.npmjs.com/package/yaml) | `Bun.YAML` takes a block only without flow mappings, merge keys, tags, explicit keys, directives, or a repeated key, where the two parsers disagree; identical on 8,049 blocks from the corpora and a real vault |
 | parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `neiro.toml` and the allowlist it names |
-| settings | code options → `neiro.toml` → `.obsidian/` settings → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
-| templates | `neiro.toml` → Obsidian's Templates folder (`templates.json`) → none | for `new` ([#18](https://github.com/azusachino/neiro/issues/18)) |
-| history | Git → none | without Git, `history` and `--commit` raise `UnsupportedError`; reads still work |
+| settings | code options → `neiro.toml` → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
+| templates | `neiro.toml` → none | for `new` ([#18](https://github.com/azusachino/neiro/issues/18)) |
 
 Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover listing, reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Listing was planned as a `Bun.Glob` chain, but a `node:fs` walk returned the same 6,386 paths from obsidian-help in 11–17 ms against `Bun.Glob`'s 31–36 ms, on Bun itself. Content search was planned with an `rg -l` prefilter, but on a real 1,837-note vault the in-process scan of already-loaded notes takes 12 ms against 34 ms for `rg -l`, which would save about 20 ms only on a one-shot CLI call; ripgrep's regex dialect and ignore rules would also let it drop files neiro matches. `grep` scans in process only. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
 
@@ -103,12 +99,7 @@ neiro borrows the ideas of the owner's daily terminal tools and depends on none 
 | preview before writing | sd `-p` | [`diff`](https://www.npmjs.com/package/diff): BSD-3, no dependencies, released 2026-04 |
 | change only the match | sd | own code: splice the target range and leave every other byte unchanged |
 
-Rejected:
-
-- the `fzf` npm port, not released since 2023-04
-- `magic-string`, whose value is source maps that neiro does not need
-- `minisearch` and `@orama/orama`, which build an in-memory index and would need a custom CJK tokenizer when the scan already ranks in 17–33 ms
-- `mdast-util-from-markdown`, whose 12 dependencies exceed what finding headings needs
+Libraries measured against this policy and rejected are listed in [ADR 0007](decisions/0007-maintained-dependencies-or-own-code.md).
 
 ## later, only if a measurement asks for it
 
@@ -121,4 +112,5 @@ Rejected:
 - Anything that needs the Obsidian app, a plugin, or Obsidian Sync.
 - `delete`. Archiving is a move, and even that waits for rename support that rewrites links.
 - A query language such as SilverBullet's Lua queries. Flags cover the filters and sorts people use; a language would give a model an arbitrary-code surface.
-- A long-running server, until a second consumer needs one.
+- Git: committing, pushing, pulling, or reading revisions ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
+- A server over HTTP or MCP ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).

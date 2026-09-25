@@ -43,9 +43,9 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T5. Open today's or this week's journal
 
-`journal day|week|month|quarter|year [--date]`, with paths from the vault's own Daily Notes or Periodic Notes settings, or from `neiro.toml`. Shipped.
+`journal day|week|month|quarter|year [--date]`, with paths from `neiro.toml`'s `[journal.<period>]`. Shipped.
 
-- `vault.test › reads Obsidian's Daily Notes and Periodic Notes settings`
+- `vault.test › finds the periodic notes neiro.toml declares`
 - `cli.test › prints a journal note for a date`
 
 ### T6. Capture a thought, or file a draft
@@ -109,14 +109,10 @@ The user writes "that note about oolong". `get` resolves a path, file name, titl
 
 ### A5. Capture a chat message into the vault
 
-A bot receives a message, previews it with `capture(…, { dryRun: true })`, and on confirmation writes it with `{ push: true, author: "bot <bot@example.com>" }`: one new file, one commit, attributed to the bot, never touching an existing note. When the commit or push fails after the file is written, `PartialWriteError` names the note and whether it was committed, so the bot retries with `sync()` instead of capturing it twice. Shipped.
+A bot receives a message, previews it with `capture(…, { dryRun: true })`, and on confirmation writes it: one new file in the capture folder, never touching an existing note. Committing it is the owner's, as [ADR 0008](decisions/0008-files-only-no-git-no-server.md) decides. Shipped.
 
 - `capture.test › dry run writes nothing`
-- `capture.test › commits only the new note, as the given author`
-- `capture.test › pulls, commits, and pushes`
-- `capture.test › reports a Git failure`
-- `history.test › names the captured note and its commit when the push fails`
-- `history.test › a pull that fails before writing leaves nothing to report`
+- `capture.test › creates a new file, never overwriting one`
 
 ### A6. Tag a capture with the vault's own tags
 
@@ -131,16 +127,15 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 `journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/neiro/issues/19).
 
-- `vault.test › reads Obsidian's Daily Notes and Periodic Notes settings`
+- `vault.test › finds the periodic notes neiro.toml declares`
 - `sections.test › appends to the journal note for a date, which must exist`
 
 ### A8. Edit a note without overwriting the owner's change
 
-`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. An agent tool that pushes pulls first, so the hash is checked against the remote's latest, and a write replaces the file whole through a rename, so nobody reads half a note. Shipped.
+`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. A write replaces the file whole through a rename, so nobody reads half a note. Shipped.
 
 - `vault.test › returns a content hash and marks truncation`
 - `write.test › refuses a stale hash and accepts the one get returned`
-- `container.test › a tool write with push pulls first, so a stale hash is refused against the remote`
 - `write.test › replaces a note whole, keeping its mode and any symbolic link, with no temporary file left`
 - `sections.test › a dry run returns the diff and writes nothing; a stale hash is refused`
 
@@ -155,35 +150,29 @@ When the vault does not say where something lives, neiro raises `UnsupportedErro
 - `cli.test › exits 1 for a missing note and 2 for bad usage`
 - `chain.test › names the capability and what each provider needs when none is available`
 
-### A10. Serve a long-running bot from a Git clone
+### A10. Serve a long-running process
 
-A bot in a container with no GUI keeps one `Vault` over its own clone, with `watch` so edits are seen without a rescan on every read, and `vault.sync()` to pull before reads and push after writes. It runs on Bun or Node. Git runs without blocking the bot and stops after a timeout; a pull whose rebase conflicts is aborted, leaving the clone usable, and reads arriving during a scan share it. The clone may be a submodule of another repository. [running neiro in a container](container.md) is the recipe, deploy key included. Shipped.
+A bot keeps one `Vault` for its lifetime and passes `watch`, so a read rescans, at most once per interval, when the notes' paths, modification times, or sizes change, and never otherwise. Reads that arrive during a scan share it. A process without `watch` calls `reload()` after the files change. It runs on Bun or Node. Shipped.
 
 - `make node-smoke`, which runs the read commands on Node and requires Bun's output
-- `chain.test › parse TOML, for neiro.toml and its title allowlist`
 - `refresh.test › a live vault sees a changed and a new file on its next read`
-- `container.test › pulls the owner's edits before reading, and pushes one commit per write`
-- `container.test › a sync that conflicts aborts the rebase and keeps the local commit`
-- `history.test › stops a git command that runs past its timeout`
 - `refresh.test › reads that arrive during a scan share it`
-- `submodule.test › records history in the submodule, not the superproject`
 
 ### A11. Hand an agent framework neiro's tools
 
-Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK; the consumer decides whether writes commit and push. Shipped; the default exposure follows the roadmap's proposal, pending the owner's agreement.
+Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `neiro-tools` package's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK, and `neiro-tools --json` prints them for an agent with only a shell. Shipped; the default exposure is agreed in [ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md).
 
 - `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
-- `tools.test › writes take the model's guards and the consumer's commit policy`
+- `tools.test › writes take the model's guards and change only the files`
 - `tools.test › grep reads a model's pattern as literal text unless regex is set, and caps its length`
 - `tools.test › refuses a malformed line range instead of reading the whole note`
 
 ### A12. Serve a bot beside its owner, in one checkout
 
-The owner edits one checkout every day, and a bot on the same machine answers from it and captures into it. The bot opens the owner's checkout with `watch`, so its next read sees an edit the owner has not committed, registers the read tools and `neiro_capture`, and runs them with no commit or push. A capture adds one new file and leaves the owner's staged and unstaged work as it was; the owner commits it with the rest. The checkout may be a submodule of the owner's workstation. Shipped.
+The owner edits one checkout every day, and a bot on the same machine answers from it and captures into it. The bot opens the owner's checkout with `watch`, so its next read sees an edit the owner has not committed, and registers the read tools and `neiro_capture`. A capture adds one new file and leaves the owner's staged and unstaged work as it was; the owner commits it with the rest. The checkout may be a submodule of the owner's workstation. Shipped.
 
 - `submodule.test › captures one new file and leaves the owner's staged and unstaged work alone`
 - `submodule.test › a watching reader sees the owner's uncommitted edit on its next read`
-- `submodule.test › a committed capture commits only its note, keeping the owner's staged change staged`
 - `submodule.test › a vault at the superproject's root skips the checked-out submodule`
 - `tools.test › default to the roadmap's exposure, and agentTools never offers cli-only tools`
 

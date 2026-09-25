@@ -1,64 +1,19 @@
 {
-  "name": "neiro",
-  "version": "0.5.0",
-  "description": "An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault",
-  "type": "module",
+  "name": "neiro-workspace",
   "private": true,
-  "module": "./dist/lib/index.js",
-  "exports": {
-    ".": {
-      "types": "./dist/lib/index.d.ts",
-      "bun": "./src/index.ts",
-      "default": "./dist/lib/index.js"
-    }
-  },
-  "bin": {
-    "neiro": "./src/cli.ts"
-  },
-  "engines": {
-    "bun": ">=1.4.0",
-    "node": ">=24"
-  },
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
-    "test": "bun test",
-    "build": "bun build --compile src/cli.ts --outfile dist/neiro",
-    "build:lib": "tsc -p tsconfig.build.json",
-    "prepack": "bun run build:lib"
-  },
-  "dependencies": {
-    "diff": "9.0.0",
-    "ignore": "7.0.9",
-    "smol-toml": "1.8.0",
-    "yaml": "2.9.0"
+    "test": "bun test"
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.14",
     "@types/bun": "1.4.2",
     "typescript": "7.0.2"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/azusachino/neiro.git"
-  },
-  "keywords": [
-    "obsidian",
-    "markdown",
-    "notes",
-    "cli",
-    "sdk",
-    "bun"
-  ],
-  "types": "./dist/lib/index.d.ts",
-  "files": [
-    "dist/lib",
-    "src",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "skills"
-  ]
+  }
 }
