@@ -119,6 +119,73 @@ function stringsIn(value: unknown): string[] {
 
 const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
 
+/** A setting's allowed value: a type, or the strings an enum accepts. */
+type Rule = "string" | "boolean" | "strings" | "string table" | readonly string[];
+
+const RULES: Record<string, Record<string, Rule>> = {
+  capture: {
+    folder: "string",
+    filename: ["title", "slug"],
+    properties: "strings",
+    values: "string table",
+    timestamp_format: "string",
+    title_style: ["as-written", "lowercase"],
+    title_allowlist: "string",
+    tag_style: ["as-written", "kebab"],
+    require_tags: "boolean",
+    reject_tags: "strings",
+  },
+  templates: { folder: "string", date_format: "string", time_format: "string" },
+};
+const JOURNAL_RULES: Record<string, Rule> = { folder: "string", format: "string" };
+
+const isTable = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+function fits(value: unknown, rule: Rule): boolean {
+  if (Array.isArray(rule)) return rule.includes(value as string);
+  if (rule === "strings") return Array.isArray(value) && value.every((item) => typeof item === "string");
+  if (rule === "string table") return isTable(value) && Object.values(value).every((item) => typeof item === "string");
+  return typeof value === rule;
+}
+
+function checkTable(value: unknown, rules: Record<string, Rule>, path: string, source: string): void {
+  if (!isTable(value)) throw new ConfigError(`${source}: ${path} must be a table`);
+  for (const [key, setting] of Object.entries(value)) {
+    const rule = rules[key];
+    if (!rule) {
+      throw new ConfigError(`${source}: unknown key ${path}.${key}; ${path} takes ${Object.keys(rules).join(", ")}`);
+    }
+    if (!fits(setting, rule)) {
+      const wanted = Array.isArray(rule)
+        ? `one of ${rule.join(", ")}`
+        : `a ${rule === "strings" ? "list of strings" : rule}`;
+      throw new ConfigError(`${source}: ${path}.${key} must be ${wanted}`);
+    }
+  }
+}
+
+/** Check settings against the shape of `neiro.toml`, so a misspelled key or value fails instead of being ignored. */
+function checkConfig(config: unknown, source: string): NeiroConfig {
+  if (!isTable(config)) throw new ConfigError(`${source}: settings must be a table`);
+  for (const [section, value] of Object.entries(config)) {
+    if (section === "journal") {
+      if (!isTable(value)) throw new ConfigError(`${source}: journal must be a table`);
+      for (const [period, entry] of Object.entries(value)) {
+        if (!(PERIODS as readonly string[]).includes(period)) {
+          throw new ConfigError(`${source}: unknown key journal.${period}; journal takes ${PERIODS.join(", ")}`);
+        }
+        checkTable(entry, JOURNAL_RULES, `journal.${period}`, source);
+      }
+      continue;
+    }
+    const rules = RULES[section];
+    if (!rules) throw new ConfigError(`${source}: unknown key ${section}; settings take capture, journal, templates`);
+    checkTable(value, rules, section, source);
+  }
+  return config as NeiroConfig;
+}
+
 /** Obsidian's "Default location for new notes": a folder only when set to "In the folder specified below". */
 function obsidianNewNoteFolder(root: string): string | undefined {
   const app = readJson(root, ".obsidian/app.json");
@@ -144,7 +211,8 @@ function obsidianJournal(root: string, period: Period): PeriodicSetting | undefi
  * then neutral defaults. A journal period with no source stays unset, and using it raises `UnsupportedError`.
  */
 export function resolveSettings(root: string, code: NeiroConfig = {}): VaultSettings {
-  const file: NeiroConfig = existsSync(join(root, CONFIG_FILE)) ? (readToml(root, CONFIG_FILE) as NeiroConfig) : {};
+  const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE) : {};
+  checkConfig(code, "options");
   const capture = { ...file.capture, ...code.capture };
   const allowFile = capture.title_allowlist;
 

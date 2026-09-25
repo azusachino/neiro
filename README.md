@@ -37,7 +37,7 @@ neiro assumes no folder layout or house style. Each setting is resolved in this 
 | day journal | Periodic Notes, then core Daily Notes (`daily-notes.json`) | `UnsupportedError` |
 | week, month, quarter, and year journals | Periodic Notes (`plugins/periodic-notes/data.json`) | `UnsupportedError` |
 
-Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
+An unknown key or a value of the wrong type or choice in `neiro.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
 
 A `neiro.toml` declaring a stricter house style:
 
