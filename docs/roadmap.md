@@ -17,7 +17,7 @@ The fixes from a best-practice review, and a CLI made for agents, in [#63](https
 - **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/neiro/issues/55)–[#58](https://github.com/azusachino/neiro/issues/58))
 - **An agent's reach:** `neiro_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/neiro/issues/59))
 - **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/neiro/issues/60), [#64](https://github.com/azusachino/neiro/issues/64))
-- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/neiro/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
+- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../packages/core/skills/neiro/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
 - **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/neiro/issues/61), [#65](https://github.com/azusachino/neiro/issues/65), [#66](https://github.com/azusachino/neiro/issues/66))
 
 ### 0.4.0: agent integration

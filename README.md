@@ -7,7 +7,7 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 ## Quick start
 
 ```sh
-make install && make build          # the CLI at dist/neiro
+make install && make build          # the CLI at packages/core/dist/neiro
 export NEIRO_VAULT=~/notes          # or pass --vault <dir>; the default is the current directory
 
 neiro nav                           # the vault's top folders and notes
@@ -157,7 +157,7 @@ The default exposure follows the roadmap's proposal, pending the owner's agreeme
 
 ### Agent skill
 
-[`skills/neiro/SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+[`SKILL.md`](packages/core/skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
 
 ## Development
 
@@ -166,13 +166,13 @@ Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then
 ```sh
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
-make validate   # check, then build dist/neiro and run it against the fixture vault
-make build      # compile the CLI into a single binary at dist/neiro, and the SDK into dist/lib
+make validate   # check, then build the CLI and run it against the fixture vault
+make build      # compile the CLI into one binary, and the SDK into dist/lib, in packages/core
 make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
-Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `test/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
+Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/core/test/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
 
 ## License
 

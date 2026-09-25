@@ -8,7 +8,7 @@ neiro started on Bun and called eight Bun-only APIs. Its first consumer, a bot, 
 
 ## decision
 
-The SDK runs on Bun and Node, on macOS and Linux, through standard `node:` modules and Web APIs; Windows is best-effort, with paths POSIX inside neiro. A runtime-specific speed-up sits behind a fallback chain in `src/providers.ts`, the only place a Bun-only API may appear: each capability lists providers in order, the first available one serves the call, and each must return exactly what the portable provider returns. A speed-up that changes results is a bug. When no provider is available, neiro raises `UnsupportedError` naming the capability and what is missing.
+The SDK runs on Bun and Node, on macOS and Linux, through standard `node:` modules and Web APIs; Windows is best-effort, with paths POSIX inside neiro. A runtime-specific speed-up sits behind a fallback chain in `packages/core/src/providers.ts`, the only place a Bun-only API may appear: each capability lists providers in order, the first available one serves the call, and each must return exactly what the portable provider returns. A speed-up that changes results is a bug. When no provider is available, neiro raises `UnsupportedError` naming the capability and what is missing.
 
 Chains exist for YAML (`Bun.YAML`, then `yaml`, with blocks where they disagree sent to `yaml`) and TOML (`Bun.TOML`, then `smol-toml`). A capability gets a chain only when a measurement shows the fast path matters.
 

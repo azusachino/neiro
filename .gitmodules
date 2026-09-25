@@ -1,9 +1,9 @@
 [submodule "test/vaults/kepano-obsidian"]
-	path = test/vaults/kepano-obsidian
+	path = packages/core/test/vaults/kepano-obsidian
 	url = https://github.com/kepano/kepano-obsidian.git
 	shallow = true
 [submodule "test/vaults/obsidian-help"]
-	path = test/vaults/obsidian-help
+	path = packages/core/test/vaults/obsidian-help
 	url = https://github.com/obsidianmd/obsidian-help.git
 	shallow = true
 	update = none

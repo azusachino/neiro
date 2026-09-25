@@ -195,7 +195,7 @@ describe("help", () => {
   });
 
   test("docs/cli.md names every command and each of its options, and nothing else", () => {
-    const page = readFileSync(join(import.meta.dir, "..", "docs", "cli.md"), "utf8");
+    const page = readFileSync(join(import.meta.dir, "..", "..", "..", "docs", "cli.md"), "utf8");
     const sections = new Map(
       page
         .split(/^### /m)

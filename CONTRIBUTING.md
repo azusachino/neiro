@@ -20,8 +20,8 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 ## Tests
 
-- `test/fixtures/vault` is a small synthetic vault for edge cases. Never copy real personal notes into it.
-- `test/vaults/` holds real public Obsidian vaults, pinned as submodules. Their tests assert invariants any correct reader must hold rather than exact counts.
+- `packages/core/test/fixtures/vault` is a small synthetic vault for edge cases. Never copy real personal notes into it.
+- `packages/core/test/vaults/` holds real public Obsidian vaults, pinned as submodules. Their tests assert invariants any correct reader must hold rather than exact counts.
 - Behaviour that depends on a vault's own conventions is tested through `neiro.toml` or `VaultOptions.config`, never built in as a default.
 
 ## Code style

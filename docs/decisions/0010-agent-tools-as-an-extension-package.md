@@ -10,7 +10,7 @@ neiro is an SDK and a CLI. A consumer that does not call a model should not carr
 
 ## decision
 
-The agent tools move into an extension package, `neiro-tools`, in `extensions/tools/` of the same repository, as a Bun workspace. It imports only the `neiro` prelude, making it neiro's first outside consumer: anything it cannot do through the public API is a gap in the SDK. `run` becomes `run(vault, input)`. It ships a `neiro-tools --json` command that prints the definitions, and the core CLI drops `neiro tools`. Both packages carry the same version and are released together; the first is 0.6.0.
+The agent tools move into an extension package, `neiro-tools`, in `packages/tools/` of the same repository. The repository is a Bun workspace whose private root holds only tooling, with the core package, `neiro`, in `packages/core/`. It imports only the `neiro` prelude, making it neiro's first outside consumer: anything it cannot do through the public API is a gap in the SDK. `run` becomes `run(vault, input)`. It ships a `neiro-tools --json` command that prints the definitions, and the core CLI drops `neiro tools`. Both packages carry the same version and are released together; the first is 0.6.0.
 
 The default exposure, proposed in 0.4.0 and pending the owner's agreement until now, is agreed as it stands: every read, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered to a model. A consumer passes its own exposure to change it.
 
@@ -22,6 +22,7 @@ The tool names, input schemas, hints, and default exposure are `neiro-tools`' co
 - **A `neiro/tools` subpath** of the same package: rejected, because it still ships and versions in core.
 - **A separate repository**: rejected for now; one pull request can then change an SDK method and the tool over it, and the extension's drift tests run beside the code they check.
 - **No tool definitions at all**, each consumer writing its own: rejected; about 20 hand-written schemas per consumer would drift from the SDK unchecked.
+- **neiro at the repository root, with the extension beneath it**: tried and rejected. Bun cannot link a workspace member to the workspace root: `workspace:*` does not resolve, and `file:../..` installs a 698 MiB copy of the repository, test vaults included, that goes stale as core changes.
 - **Independent versions**: rejected; one version keeps "which neiro-tools works with this neiro" obvious.
 
 ## consequences

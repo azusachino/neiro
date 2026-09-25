@@ -1,0 +1,52 @@
+{
+  "name": "neiro",
+  "version": "0.5.0",
+  "description": "An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault",
+  "type": "module",
+  "private": true,
+  "module": "./dist/lib/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/lib/index.js"
+    }
+  },
+  "bin": {
+    "neiro": "./src/cli.ts"
+  },
+  "engines": {
+    "bun": ">=1.4.0",
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "bun build --compile src/cli.ts --outfile dist/neiro",
+    "build:lib": "tsc -p tsconfig.build.json",
+    "prepack": "bun run build:lib"
+  },
+  "dependencies": {
+    "diff": "9.0.0",
+    "ignore": "7.0.9",
+    "smol-toml": "1.8.0",
+    "yaml": "2.9.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/azusachino/neiro.git"
+  },
+  "keywords": [
+    "obsidian",
+    "markdown",
+    "notes",
+    "cli",
+    "sdk",
+    "bun"
+  ],
+  "types": "./dist/lib/index.d.ts",
+  "files": [
+    "dist/lib",
+    "src",
+    "skills"
+  ]
+}
