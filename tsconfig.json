@@ -15,7 +15,8 @@
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "noImplicitOverride": true
+    "noImplicitOverride": true,
+    "customConditions": ["bun"]
   },
   "include": ["packages/*/src", "packages/*/test"],
   "exclude": ["packages/*/test/vaults"]
