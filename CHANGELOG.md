@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Each release carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`, built by `make pack`, and the README shows how to depend on them; a Git dependency installs the workspace root, not the packages. ([#83](https://github.com/azusachino/neiro/issues/83))
+
 ## 0.6.0
 
 - **Breaking:** neiro works on files only ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). Removed: `History`, `GitHistory`, `historyChain`, `HistoryError`, `PartialWriteError`, `Vault.history` and `Vault.sync()`, the `history`, `show`, and `diff` commands and the `neiro_history` tool, the `--commit`, `--push`, `--author`, `--rev`, and `--to` options, the `committed` and `pushed` result fields, and the agent tools' `context` argument. `--if-hash` and `--dry-run` stay. `docs/container.md` is gone; use case A10 is now a long-running process. ([#74](https://github.com/azusachino/neiro/issues/74))

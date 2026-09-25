@@ -32,6 +32,15 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 - New code uses standard `node:` modules that both Bun and Node provide. A Bun-only API belongs in a provider of a [fallback chain](docs/roadmap.md#capabilities-and-fallback-chains).
 - Add a dependency only when it has released within the past year, has few or no dependencies of its own, and does something hard to get right.
 
+## Releasing
+
+1. Update `CHANGELOG.md` and the `version` of `packages/core` and `packages/tools`, which are released together, and merge.
+2. Tag the merge commit `v<version>` and push the tag.
+3. `make pack`, which writes `neiro-<version>.tgz` and `neiro-tools-<version>.tgz` to `dist/pack`.
+4. `gh release create v<version> dist/pack/*.tgz --notes-file <the version's changelog section>`.
+
+Consumers install the release assets, as the [README](README.md#installing) shows; a Git dependency on the repository installs the workspace root, not the packages.
+
 ## Reporting a security issue
 
 See [SECURITY.md](SECURITY.md). Do not open a public issue for a real vulnerability.
