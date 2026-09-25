@@ -3,7 +3,7 @@
  * between its owner and a bot. The bot captures without Git, so the owner's staged and unstaged work stays theirs.
  */
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Vault } from "../src/index.ts";
@@ -27,19 +27,6 @@ function submoduleVault(): { superproject: string; root: string } {
 }
 
 describe("a vault checked out as a submodule", () => {
-  test("records history in the submodule, not the superproject", async () => {
-    const { superproject, root } = submoduleVault();
-    expect(readFileSync(join(root, ".git"), "utf8")).toStartWith("gitdir: ");
-    const vault = new Vault(root);
-    await vault.append(NOTE, "- one more line", { commit: true, author: "bot <bot@example.com>" });
-    expect(git(root, "log", "-1", "--format=%an|%s")).toBe(`bot|docs: append to ${NOTE}`);
-    expect(git(superproject, "log", "-1", "--format=%s")).toBe("add the vault");
-    const [latest, first] = await vault.history.log(NOTE);
-    expect(latest?.author).toBe("bot");
-    expect(await vault.history.show(NOTE, first?.rev ?? "")).not.toContain("one more line");
-    expect(await vault.history.diff(NOTE, first?.rev ?? "", latest?.rev)).toContain("+- one more line");
-  });
-
   test("a vault at the superproject's root skips the checked-out submodule", async () => {
     const { superproject } = submoduleVault();
     writeFileSync(join(superproject, "Readme.md"), "the superproject's own note\n");
@@ -57,25 +44,12 @@ describe("a bot sharing its owner's checkout", () => {
     const staged = git(root, "diff", "--cached");
     const bot = new Vault(root, { watch: 0 });
     const result = await bot.capture({ text: "From the bot", tags: ["inbox"] });
-    expect(result).toMatchObject({ path: "Inbox/From the bot.md", written: true, committed: false });
+    expect(result).toMatchObject({ path: "Inbox/From the bot.md", written: true });
     const names = (...args: string[]) => git(root, "-c", "core.quotePath=false", ...args);
     expect(names("diff", "--cached", "--name-only")).toBe("Home.md");
     expect(names("diff", "--name-only")).toBe(NOTE);
     expect(names("ls-files", "--others", "--exclude-standard")).toBe("Inbox/From the bot.md");
     expect(git(root, "diff", "--cached")).toBe(staged);
-  });
-
-  test("a committed capture commits only its note, keeping the owner's staged change staged", async () => {
-    const { root } = gitVault();
-    writeFileSync(join(root, "Home.md"), "staged by the owner\n");
-    git(root, "add", "Home.md");
-    await new Vault(root).capture({ text: "Committed by the bot" }, { commit: true, author: "bot <bot@example.com>" });
-    expect(git(root, "show", "--name-only", "--format=%an", "HEAD").split("\n")).toEqual([
-      "bot",
-      "",
-      "Inbox/Committed by the bot.md",
-    ]);
-    expect(git(root, "status", "--porcelain")).toBe("M  Home.md");
   });
 
   test("a watching reader sees the owner's uncommitted edit on its next read", async () => {

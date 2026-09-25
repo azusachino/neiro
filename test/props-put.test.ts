@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { propertyValue, Vault, WriteConflictError } from "../src/index.ts";
-import { copyVault, gitVault } from "./git.ts";
+import { copyVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const COMMENTED = [
@@ -91,21 +91,6 @@ describe("put", () => {
     for (const path of ["../escape.md", "/abs.md", "Notes/x.txt", "Notes/../../out.md"]) {
       expect(vault.put(path, "x")).rejects.toThrow(WriteConflictError);
     }
-  });
-
-  test("restores an old revision as a new revision", async () => {
-    const { root } = gitVault();
-    const vault = new Vault(root);
-    const note = "Topics/Working memory.md";
-    const original = readFileSync(join(root, note), "utf8");
-    const { hash } = await vault.get(note);
-    await vault.put(note, "Rewritten.\n", { ifHash: hash, commit: true });
-    const [latest, first] = await vault.history.log(note);
-    const old = await vault.history.show(note, first?.rev ?? "");
-    await vault.put(note, old, { ifHash: (await vault.get(note)).hash, commit: true });
-    expect(readFileSync(join(root, note), "utf8")).toBe(original);
-    expect(await vault.history.log(note)).toHaveLength(3);
-    expect(latest?.message).toBe(`docs: put ${note}`);
   });
 
   test("takes text, --file, or stdin from the CLI, and exits 1 when refused", () => {

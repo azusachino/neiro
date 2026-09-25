@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Breaking:** neiro works on files only ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). Removed: `History`, `GitHistory`, `historyChain`, `HistoryError`, `PartialWriteError`, `Vault.history` and `Vault.sync()`, the `history`, `show`, and `diff` commands and the `neiro_history` tool, the `--commit`, `--push`, `--author`, `--rev`, and `--to` options, the `committed` and `pushed` result fields, and the agent tools' `context` argument. `--if-hash` and `--dry-run` stay. `docs/container.md` is gone; use case A10 is now a long-running process. ([#74](https://github.com/azusachino/neiro/issues/74))
+- Decisions are recorded as ADRs in `docs/decisions/`, 0001 to 0010, and `AGENTS.md` and the roadmap link to them. ([#73](https://github.com/azusachino/neiro/issues/73))
+
 ## 0.5.0
 
 - Links in frontmatter values and local Markdown links count for `links`, `backlinks`, `orphans`, and `unresolved`, as in Obsidian. ([#49](https://github.com/azusachino/neiro/issues/49))

@@ -10,12 +10,10 @@ import {
   capture,
   captureInputFromMarkdown,
 } from "./capture.ts";
-import type { Chain } from "./chain.ts";
 import { NeiroError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
-import { type History, historyChain, PartialWriteError } from "./history.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
@@ -146,7 +144,7 @@ export interface VaultOptions {
   /**
    * For a long-running process: at most once per this many milliseconds, a read compares the notes' paths,
    * modification times, and sizes with the last scan and rescans when they changed. Unset, the scan is kept until
-   * `reload()` or `sync()`; 0 checks on every read.
+   * `reload()`; 0 checks on every read.
    */
   watch?: number;
 }
@@ -198,7 +196,6 @@ export class Vault {
   private generation = 0;
   private readonly watch?: number;
   private checked = 0;
-  private historyChain?: Chain<History>;
 
   constructor(root: string, options: VaultOptions = {}) {
     this.root = resolve(root);
@@ -299,7 +296,7 @@ export class Vault {
    */
   async append(ref: string, text: string, options: SectionWriteOptions = {}): Promise<WriteResult> {
     const note = await this.find(ref);
-    return this.change(note.path, `docs: append to ${note.path}`, options, (current) => {
+    return this.change(note.path, options, (current) => {
       const addition = text.replace(/\s+$/, "");
       if (options.heading === undefined) return `${withNewline(current)}${addition}\n`;
       const section = findSection(current, options.heading);
@@ -315,7 +312,7 @@ export class Vault {
   /** Replace section `heading`'s body, or add the section at the end of the note when it is missing. */
   async putSection(ref: string, heading: string, text: string, options: WriteOptions & { level?: number } = {}) {
     const note = await this.find(ref);
-    return this.change(note.path, `docs: set section ${heading} of ${note.path}`, options, (current) => {
+    return this.change(note.path, options, (current) => {
       const body = text.replace(/^\s+|\s+$/g, "");
       const section = findSection(current, heading);
       if (!section) return createSection(current, { ...options, heading, createHeading: true }, body);
@@ -342,7 +339,7 @@ export class Vault {
    */
   async setProperty(ref: string, key: string, value: unknown, options: WriteOptions = {}): Promise<WriteResult> {
     const note = await this.find(ref);
-    return this.change(note.path, `docs: set ${key} of ${note.path}`, options, (current) => {
+    return this.change(note.path, options, (current) => {
       const range = frontmatterRange(current);
       if (!range) return `---\n${stringify({ [key]: value }, { lineWidth: 0 })}---\n${current}`;
       const doc = parseDocument(current.slice(range.start, range.end));
@@ -358,7 +355,7 @@ export class Vault {
 
   /**
    * Write a whole note at a vault path: create it, or replace it only when `ifHash` matches its current content.
-   * Replacing without the hash is refused. Restoring an old revision is a put of its content, a new revision.
+   * Replacing without the hash is refused.
    */
   async put(path: string, content: string, options: WriteOptions = {}): Promise<WriteResult> {
     const target = posix.normalize(path.replaceAll("\\", "/")).replace(/^\.\//, "");
@@ -375,20 +372,13 @@ export class Vault {
           }
           return content;
         },
-        `docs: put ${target}`,
         options,
-        () => this.history,
       ),
     );
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
-  private async change(
-    path: string,
-    message: string,
-    options: WriteOptions,
-    next: (current: string) => string,
-  ): Promise<WriteResult> {
+  private async change(path: string, options: WriteOptions, next: (current: string) => string): Promise<WriteResult> {
     return this.recorded(
       writeNote(
         this.root,
@@ -397,23 +387,16 @@ export class Vault {
           if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
           return next(current);
         },
-        message,
         options,
-        () => this.history,
       ),
     );
   }
 
-  /** Forget the scan after a write, including one whose commit or push then failed, so reads see the file. */
+  /** Forget the scan after a write, so reads see the file. */
   private async recorded<T extends { written: boolean }>(write: Promise<T>): Promise<T> {
-    try {
-      const result = await write;
-      if (result.written) this.reload();
-      return result;
-    } catch (error) {
-      if (error instanceof PartialWriteError) this.reload();
-      throw error;
-    }
+    const result = await write;
+    if (result.written) this.reload();
+    return result;
   }
 
   /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
@@ -509,14 +492,8 @@ export class Vault {
     return this.capture({ ...input, title, tags: [...(input.tags ?? []), ...(options.tags ?? [])], now }, options);
   }
 
-  /** The vault's revisions: Git when the root is inside a work tree, otherwise this raises `UnsupportedError`. */
-  get history(): History {
-    this.historyChain ??= historyChain(this.root);
-    return this.historyChain.get();
-  }
-
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    return this.recorded(capture(this.root, input, this.settings.capture, options, () => this.history));
+    return this.recorded(capture(this.root, input, this.settings.capture, options));
   }
 
   /**
@@ -588,12 +565,6 @@ export class Vault {
         [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)) &&
         Object.entries(filter.where ?? {}).every(([key, value]) => propertyMatches(note.frontmatter[key], value)),
     );
-  }
-
-  /** Take others' revisions and publish this one's through `History`, then reload so reads see what arrived. */
-  async sync(): Promise<void> {
-    await this.history.sync();
-    this.reload();
   }
 
   private async load(): Promise<Scan> {

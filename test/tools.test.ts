@@ -2,15 +2,15 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, Vault, validateInput } from "../src/index.ts";
-import { copyVault, git, gitVault } from "./git.ts";
+import { copyVault } from "./git.ts";
 
 const tool = (name: string) => {
   const found = TOOLS.find((candidate) => candidate.name === name);
   if (!found) throw new Error(`no tool ${name}`);
   return found;
 };
-const call = (vault: Vault, name: string, input: Record<string, unknown>, context = {}) =>
-  tool(name).run(vault, validateInput(tool(name), input), context);
+const call = (vault: Vault, name: string, input: Record<string, unknown>) =>
+  tool(name).run(vault, validateInput(tool(name), input));
 
 describe("tool definitions", () => {
   test("have unique names every tool-calling API accepts, and descriptions", () => {
@@ -102,22 +102,16 @@ describe("running tools", () => {
     await expect(call(vault, "neiro_grep", { pattern: "(", regex: true })).rejects.toThrow(ToolInputError);
   });
 
-  test("writes take the model's guards and the consumer's commit policy", async () => {
-    const { root, remote } = gitVault();
+  test("writes take the model's guards and change only the files", async () => {
+    const root = copyVault();
     const vault = new Vault(root);
     const preview = (await call(vault, "neiro_append", { note: "Home", text: "- x", dryRun: true })) as {
       diff: string;
     };
     expect(preview.diff).toContain("+- x");
-    await call(
-      vault,
-      "neiro_capture",
-      { text: "From a tool", tags: ["tools"] },
-      { push: true, author: "bot <bot@example.com>" },
-    );
-    expect(git(remote, "log", "-1", "--format=%an %s", "main")).toBe("bot chore: capture Inbox/From a tool.md");
-    await call(vault, "neiro_prop_set", { note: "People/Plato.md", key: "rating", value: "5" }, { push: true });
+    await call(vault, "neiro_capture", { text: "From a tool", tags: ["tools"] });
+    expect(readFileSync(join(root, "Inbox", "From a tool.md"), "utf8")).toContain("From a tool");
+    await call(vault, "neiro_prop_set", { note: "People/Plato.md", key: "rating", value: "5" });
     expect(readFileSync(join(root, "People", "Plato.md"), "utf8")).toContain("rating: 5");
-    expect(git(remote, "log", "-1", "--format=%s", "main")).toBe("docs: set rating of People/Plato.md");
   });
 });

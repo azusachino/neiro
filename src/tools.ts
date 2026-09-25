@@ -5,7 +5,6 @@
 import { parseDate } from "./dateformat.ts";
 import { InputError } from "./errors.ts";
 import { propertyValue } from "./frontmatter.ts";
-import { PartialWriteError } from "./history.ts";
 import { PERIODS, type Period } from "./settings.ts";
 import { SORT_KEYS, type Vault } from "./vault.ts";
 
@@ -37,17 +36,7 @@ export interface ToolDefinition {
   /** The Model Context Protocol's tool annotations. */
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean };
   exposure: Exposure;
-  run(vault: Vault, input: Record<string, unknown>, context?: ToolContext): Promise<unknown>;
-}
-
-/** How writes are recorded, decided by the consumer rather than the model. */
-export interface ToolContext {
-  /** Commit each write, as one revision of the note alone. */
-  commit?: boolean;
-  /** Pull before and push after each write, through `History`, so `ifHash` meets the remote's latest. Implies `commit`. */
-  push?: boolean;
-  /** Commit author, as `Name <email>`. */
-  author?: string;
+  run(vault: Vault, input: Record<string, unknown>): Promise<unknown>;
 }
 
 export class ToolInputError extends InputError {}
@@ -128,32 +117,9 @@ const dateOf = (input: Record<string, unknown>) => {
   return date ? parseDate(date) : new Date();
 };
 
-/** A write's options: the model's guards, the consumer's commit policy. */
-function writeOf(input: Record<string, unknown>, context: ToolContext = {}) {
-  return {
-    dryRun: o<boolean>(input, "dryRun"),
-    ifHash: o<string>(input, "ifHash"),
-    commit: context.commit || context.push,
-    author: context.author,
-  };
-}
-
-/** With push: take the remote's revisions before the write, so its guards see them, and publish the write after. */
-async function published<T extends { path: string; hash: string; committed: boolean }>(
-  vault: Vault,
-  context: ToolContext = {},
-  write: () => Promise<T>,
-): Promise<T> {
-  if (context.push) await vault.sync();
-  const result = await write();
-  if (context.push && result.committed) {
-    try {
-      await vault.sync();
-    } catch (error) {
-      throw new PartialWriteError(result, error);
-    }
-  }
-  return result;
+/** A write's guards, from the model's input. */
+function writeOf(input: Record<string, unknown>) {
+  return { dryRun: o<boolean>(input, "dryRun"), ifHash: o<string>(input, "ifHash") };
 }
 
 export const TOOLS: ToolDefinition[] = [
@@ -327,15 +293,6 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.journalFor(s(input, "period") as Period, dateOf(input)),
   },
   {
-    name: "neiro_history",
-    description: "A note's revisions, newest first.",
-    inputSchema: schema({ note: NOTE, limit: int("Most revisions; 20 by default") }, ["note"]),
-    annotations: READ,
-    exposure: "direct",
-    run: async (vault, input) =>
-      vault.history.log((await vault.find(s(input, "note"))).path, o<number>(input, "limit")),
-  },
-  {
     name: "neiro_capture",
     description: "Create one new note in the vault's inbox or capture folder. Never edits an existing note.",
     inputSchema: schema(
@@ -350,10 +307,10 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "direct",
-    run: (vault, input, context = {}) =>
+    run: (vault, input) =>
       vault.capture(
         { text: s(input, "text"), title: o(input, "title"), tags: o(input, "tags"), source: o(input, "source") },
-        { dryRun: o(input, "dryRun"), commit: context.commit, push: context.push, author: context.author },
+        { dryRun: o(input, "dryRun") },
       ),
   },
   {
@@ -371,14 +328,12 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "direct",
-    run: async (vault, input, context) =>
-      published(vault, context, () =>
-        vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
-          ...writeOf(input, context),
-          heading: o(input, "heading"),
-          date: dateOf(input),
-        }),
-      ),
+    run: (vault, input) =>
+      vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
+        ...writeOf(input),
+        heading: o(input, "heading"),
+        date: dateOf(input),
+      }),
   },
   {
     name: "neiro_append",
@@ -395,14 +350,12 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "confirm",
-    run: async (vault, input, context) =>
-      published(vault, context, () =>
-        vault.append(s(input, "note"), s(input, "text"), {
-          ...writeOf(input, context),
-          heading: o(input, "heading"),
-          createHeading: o(input, "createHeading"),
-        }),
-      ),
+    run: (vault, input) =>
+      vault.append(s(input, "note"), s(input, "text"), {
+        ...writeOf(input),
+        heading: o(input, "heading"),
+        createHeading: o(input, "createHeading"),
+      }),
   },
   {
     name: "neiro_section_put",
@@ -414,10 +367,7 @@ export const TOOLS: ToolDefinition[] = [
     ]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
-    run: async (vault, input, context) =>
-      published(vault, context, () =>
-        vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input, context)),
-      ),
+    run: (vault, input) => vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input)),
   },
   {
     name: "neiro_prop_set",
@@ -433,10 +383,8 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "confirm",
-    run: async (vault, input, context) =>
-      published(vault, context, () =>
-        vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input, context)),
-      ),
+    run: (vault, input) =>
+      vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input)),
   },
   {
     name: "neiro_new",
@@ -452,13 +400,10 @@ export const TOOLS: ToolDefinition[] = [
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     exposure: "confirm",
-    run: (vault, input, context = {}) =>
+    run: (vault, input) =>
       vault.create(s(input, "type"), s(input, "title"), {
         tags: o(input, "tags"),
         dryRun: o(input, "dryRun"),
-        commit: context.commit,
-        push: context.push,
-        author: context.author,
       }),
   },
   {
@@ -470,8 +415,7 @@ export const TOOLS: ToolDefinition[] = [
     ]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "cli-only",
-    run: async (vault, input, context) =>
-      published(vault, context, () => vault.put(s(input, "path"), s(input, "content"), writeOf(input, context))),
+    run: (vault, input) => vault.put(s(input, "path"), s(input, "content"), writeOf(input)),
   },
 ];
 

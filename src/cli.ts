@@ -101,8 +101,6 @@ const OPTIONS = {
   },
   context: { type: "string", short: "C", value: "<n>", summary: "lines either side (get --around: 5 by default)" },
   "fixed-strings": { type: "boolean", short: "F", summary: "match the pattern as literal text" },
-  rev: { type: "string", value: "<rev>", summary: "a Git revision" },
-  to: { type: "string", value: "<rev>", summary: "the revision to diff to (default: the working file)" },
   date: { type: "string", value: "<YYYY-MM-DD>", summary: "the date whose note to use (default: today)" },
   title: { type: "string", value: "<title>", summary: "the note's title (default: the first line of text)" },
   source: { type: "string", value: "<url>", summary: "where the note came from" },
@@ -112,9 +110,6 @@ const OPTIONS = {
   level: { type: "string", value: "<1-6>", summary: "the level of a created heading (default: 2)" },
   "dry-run": { type: "boolean", summary: "show the result, a diff for edits, without writing" },
   "if-hash": { type: "string", value: "<sha256>", summary: "refuse unless the note still has the hash get returned" },
-  commit: { type: "boolean", summary: "commit the note, and only it" },
-  push: { type: "boolean", summary: "pull --rebase first, then commit and push" },
-  author: { type: "string", value: '<"Name <email>">', summary: "commit author" },
   help: { type: "boolean", short: "h", summary: "show help, for one command when one is given" },
   version: { type: "boolean", short: "v", summary: "show the version" },
 } as const satisfies Record<string, OptionSpec>;
@@ -133,7 +128,7 @@ interface CommandSpec {
 
 const GLOBAL: readonly OptionName[] = ["vault", "json", "format", "help", "version"];
 const FILTERS: readonly OptionName[] = ["type", "tag", "status", "under", "where"];
-const WRITE: readonly OptionName[] = ["dry-run", "if-hash", "commit", "author"];
+const WRITE: readonly OptionName[] = ["dry-run", "if-hash"];
 const SECTION: readonly OptionName[] = ["heading", "create-heading", "level"];
 
 const COMMANDS: readonly CommandSpec[] = [
@@ -236,32 +231,11 @@ const COMMANDS: readonly CommandSpec[] = [
     example: "neiro journal day --date 2026-09-16",
   },
   {
-    name: "history",
-    args: "<note>",
-    summary: "a note's revisions through Git, newest first (default: 20)",
-    options: ["limit"],
-    example: 'neiro history "Cognitive load" --limit 5',
-  },
-  {
-    name: "show",
-    args: "<note>",
-    summary: "a note's content at a Git revision",
-    options: ["rev"],
-    example: 'neiro show "Cognitive load" --rev HEAD~1',
-  },
-  {
-    name: "diff",
-    args: "<note>",
-    summary: "a note's changes since --rev (default: HEAD), or between --rev and --to",
-    options: ["rev", "to"],
-    example: 'neiro diff "Cognitive load"',
-  },
-  {
     name: "capture",
     args: "[text...]",
     summary: "create a new note in the capture folder from text, --file, or stdin; never edits a note",
     writes: true,
-    options: ["title", "source", "tag", "file", "dry-run", "commit", "push", "author"],
+    options: ["title", "source", "tag", "file", "dry-run"],
     example: 'neiro capture --tag reading --source https://example.com "Read: how agents plan" --dry-run',
   },
   {
@@ -269,7 +243,7 @@ const COMMANDS: readonly CommandSpec[] = [
     args: "<type> <title...>",
     summary: "create a note from the vault's template for type, placed as capture places it",
     writes: true,
-    options: ["tag", "dry-run", "commit", "push", "author"],
+    options: ["tag", "dry-run"],
     example: "neiro new Book The Pragmatic Programmer --dry-run",
   },
   {
@@ -444,7 +418,7 @@ async function inputText(words: string[]): Promise<string> {
 }
 
 function writeOptions(): WriteOptions {
-  return { dryRun: opts["dry-run"], ifHash: opts["if-hash"], commit: opts.commit, author: opts.author };
+  return { dryRun: opts["dry-run"], ifHash: opts["if-hash"] };
 }
 
 function sectionOptions(): SectionWriteOptions {
@@ -651,28 +625,6 @@ async function main(): Promise<void> {
           .join("\n"),
       );
     }
-    case "history": {
-      const note = await vault.find(one(args, "note"));
-      const revisions = await vault.history.log(note.path, count("limit", opts.limit));
-      return emit(revisions, () =>
-        revisions
-          .map(({ rev, date, author, message }) => `${rev.slice(0, 12)}\t${date}\t${author}\t${message}`)
-          .join("\n"),
-      );
-    }
-    case "show": {
-      if (!opts.rev) throw new UsageError("show needs --rev <rev>");
-      const note = await vault.find(one(args, "note"));
-      const content = await vault.history.show(note.path, opts.rev);
-      return emit({ path: note.path, rev: opts.rev, content }, () => content.replace(/\n$/, ""));
-    }
-    case "diff": {
-      const note = await vault.find(one(args, "note"));
-      const patch = await vault.history.diff(note.path, opts.rev ?? "HEAD", opts.to);
-      return emit({ path: note.path, from: opts.rev ?? "HEAD", to: opts.to ?? null, diff: patch }, () =>
-        patch.replace(/\n$/, ""),
-      );
-    }
     case "orphans": {
       if (args.length > 0) throw new UsageError("orphans takes no arguments; narrow it with the filters");
       const notes = await vault.orphans(filter);
@@ -744,9 +696,6 @@ async function main(): Promise<void> {
       const result = await vault.create(type, words.join(" "), {
         tags: opts.tag,
         dryRun: opts["dry-run"],
-        commit: opts.commit,
-        push: opts.push,
-        author: opts.author,
       });
       return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
     }
@@ -762,7 +711,7 @@ async function main(): Promise<void> {
           tags: [...(base.tags ?? []), ...(opts.tag ?? [])],
           source: opts.source ?? base.source,
         },
-        { dryRun: opts["dry-run"], commit: opts.commit, push: opts.push, author: opts.author },
+        { dryRun: opts["dry-run"] },
       );
       return emit(result, () => (result.written ? result.path : `${result.path} (dry run)\n\n${result.content}`));
     }

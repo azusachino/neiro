@@ -18,7 +18,7 @@ The vault is `--vault`, else `$NEIRO_VAULT`, else the current directory. A comma
 
 Text output is for people. With `--json`, stdout is one JSON value, shaped as each command below says. Commands that return notes share one summary: `path`, `title`, `type`, `status`, `tags`, `created`, and `modified`, the optional ones only when set. `--fields a,b` keeps only the named fields, a summary field or any frontmatter key, `null` when absent, and `--format paths` prints one path per line.
 
-With `--json`, a failure prints one line on stderr, `{"error": {"name", "message", ...}}`, with the error's own fields: `suggestions` on `NotFoundError`, and `path`, `hash`, and `committed` on `PartialWriteError`, a write that was saved but not recorded.
+With `--json`, a failure prints one line on stderr, `{"error": {"name", "message", ...}}`, with the error's own fields: `suggestions` on `NotFoundError`.
 
 | Exit | Meaning |
 | --- | --- |
@@ -275,55 +275,6 @@ With `--json`: `path`, and `note` as `get` returns it, or `null` when not writte
 neiro journal day --date 2026-09-16
 ```
 
-### history
-
-`neiro history <note>`
-
-A note's revisions through Git, newest first (default: 20).
-
-| Option | Meaning |
-| --- | --- |
-| `--limit <n>` | most results |
-
-With `--json`: revisions: `rev`, `date`, `author`, and `message`.
-
-```sh
-neiro history "Cognitive load" --limit 5
-```
-
-### show
-
-`neiro show <note>`
-
-A note's content at a Git revision.
-
-| Option | Meaning |
-| --- | --- |
-| `--rev <rev>` | a Git revision |
-
-With `--json`: `path`, `rev`, and `content`.
-
-```sh
-neiro show "Cognitive load" --rev HEAD~1
-```
-
-### diff
-
-`neiro diff <note>`
-
-A note's changes since --rev (default: HEAD), or between --rev and --to.
-
-| Option | Meaning |
-| --- | --- |
-| `--rev <rev>` | a Git revision |
-| `--to <rev>` | the revision to diff to (default: the working file) |
-
-With `--json`: `path`, `from`, `to`, and the unified `diff`.
-
-```sh
-neiro diff "Cognitive load"
-```
-
 ### tools
 
 `neiro tools`
@@ -350,7 +301,7 @@ neiro help get
 
 ## writes
 
-Every edit takes `--dry-run` for a unified diff, `--if-hash` to refuse a note changed since `get` returned that hash, and `--commit` for one commit of that note alone. `capture` and `new` only create notes.
+Every edit takes `--dry-run` for a unified diff, `--if-hash` to refuse a note changed since `get` returned that hash, and `capture` and `new` only create notes.
 
 ### capture
 
@@ -365,11 +316,8 @@ Create a new note in the capture folder from text, --file, or stdin; never edits
 | `--tag <tag>` | a tag, may repeat: capture and new add it; elsewhere every tag must match, case-insensitively, and area matches area/sub |
 | `--file <path>` | read the note from a Markdown file |
 | `--dry-run` | show the result, a diff for edits, without writing |
-| `--commit` | commit the note, and only it |
-| `--push` | pull --rebase first, then commit and push |
-| `--author <"Name <email>">` | commit author |
 
-With `--json`: `path`, `content`, `written`, `committed`, and `pushed`.
+With `--json`: `path`, `content`, and `written`.
 
 ```sh
 neiro capture --tag reading --source https://example.com "Read: how agents plan" --dry-run
@@ -385,9 +333,6 @@ Create a note from the vault's template for type, placed as capture places it.
 | --- | --- |
 | `--tag <tag>` | a tag, may repeat: capture and new add it; elsewhere every tag must match, case-insensitively, and area matches area/sub |
 | `--dry-run` | show the result, a diff for edits, without writing |
-| `--commit` | commit the note, and only it |
-| `--push` | pull --rebase first, then commit and push |
-| `--author <"Name <email>">` | commit author |
 
 With `--json`: as `capture`.
 
@@ -408,10 +353,8 @@ Add text at the end of a note, or at the end of section --heading.
 | `--level <1-6>` | the level of a created heading (default: 2) |
 | `--dry-run` | show the result, a diff for edits, without writing |
 | `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-| `--commit` | commit the note, and only it |
-| `--author <"Name <email>">` | commit author |
 
-With `--json`: a write result: `path`, the unified `diff`, `written`, `committed`, `created`, and the new `hash`.
+With `--json`: a write result: `path`, the unified `diff`, `written`, `created`, and the new `hash`.
 
 ```sh
 neiro append Home "- a new line" --heading "start here" --dry-run
@@ -429,8 +372,6 @@ Replace the body of section --heading, or add the section.
 | `--level <1-6>` | the level of a created heading (default: 2) |
 | `--dry-run` | show the result, a diff for edits, without writing |
 | `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-| `--commit` | commit the note, and only it |
-| `--author <"Name <email>">` | commit author |
 
 With `--json`: a write result, as `append`.
 
@@ -448,8 +389,6 @@ Set one frontmatter key, the value read as YAML, keeping comments and order.
 | --- | --- |
 | `--dry-run` | show the result, a diff for edits, without writing |
 | `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-| `--commit` | commit the note, and only it |
-| `--author <"Name <email>">` | commit author |
 
 With `--json`: a write result, as `append`.
 
@@ -468,8 +407,6 @@ Create a note, or replace one only with --if-hash (text, --file, or stdin).
 | `--file <path>` | read the note from a Markdown file |
 | `--dry-run` | show the result, a diff for edits, without writing |
 | `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-| `--commit` | commit the note, and only it |
-| `--author <"Name <email>">` | commit author |
 
 With `--json`: a write result, as `append`.
 
@@ -491,8 +428,6 @@ Append to the periodic note for --date, which must exist.
 | `--level <1-6>` | the level of a created heading (default: 2) |
 | `--dry-run` | show the result, a diff for edits, without writing |
 | `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-| `--commit` | commit the note, and only it |
-| `--author <"Name <email>">` | commit author |
 
 With `--json`: a write result, as `append`.
 

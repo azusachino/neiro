@@ -29,6 +29,8 @@ The fixes from a best-practice review, and a CLI made for agents, in [#63](https
 
 ### 0.3.0: history and targeted writes
 
+The Git features of 0.1 to 0.5 (commits, pushes, `History`, `sync()`, and the history commands) were removed in 0.6 by [ADR 0008](decisions/0008-files-only-no-git-no-server.md); these entries record what shipped at the time.
+
 Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
 
 - **A `History` interface** with `commit`, `log`, `show`, `diff`, and `sync`. `GitHistory` implements it through the git CLI; in a folder without Git, the history chain raises `UnsupportedError` instead of pretending to record anything. Capture's Git calls move behind it. ([#12](https://github.com/azusachino/neiro/issues/12))
@@ -82,7 +84,6 @@ Each capability has a chain of providers, and the first one available in the cur
 | parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `neiro.toml` and the allowlist it names |
 | settings | code options → `neiro.toml` → `.obsidian/` settings → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
 | templates | `neiro.toml` → Obsidian's Templates folder (`templates.json`) → none | for `new` ([#18](https://github.com/azusachino/neiro/issues/18)) |
-| history | Git → none | without Git, `history` and `--commit` raise `UnsupportedError`; reads still work |
 
 Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover listing, reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Listing was planned as a `Bun.Glob` chain, but a `node:fs` walk returned the same 6,386 paths from obsidian-help in 11–17 ms against `Bun.Glob`'s 31–36 ms, on Bun itself. Content search was planned with an `rg -l` prefilter, but on a real 1,837-note vault the in-process scan of already-loaded notes takes 12 ms against 34 ms for `rg -l`, which would save about 20 ms only on a one-shot CLI call; ripgrep's regex dialect and ignore rules would also let it drop files neiro matches. `grep` scans in process only. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
 
@@ -111,4 +112,5 @@ Libraries measured against this policy and rejected are listed in [ADR 0007](dec
 - Anything that needs the Obsidian app, a plugin, or Obsidian Sync.
 - `delete`. Archiving is a move, and even that waits for rename support that rewrites links.
 - A query language such as SilverBullet's Lua queries. Flags cover the filters and sorts people use; a language would give a model an arbitrary-code surface.
-- A long-running server, until a second consumer needs one.
+- Git: committing, pushing, pulling, or reading revisions ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
+- A server over HTTP or MCP ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).

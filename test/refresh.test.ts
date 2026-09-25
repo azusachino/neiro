@@ -1,9 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Vault } from "../src/index.ts";
-import { copyVault, git, gitVault } from "./git.ts";
+import { copyVault } from "./git.ts";
 
 const NOTE = "Topics/Working memory.md";
 
@@ -34,24 +33,6 @@ describe("the watch policy", () => {
     await vault.notes();
     writeFileSync(join(root, "Notes", "Later.md"), "later\n");
     expect((await vault.notes()).some((note) => note.path === "Notes/Later.md")).toBe(false);
-  });
-});
-
-describe("sync", () => {
-  test("pulls another clone's note and reloads", async () => {
-    const { root, remote } = gitVault();
-    const vault = new Vault(root);
-    await vault.notes();
-
-    const other = mkdtempSync(join(tmpdir(), "neiro-other-"));
-    git(other, "clone", "--quiet", remote, ".");
-    writeFileSync(join(other, "Notes", "From elsewhere.md"), "Written on another machine.\n");
-    git(other, "add", ".");
-    git(other, "-c", "user.name=other", "-c", "user.email=other@example.com", "commit", "--quiet", "-m", "add");
-    git(other, "push", "--quiet");
-
-    await vault.sync();
-    expect((await vault.find("From elsewhere")).path).toBe("Notes/From elsewhere.md");
   });
 
   test("reads that arrive during a scan share it", async () => {

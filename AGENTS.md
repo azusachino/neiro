@@ -17,7 +17,7 @@ src/chain.ts         Fallback chains: the first available provider serves a capa
 src/providers.ts     The capability chains; the only place a Bun-only API may appear
 src/links.ts         Link extraction (wikilinks, Markdown links, frontmatter) and Obsidian-style resolution
 src/search.ts        BM25 ranking over a scan
-src/capture.ts       The one write: a new note, optionally committed and pushed
+src/capture.ts       Capture: one new note in the capture folder
 src/title.ts         Title casing and Latin/CJK spacing
 src/journal.ts       Periodic note paths from a folder and a format
 src/dateformat.ts    The moment-style date tokens Obsidian's periodic notes use
@@ -30,7 +30,6 @@ docs/decisions/      Architecture decision records: every rule below, with its r
 docs/roadmap.md      Shipped, next, and not-planned work; update it with each change
 docs/cli.md          Every CLI command, option, and JSON output; a test checks it against the CLI's command table
 docs/use-cases.md    Terminal and agent use cases, each with its status and covering tests
-docs/container.md    Running neiro against a Git clone of a vault in a container
 ```
 
 ## Toolchain and tasks

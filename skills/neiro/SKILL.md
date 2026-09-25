@@ -7,7 +7,7 @@ description: neiro, the CLI for an Obsidian-compatible Markdown vault. Use when 
 
 neiro reads and writes a vault's Markdown files directly; Obsidian need not run. Run it with `--vault <dir>` or `$NEIRO_VAULT` set, and pass `--json` to every call you parse. `neiro help <command>` gives a command's options and an example; this skill covers what help cannot: which command to reach for, and how to write without clobbering the owner.
 
-Before writing, read the vault's own instructions (`AGENTS.md` or similar at its root). They decide where new notes go, and whether you may commit; when they reserve commits for the owner, leave out `--commit` and `--push`.
+Before writing, read the vault's own instructions (`AGENTS.md` or similar at its root). They decide where new notes go and who commits them; neiro only writes files, and leaves Git to the owner.
 
 ## Read
 
@@ -55,7 +55,6 @@ With `--json`, a failure is one line on stderr, `{"error": {"name", "message", .
 | `WriteConflictError` | the note changed since you read it: `get` it again and redo the write from step 1 |
 | `SectionError` | the heading is missing or repeated: `outline <note>` shows the headings |
 | `UnsupportedError`, `ConfigError` | the vault lacks a setting, such as a journal format; report it to the user as the message words it |
-| `PartialWriteError` | the note is written but not committed or pushed; report its `path`, and leave the write as it is |
 | `UsageError` | `neiro help <command>` |
 
 Exit code 1 is a refused request and 2 is bad usage.

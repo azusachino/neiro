@@ -1,6 +1,6 @@
 /**
- * The guards every targeted write shares: a unified diff for `dryRun`, a content-hash check for `ifHash`, a change
- * confined to the target range, and one commit per write. Nothing here deletes a file.
+ * The guards every targeted write shares: a unified diff for `dryRun`, a content-hash check for `ifHash`, and a change
+ * confined to the target range, written whole through a rename. Nothing here deletes a file.
  */
 import { createHash, randomBytes } from "node:crypto";
 import {
@@ -17,7 +17,6 @@ import {
 import { basename, dirname, join } from "node:path";
 import { createTwoFilesPatch } from "diff";
 import { NeiroError } from "./errors.ts";
-import { type History, PartialWriteError } from "./history.ts";
 
 const BOM = "\uFEFF";
 
@@ -25,14 +24,10 @@ const BOM = "\uFEFF";
 export class WriteConflictError extends NeiroError {}
 
 export interface WriteOptions {
-  /** Report the diff without writing or committing. */
+  /** Report the diff without writing. */
   dryRun?: boolean;
   /** Write only when the note's current hash, as `get` returned it, still matches; like HTTP's `If-Match`. */
   ifHash?: string;
-  /** Record the write as one revision of this note alone. */
-  commit?: boolean;
-  /** Commit author, as `Name <email>`. */
-  author?: string;
 }
 
 export interface WriteResult {
@@ -40,7 +35,6 @@ export interface WriteResult {
   /** A unified diff from the note as it was to the note as written, or would be. */
   diff: string;
   written: boolean;
-  committed: boolean;
   created: boolean;
   /** The hash of the new content, for a following `ifHash`. */
   hash: string;
@@ -59,16 +53,13 @@ export function splice(text: string, start: number, end: number, replacement: st
 
 /**
  * Change one note. `next` turns the current text (undefined when the note does not exist) into the new text; the
- * write is refused when `ifHash` is stale, and is one commit when `commit` is set. `history` is asked for before
- * anything is written, so a vault without one fails with nothing changed.
+ * write is refused when `ifHash` is stale.
  */
 export async function writeNote(
   root: string,
   path: string,
   next: (current: string | undefined) => string,
-  message: string,
   options: WriteOptions,
-  history: () => History,
 ): Promise<WriteResult> {
   const file = join(root, path);
   const bytes = existsSync(file) ? readFileSync(file) : undefined;
@@ -84,17 +75,11 @@ export async function writeNote(
   // Drop the package's `====` separator so the patch reads as `git diff` prints one.
   const diff = patch.replace(/^=+\n/, "");
   const result = { path, diff, created: current === undefined, hash: contentHash(content) };
-  if (options.dryRun || content === current) return { ...result, written: false, committed: false };
+  if (options.dryRun || content === current) return { ...result, written: false };
 
-  const store = options.commit ? history() : undefined;
   mkdirSync(dirname(file), { recursive: true });
   replaceFile(file, bom ? BOM + content : content);
-  try {
-    await store?.commit([path], message, options.author);
-  } catch (error) {
-    throw new PartialWriteError({ path, hash: result.hash, committed: false }, error);
-  }
-  return { ...result, written: true, committed: store !== undefined };
+  return { ...result, written: true };
 }
 
 /**

@@ -1,20 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   CaptureError,
   ConfigError,
   captureInputFromMarkdown,
-  HistoryError,
   type NeiroConfig,
   renderCapture,
   resolveSettings,
   splitFrontmatter,
-  UnsupportedError,
   Vault,
 } from "../src/index.ts";
-import { copyVault, git, gitVault } from "./git.ts";
+import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
@@ -173,7 +171,7 @@ describe("capture", () => {
   test("dry run writes nothing", async () => {
     const root = copyVault();
     const result = await new Vault(root).capture({ text: "An idea", now: NOW }, { dryRun: true });
-    expect(result).toMatchObject({ path: "Inbox/An idea.md", written: false, committed: false, pushed: false });
+    expect(result).toMatchObject({ path: "Inbox/An idea.md", written: false });
     expect(existsSync(join(root, result.path))).toBe(false);
   });
 
@@ -201,56 +199,6 @@ describe("capture", () => {
     expect((await strict.capture({ text: "乌龙茶", tags: ["tea"], now: NOW }, { dryRun: true })).path).toBe(
       "queue/capture-20260924-1905.md",
     );
-  });
-
-  test("commits only the new note, as the given author", async () => {
-    const { root } = gitVault();
-    writeFileSync(join(root, "Notes/乌龙茶.md"), "an unrelated owner edit\n");
-    const result = await new Vault(root).capture(
-      { text: "Committed idea", now: NOW },
-      { commit: true, author: "bot <bot@example.com>" },
-    );
-    expect(result).toMatchObject({ written: true, committed: true, pushed: false });
-    expect(git(root, "log", "-1", "--format=%an|%s")).toBe("bot|chore: capture Inbox/Committed idea.md");
-    expect(git(root, "show", "--name-only", "--format=", "HEAD")).toBe("Inbox/Committed idea.md");
-    expect(git(root, "status", "--short")).toContain("Notes/");
-  });
-
-  test("pulls, commits, and pushes", async () => {
-    const { root, remote } = gitVault();
-    const other = mkdtempSync(join(tmpdir(), "neiro-other-"));
-    git(other, "clone", "--quiet", remote, ".");
-    git(
-      other,
-      "-c",
-      "user.name=owner",
-      "-c",
-      "user.email=owner@example.com",
-      "commit",
-      "--quiet",
-      "--allow-empty",
-      "-m",
-      "elsewhere",
-    );
-    git(other, "push", "--quiet");
-
-    await new Vault(root).capture({ text: "Pushed idea", now: NOW }, { push: true });
-    expect(git(remote, "log", "-2", "--format=%s", "main").split("\n")).toEqual([
-      "chore: capture Inbox/Pushed idea.md",
-      "elsewhere",
-    ]);
-  });
-
-  test("refuses to commit in a vault without Git, before writing anything", async () => {
-    const root = copyVault();
-    expect(new Vault(root).capture({ text: "No repo" }, { commit: true })).rejects.toThrow(UnsupportedError);
-    expect(readdirSync(join(root, "Inbox"))).not.toContain("No repo.md");
-  });
-
-  test("reports a Git failure", async () => {
-    const { root } = gitVault();
-    git(root, "remote", "remove", "origin");
-    expect(new Vault(root).capture({ text: "No remote", now: NOW }, { push: true })).rejects.toThrow(HistoryError);
   });
 });
 

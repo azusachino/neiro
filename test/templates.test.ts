@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { spawnSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
@@ -12,10 +11,10 @@ import {
   UnsupportedError,
   Vault,
 } from "../src/index.ts";
-import { copyVault, FIXTURE, git, gitVault } from "./git.ts";
+import { copyVault, FIXTURE } from "./git.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const _CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const KEPANO = join(import.meta.dir, "vaults", "kepano-obsidian");
 const kepanoPresent = existsSync(KEPANO) && readdirSync(KEPANO).length > 0;
 const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "Templates" };
@@ -84,17 +83,6 @@ describe("new", () => {
     const bare = copyVault();
     writeFileSync(join(bare, ".obsidian", "templates.json"), "{}");
     expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);
-  });
-
-  test("commits the new note alone from the CLI", () => {
-    const { root } = gitVault();
-    const result = spawnSync("bun", [CLI, "--vault", root, "new", "book", "Dune", "--commit"], { encoding: "utf8" });
-    expect(result.status).toBe(0);
-    expect(git(root, "show", "--name-only", "--format=%s", "HEAD").split("\n")).toEqual([
-      "chore: capture Inbox/Dune.md",
-      "",
-      "Inbox/Dune.md",
-    ]);
   });
 });
 

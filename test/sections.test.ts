@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { findSection, headingsOf, NotFoundError, SectionError, Vault, WriteConflictError } from "../src/index.ts";
-import { copyVault, git, gitVault } from "./git.ts";
+import { copyVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const PLAN = [
@@ -146,12 +146,12 @@ describe("guards", () => {
     expect(vault.append("Plan", "- twice", { ifHash: hash })).rejects.toThrow(WriteConflictError);
   });
 
-  test("commits one revision, and the CLI takes bullets, stdin, and --if-hash", async () => {
-    const { root } = gitVault();
+  test("the CLI takes bullets, stdin, and --if-hash, and refuses what it cannot do", async () => {
+    const root = copyVault();
     const run = (args: string[], input?: string) =>
       spawnSync("bun", [CLI, "--vault", root, ...args], { encoding: "utf8", input });
-    expect(run(["append", "Weekly/2026-W38.md", "- a bullet", "--heading", "plan", "--commit"]).status).toBe(0);
-    expect(git(root, "log", "-1", "--format=%s")).toBe("docs: append to Weekly/2026-W38.md");
+    expect(run(["append", "Weekly/2026-W38.md", "- a bullet", "--heading", "plan"]).status).toBe(0);
+    expect(readFileSync(join(root, "Weekly", "2026-W38.md"), "utf8")).toContain("- a bullet");
     expect(run(["section", "put", "Weekly/2026-W38.md", "--heading", "plan"], "- from stdin\n").status).toBe(0);
     expect(readFileSync(join(root, "Weekly", "2026-W38.md"), "utf8")).toContain("## plan\n\n- from stdin\n");
     expect(run(["append", "Weekly/2026-W38.md", "x", "--if-hash", "0".repeat(64)]).status).toBe(1);

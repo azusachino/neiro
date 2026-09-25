@@ -44,16 +44,6 @@ neiro capture --tag reading "Read: how agents plan"
 | `orphans` | notes nothing links to or embeds |
 | `unresolved` | links pointing at no note, or at several |
 
-### History
-
-These read a note's revisions through Git. Without Git they raise `UnsupportedError`, and every other command still works.
-
-| Command | What it returns |
-| --- | --- |
-| `history <note>` | the note's revisions, newest first |
-| `show <note> --rev <rev>` | the note's content at a revision |
-| `diff <note> [--rev r] [--to r]` | the note's changes since a revision, or between two |
-
 ### Write
 
 | Command | What it changes |
@@ -66,7 +56,7 @@ These read a note's revisions through Git. Without Git they raise `UnsupportedEr
 | `journal append <period> [text...]` | appends to the periodic note for `--date`, which must exist |
 | `put <path> [text...]` | creates a note, or replaces one only with `--if-hash` |
 
-`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes three guards: `--dry-run` shows a unified diff, `--if-hash <hash>` refuses a note changed since `get` returned that hash, and `--commit` records one commit of that note alone. A text argument that starts with a dash and a space is a Markdown bullet, not an option.
+`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. neiro only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 
 `neiro tools` lists the same operations as agent tools, and `neiro tools --json` prints their definitions.
 
@@ -141,7 +131,7 @@ neiro capture --file tmp/draft.md --tag reading     # a whole Markdown file, fro
 - By default the frontmatter holds only the tags and source, when given, and a note without either has no frontmatter. `properties` and `[capture.values]` in `neiro.toml` declare more, and capture always fills the properties the vault declares.
 - By default the file is named after the title, without the characters Obsidian refuses in file names, and a taken name gets a number, as in `Idea 2.md`. The `slug` style uses an ASCII kebab-case stem with a `-2` suffix, falling back to `capture-YYYYMMDD-HHmm` for a title with no ASCII letters.
 - Tags use Obsidian's tag syntax: letters, numbers, `_`, `-`, and `/` for nesting, with at least one non-digit.
-- `--dry-run` prints the note without writing. `--commit` commits only the new file, optionally as `--author "Name <email>"`. `--push` pulls with rebase first, then commits and pushes.
+- `--dry-run` prints the note without writing.
 
 ## SDK
 
@@ -152,17 +142,16 @@ const vault = new Vault(process.env.NEIRO_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
 const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json or neiro.toml
-await vault.capture({ text: "An idea", tags: ["learning"] }, { push: true, author: "bot <bot@example.com>" });
+await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 
 - Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too.
 - Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
-- `await vault.sync()` pulls and pushes through `History`, then reloads. Git runs without blocking the process, and each command stops after a timeout. [Running neiro in a container](docs/container.md) covers a bot on a Git clone of the vault.
 
 ### Agent tools
 
-`agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input, { commit, push, author })`; the consumer, not the model, decides whether writes commit and push.
+`agentTools()` returns ready-made tool definitions for a tool-calling model: a `neiro_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
 
 The default exposure follows the roadmap's proposal, pending the owner's agreement: reads, `neiro_capture`, and `neiro_journal_append` are `direct`; `neiro_append`, `neiro_section_put`, `neiro_prop_set`, and `neiro_new` need a human's `confirm`; `neiro_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `neiro_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
 

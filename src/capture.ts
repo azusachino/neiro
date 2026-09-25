@@ -4,10 +4,8 @@ import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
 import { NeiroError } from "./errors.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
-import { type History, historyChain, PartialWriteError } from "./history.ts";
 import type { CaptureSettings } from "./settings.ts";
 import { lowercaseTitle } from "./title.ts";
-import { contentHash } from "./write.ts";
 
 export interface CaptureInput {
   /** The note body. */
@@ -22,22 +20,14 @@ export interface CaptureInput {
 }
 
 export interface CaptureOptions {
-  /** Build the note and report where it would go, without writing or running Git. */
+  /** Build the note and report where it would go, without writing. */
   dryRun?: boolean;
-  /** Commit the new note, and only it. */
-  commit?: boolean;
-  /** Pull with rebase before writing and push after committing. Implies `commit`. */
-  push?: boolean;
-  /** Commit author, as `Name <email>`. */
-  author?: string;
 }
 
 export interface CaptureResult {
   path: string;
   content: string;
   written: boolean;
-  committed: boolean;
-  pushed: boolean;
 }
 
 const TITLE_LIMIT = 80;
@@ -170,40 +160,16 @@ export async function capture(
   input: CaptureInput,
   settings: CaptureSettings,
   options: CaptureOptions = {},
-  /** The vault's history, asked for only when committing, so a vault without one fails before anything is written. */
-  history: () => History = () => historyChain(root).get(),
 ): Promise<CaptureResult> {
   const now = input.now ?? new Date();
   const { title, content } = renderCapture({ ...input, now }, settings);
   const stem = fileStem(title, settings.filename, now);
-  const commit = options.commit || options.push || false;
-
-  if (options.dryRun) {
-    return {
-      path: freePath(root, settings.folder, stem, settings.filename),
-      content,
-      written: false,
-      committed: false,
-      pushed: false,
-    };
-  }
-  const store = commit ? history() : undefined;
-  // Take others' captures first, so the free file name is free on the remote too.
-  if (options.push) await store?.sync();
-
   const path = freePath(root, settings.folder, stem, settings.filename);
+  if (options.dryRun) return { path, content, written: false };
+
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), content, { flag: "wx" });
-
-  let committed = false;
-  try {
-    await store?.commit([path], `chore: capture ${path}`, options.author);
-    committed = store !== undefined;
-    if (options.push) await store?.sync();
-  } catch (error) {
-    throw new PartialWriteError({ path, hash: contentHash(content), committed }, error);
-  }
-  return { path, content, written: true, committed: commit, pushed: options.push ?? false };
+  return { path, content, written: true };
 }
 
 /**

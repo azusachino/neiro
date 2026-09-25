@@ -2,7 +2,6 @@ import { expect, test } from "bun:test";
 import {
   CaptureError,
   ConfigError,
-  HistoryError,
   InputError,
   LineRangeError,
   NeiroError,
@@ -18,7 +17,6 @@ test("every error neiro raises is a NeiroError named after its class", () => {
   const classes = [
     CaptureError,
     ConfigError,
-    HistoryError,
     InputError,
     LineRangeError,
     NotFoundError,

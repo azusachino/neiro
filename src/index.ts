@@ -13,15 +13,6 @@ export { ConfigError, InputError, NeiroError } from "./errors.ts";
 export { type Frontmatter, propertyValue, splitFrontmatter } from "./frontmatter.ts";
 export { type FuzzyCandidate, type FuzzyHit, fuzzyRank, fuzzyScore } from "./fuzzy.ts";
 export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern } from "./grep.ts";
-export {
-  GitHistory,
-  type GitHistoryOptions,
-  type History,
-  HistoryError,
-  historyChain,
-  PartialWriteError,
-  type Revision,
-} from "./history.ts";
 export { journalPath } from "./journal.ts";
 export { extractLinks, frontmatterLinks, type Resolution, type WikiLink } from "./links.ts";
 export { findSection, type HeadingAt, headingsOf, type Section, SectionError } from "./sections.ts";
@@ -46,7 +37,6 @@ export {
   type InputSchema,
   type PropertySchema,
   TOOLS,
-  type ToolContext,
   type ToolDefinition,
   ToolInputError,
   validateInput,
