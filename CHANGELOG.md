@@ -16,6 +16,7 @@
 - Reads that arrive while a `Vault` scans share that scan instead of each reading every file. ([#60](https://github.com/azusachino/neiro/issues/60))
 - Small fixes: a long capture title is shortened by code point, never splitting an emoji; `neiro_get` refuses a malformed `lines` instead of reading the whole note; `neiro_list` checks that `where` values are text or null; `search` compiles each term's pattern once per query. ([#62](https://github.com/azusachino/neiro/issues/62))
 - The SDK builds to JavaScript with declarations in `dist/lib`, which `exports` serves to Node and bundlers while Bun keeps the TypeScript source, so an installed package imports on Node. `make node-smoke` imports the built package from a `node_modules` folder. The `neiro` bin still runs the TypeScript source. ([#61](https://github.com/azusachino/neiro/issues/61))
+- `links`, `backlinks`, `orphans`, and `unresolved` resolve every note's links once per scan and reuse the result, and extraction skips lines with no `[`. On a 1,837-note vault the first link query after a scan takes about 25 ms and later ones under 1 ms, against 23 ms for every query in 0.4.0. ([#64](https://github.com/azusachino/neiro/issues/64))
 
 ## 0.4.0
 

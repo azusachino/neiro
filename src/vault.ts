@@ -156,6 +156,15 @@ interface Scan {
   notes: Note[];
   index: LinkIndex;
   fingerprint: string;
+  /** Every note's resolved links, built on the first link query and dropped with the scan. */
+  graph?: LinkGraph;
+}
+
+interface LinkGraph {
+  /** Each note's links in order, each with its resolution. */
+  outgoing: Map<string, OutgoingLink[]>;
+  /** For each note, the other notes whose links resolve to it. */
+  incoming: Map<string, Set<string>>;
 }
 
 export class NotFoundError extends NeiroError {
@@ -263,35 +272,19 @@ export class Vault {
 
   async links(ref: string): Promise<OutgoingLink[]> {
     const note = await this.find(ref);
-    const { index } = await this.load();
-    return linksOf(note).map((link) => ({ ...link, resolution: index.resolve(note.path, link.target) }));
+    return [...((await this.graph()).outgoing.get(note.path) ?? [])];
   }
 
   async backlinks(ref: string): Promise<NoteSummary[]> {
     const target = await this.find(ref);
-    const { notes, index } = await this.load();
-    return notes
-      .filter((note) => note.path !== target.path)
-      .filter((note) =>
-        linksOf(note).some((link) => {
-          const resolution = index.resolve(note.path, link.target);
-          return resolution.status === "resolved" && resolution.path === target.path;
-        }),
-      )
-      .map(summarize);
+    const sources = (await this.graph()).incoming.get(target.path) ?? new Set();
+    return (await this.notes()).filter((note) => sources.has(note.path)).map(summarize);
   }
 
   /** Notes no other note links to or embeds, narrowed by the filters; a note linking only to itself is an orphan. */
   async orphans(filter: Filter = {}): Promise<NoteSummary[]> {
-    const { notes, index } = await this.load();
-    const linked = new Set<string>();
-    for (const note of notes) {
-      for (const link of linksOf(note)) {
-        const resolution = index.resolve(note.path, link.target);
-        if (resolution.status === "resolved" && resolution.path !== note.path) linked.add(resolution.path);
-      }
-    }
-    return (await this.filtered(filter)).filter((note) => !linked.has(note.path)).map(summarize);
+    const { incoming } = await this.graph();
+    return (await this.filtered(filter)).filter((note) => !incoming.has(note.path)).map(summarize);
   }
 
   /** A note's ATX headings with their line numbers, counted as `get --lines` counts; fenced code is skipped. */
@@ -432,11 +425,12 @@ export class Vault {
 
   /** Links that point at no note, or at more than one. Attachments are not checked. */
   async unresolved(): Promise<{ from: string; target: string; resolution: Resolution }[]> {
-    const { notes, index } = await this.load();
+    const { notes } = await this.load();
+    const { outgoing } = await this.graph();
     return notes.flatMap((note) =>
-      linksOf(note)
-        .map((link) => ({ from: note.path, target: link.target, resolution: index.resolve(note.path, link.target) }))
-        .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous"),
+      (outgoing.get(note.path) ?? [])
+        .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous")
+        .map(({ target, resolution }) => ({ from: note.path, target, resolution })),
     );
   }
 
@@ -602,7 +596,7 @@ export class Vault {
     this.reload();
   }
 
-  private async load(): Promise<{ notes: Note[]; index: LinkIndex }> {
+  private async load(): Promise<Scan> {
     if (this.cache && this.watch !== undefined && Date.now() - this.checked >= this.watch) {
       this.checked = Date.now();
       if ((await this.fingerprint()) !== this.cache.fingerprint) this.cache = undefined;
@@ -622,6 +616,29 @@ export class Vault {
       );
     }
     return this.loading;
+  }
+
+  /** The scan's link graph: every note's links resolved once, then reused until the next rescan. */
+  private async graph(): Promise<LinkGraph> {
+    const scan = await this.load();
+    if (!scan.graph) {
+      const outgoing = new Map<string, OutgoingLink[]>();
+      const incoming = new Map<string, Set<string>>();
+      for (const note of scan.notes) {
+        const links = linksOf(note).map((link) => ({
+          ...link,
+          resolution: scan.index.resolve(note.path, link.target),
+        }));
+        outgoing.set(note.path, links);
+        for (const { resolution } of links) {
+          if (resolution.status !== "resolved" || resolution.path === note.path) continue;
+          const sources = incoming.get(resolution.path) ?? new Set<string>();
+          incoming.set(resolution.path, sources.add(note.path));
+        }
+      }
+      scan.graph = { outgoing, incoming };
+    }
+    return scan.graph;
   }
 
   private async scan(): Promise<Scan> {

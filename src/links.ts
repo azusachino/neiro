@@ -26,9 +26,11 @@ export function extractLinks(body: string): WikiLink[] {
   const links: WikiLink[] = [];
   const inCode = codeFences();
   for (const line of body.split("\n")) {
-    if (inCode(line)) continue;
-    const text = line.replace(INLINE_CODE, "");
-    links.push(...wikilinks(text), ...markdownLinks(text.replace(LINK, "")));
+    // Every line feeds the fence state, but most hold no link; skip the link patterns for those.
+    if (inCode(line) || !line.includes("[")) continue;
+    const text = line.includes("`") ? line.replace(INLINE_CODE, "") : line;
+    links.push(...wikilinks(text));
+    if (text.includes("](")) links.push(...markdownLinks(text.replace(LINK, "")));
   }
   return links;
 }

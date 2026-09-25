@@ -158,6 +158,17 @@ describe("links", () => {
     expect((await fenced.nav()).index?.headings).toEqual(["real"]);
   });
 
+  test("sees a new link after a write, since the link graph goes with the scan", async () => {
+    const root = mkdtempSync(join(tmpdir(), "neiro-graph-"));
+    writeFileSync(join(root, "A.md"), "a\n");
+    writeFileSync(join(root, "B.md"), "b\n");
+    const graph = new Vault(root);
+    expect((await graph.orphans()).map((note) => note.path)).toEqual(["A.md", "B.md"]);
+    await graph.append("A", "[[B]]");
+    expect((await graph.backlinks("B")).map((note) => note.path)).toEqual(["A.md"]);
+    expect((await graph.orphans()).map((note) => note.path)).toEqual(["A.md"]);
+  });
+
   test("finds backlinks and unresolved links", async () => {
     expect((await vault.backlinks("Cognitive load")).map((note) => note.path)).toEqual(["Home.md", "Topics/index.md"]);
     const unresolved = (await vault.unresolved()).map(({ target, resolution }) => `${target}:${resolution.status}`);
