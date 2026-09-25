@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { formatDate, isoWeek, localeWeek } from "../src/dateformat.ts";
-import { parseDate } from "../src/index.ts";
+import { formatDate, isoWeek, localeWeek } from "./dateformat.ts";
+import { parseDate } from "./index.ts";
 
 describe("formatDate", () => {
   const date = new Date(2026, 8, 6, 9, 5, 7);

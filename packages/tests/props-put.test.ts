@@ -2,10 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { propertyValue, Vault, WriteConflictError } from "../src/index.ts";
+import { propertyValue, Vault, WriteConflictError } from "neiro";
 import { copyVault } from "./git.ts";
 
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 const COMMENTED = [
   "---",
   "# kept by the owner",

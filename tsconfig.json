@@ -18,6 +18,6 @@
     "noImplicitOverride": true,
     "customConditions": ["bun"]
   },
-  "include": ["packages/*/src", "packages/*/test"],
-  "exclude": ["packages/*/test/vaults"]
+  "include": ["packages/*/src", "packages/tests"],
+  "exclude": ["packages/tests/vaults"]
 }

@@ -6,7 +6,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, readdirSync } from "node:fs";
 import { join, posix } from "node:path";
-import { Vault } from "../src/index.ts";
+import { Vault } from "neiro";
 
 const VAULTS = join(import.meta.dir, "vaults");
 const present = (dir: string) => existsSync(dir) && readdirSync(dir).length > 0;

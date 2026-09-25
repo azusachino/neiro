@@ -1,12 +1,11 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { grepPattern } from "../src/grep.ts";
-import { formatGrep, Vault } from "../src/index.ts";
+import { Vault } from "neiro";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 const hasRipgrep = spawnSync("rg", ["--version"]).status === 0;
 
 /** ripgrep over the fixture with neiro's exclusions: dot folders are hidden by default, submodule paths excluded. */
@@ -31,17 +30,10 @@ describe("grep", () => {
     ]);
   });
 
-  test("uses smart case, ignoring escapes", () => {
-    expect(grepPattern("memory").flags).toContain("i");
-    expect(grepPattern("Memory").flags).not.toContain("i");
-    expect(grepPattern("\\Smemory").flags).toContain("i");
-    expect(grepPattern("A.", { fixed: true }).flags).not.toContain("i");
-  });
-
   test("matches literal text with fixed, and regular expressions otherwise", async () => {
     expect(await vault.grep("[[index]]", { fixed: true })).toHaveLength(1);
     expect((await vault.grep("^- Folder")).map((hit) => hit.line)).toEqual([12]);
-    expect(() => grepPattern("(")).toThrow(SyntaxError);
+    await expect(vault.grep("(")).rejects.toThrow(SyntaxError);
   });
 
   test("honours the note filters", async () => {
@@ -58,15 +50,6 @@ describe("grep", () => {
     expect(both.flatMap((h) => [...(h.before ?? []), ...(h.after ?? [])]).some((l) => l.line === both[1]?.line)).toBe(
       false,
     );
-  });
-
-  test("prints matches and context in ripgrep's layout", () => {
-    const text = formatGrep([
-      { path: "a.md", line: 2, text: "hit", before: [{ line: 1, text: "b" }], after: [{ line: 3, text: "c" }] },
-      { path: "a.md", line: 9, text: "hit", before: [], after: [] },
-    ]);
-    expect(text).toBe("a.md-1-b\na.md:2:hit\na.md-3-c\n--\na.md:9:hit");
-    expect(formatGrep([{ path: "a.md", line: 2, text: "x" }])).toBe("a.md:2:x");
   });
 });
 

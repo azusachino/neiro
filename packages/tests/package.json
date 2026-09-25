@@ -1,0 +1,10 @@
+{
+  "name": "neiro-tests",
+  "private": true,
+  "type": "module",
+  "description": "Contract tests of neiro and neiro-tools through their public entries, with the fixture vault and public corpora",
+  "dependencies": {
+    "neiro": "workspace:*",
+    "neiro-tools": "workspace:*"
+  }
+}

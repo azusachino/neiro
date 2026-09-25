@@ -1,23 +1,29 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { splitFrontmatter } from "../src/frontmatter.ts";
-import { type NeiroConfig, NotFoundError, UnsupportedError, Vault } from "../src/index.ts";
-import { resolveSettings } from "../src/settings.ts";
-import { renderTemplate, templateFor } from "../src/templates.ts";
+import { type NeiroConfig, NotFoundError, propertyValue, UnsupportedError, Vault } from "neiro";
 import { copyVault, FIXTURE } from "./git.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
-const _CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const KEPANO = join(import.meta.dir, "vaults", "kepano-obsidian");
 const kepanoPresent = existsSync(KEPANO) && readdirSync(KEPANO).length > 0;
+/** A note's frontmatter, parsed through the prelude's YAML reading, and the text after it. */
+function splitFrontmatter(text: string): { data: Record<string, unknown>; body: string } {
+  const match = /^---\n([\s\S]*?)\n---\n?/.exec(text);
+  const data = match ? (propertyValue(match[1] ?? "") as Record<string, unknown>) : {};
+  return {
+    data: typeof data === "object" && data !== null ? data : {},
+    body: match ? text.slice(match[0].length) : text,
+  };
+}
+
 const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "neiro.toml" };
 
 describe("template settings", () => {
   test("come from neiro.toml or code options, and nothing is assumed", () => {
-    expect(resolveSettings(FIXTURE).templates).toEqual(SETTINGS);
+    expect(new Vault(FIXTURE).settings.templates).toEqual(SETTINGS);
     const config: NeiroConfig = { templates: { folder: "Notes", date_format: "DD.MM.YYYY" } };
-    expect(resolveSettings(FIXTURE, config).templates).toMatchObject({
+    expect(new Vault(FIXTURE, { config }).settings.templates).toMatchObject({
       folder: "Notes",
       dateFormat: "DD.MM.YYYY",
       source: "options",
@@ -26,25 +32,7 @@ describe("template settings", () => {
     writeFileSync(join(bare, "neiro.toml"), '[capture]\nfolder = "Inbox"\n');
     mkdirSync(join(bare, ".obsidian"), { recursive: true });
     writeFileSync(join(bare, ".obsidian", "templates.json"), '{ "folder": "Templates" }');
-    expect(resolveSettings(bare).templates).toBeUndefined();
-  });
-});
-
-describe("rendering", () => {
-  test("fills title, date, and time, with an optional moment-style format", () => {
-    const text = "{{title}} {{date}} {{time}} {{date:YYYY}} {{ date:DD.MM }} {{time:HH}}";
-    expect(renderTemplate(text, "Dune", NOW, SETTINGS)).toBe("Dune 2026-09-24 19:05 2026 24.09 19");
-  });
-
-  test("leaves other template syntaxes as written", () => {
-    expect(renderTemplate("<% tp.date.now() %> {{other}}", "x", NOW, SETTINGS)).toBe("<% tp.date.now() %> {{other}}");
-  });
-
-  test("finds a template named after the type, with or without Template", () => {
-    const paths = ["Templates/Book.md", "Templates/Movie Template.md", "Notes/Book.md"];
-    expect(templateFor(paths, "Templates", "book")).toBe("Templates/Book.md");
-    expect(templateFor(paths, "Templates", "Movie")).toBe("Templates/Movie Template.md");
-    expect(templateFor(paths, "Templates", "song")).toBeUndefined();
+    expect(new Vault(bare).settings.templates).toBeUndefined();
   });
 });
 

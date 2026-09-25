@@ -1,17 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdtempSync, readFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NeiroError, Vault } from "neiro";
-import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "../src/index.ts";
-
-/** A throwaway copy of neiro's own synthetic fixture vault. */
-function copyVault(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-tools-"));
-  cpSync(join(import.meta.dir, "..", "..", "core", "test", "fixtures", "vault"), root, { recursive: true });
-  return root;
-}
+import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "neiro-tools";
+import { copyVault } from "./git.ts";
 
 const tool = (name: string) => {
   const found = TOOLS.find((candidate) => candidate.name === name);
@@ -126,7 +119,7 @@ describe("running tools", () => {
 });
 
 describe("the neiro-tools command", () => {
-  const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+  const CLI = join(import.meta.dir, "..", "tools", "src", "cli.ts");
   const run = (...args: string[]) => spawnSync("bun", [CLI, ...args], { encoding: "utf8" });
 
   test("prints the definitions, the SDK's without run", () => {

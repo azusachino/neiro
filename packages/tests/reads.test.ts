@@ -3,11 +3,11 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NotFoundError, Vault } from "../src/index.ts";
+import { NotFoundError, Vault } from "neiro";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 const run = (root: string, ...args: string[]) =>
   spawnSync("bun", [CLI, "--vault", root, ...args], { encoding: "utf8" });
 

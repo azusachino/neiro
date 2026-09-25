@@ -10,7 +10,7 @@ import {
   SectionError,
   UnsupportedError,
   WriteConflictError,
-} from "../src/index.ts";
+} from "neiro";
 
 test("every error neiro raises is a NeiroError named after its class", () => {
   const classes = [

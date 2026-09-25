@@ -1,11 +1,30 @@
 import { describe, expect, test } from "bun:test";
-import { chmodSync, lstatSync, readdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Vault, WriteConflictError } from "../src/index.ts";
-import { contentHash, splice, writeNote } from "../src/write.ts";
-import { copyVault } from "./git.ts";
+import { contentHash, splice, WriteConflictError, writeNote } from "./write.ts";
 
 const NOTE = "Topics/Cognitive load.md";
+const TEXT = "---\ntags:\n  - psychology\n---\n\nCognitive load theory explains why working memory limits learning.\n";
+
+/** A folder holding one note, as writeNote sees a vault: a root and a relative path. */
+function folder(): string {
+  const root = mkdtempSync(join(tmpdir(), "neiro-write-"));
+  mkdirSync(join(root, "Topics"));
+  writeFileSync(join(root, NOTE), TEXT);
+  return root;
+}
+
 describe("splice", () => {
   test("changes only the target range", () => {
     expect(splice("abcdef", 2, 4, "XY")).toBe("abXYef");
@@ -16,7 +35,7 @@ describe("splice", () => {
 
 describe("writeNote", () => {
   test("leaves every byte outside the target unchanged", async () => {
-    const root = copyVault();
+    const root = folder();
     const before = readFileSync(join(root, NOTE));
     const target = "working memory limits learning";
     const result = await writeNote(
@@ -32,11 +51,9 @@ describe("writeNote", () => {
     expect(after.subarray(start + "limits learning".length)).toEqual(before.subarray(start + target.length));
   });
 
-  test("refuses a stale hash and accepts the one get returned", async () => {
-    const root = copyVault();
-    const vault = new Vault(root);
-    const { hash } = await vault.get(NOTE);
-    expect(contentHash(readFileSync(join(root, NOTE), "utf8"))).toBe(hash);
+  test("refuses a stale hash and accepts the current one", async () => {
+    const root = folder();
+    const hash = contentHash(TEXT);
     const edit = (text = "") => `${text}one more line\n`;
     expect((await writeNote(root, NOTE, edit, { ifHash: hash })).written).toBe(true);
     await expect(writeNote(root, NOTE, edit, { ifHash: hash })).rejects.toThrow(WriteConflictError);
@@ -44,17 +61,16 @@ describe("writeNote", () => {
   });
 
   test("returns a unified diff and writes nothing on a dry run", async () => {
-    const root = copyVault();
-    const before = readFileSync(join(root, NOTE), "utf8");
+    const root = folder();
     const result = await writeNote(root, NOTE, (text = "") => `${text}appended\n`, { dryRun: true });
     expect(result.written).toBe(false);
     expect(result.diff).toContain(`--- a/${NOTE}`);
     expect(result.diff).toContain("+appended");
-    expect(readFileSync(join(root, NOTE), "utf8")).toBe(before);
+    expect(readFileSync(join(root, NOTE), "utf8")).toBe(TEXT);
   });
 
   test("keeps a byte order mark, and creates a missing note", async () => {
-    const root = copyVault();
+    const root = folder();
     writeFileSync(join(root, "Marked.md"), "\uFEFFfirst\n");
     await writeNote(root, "Marked.md", (text = "") => `${text}second\n`, {});
     expect(readFileSync(join(root, "Marked.md"))[0]).toBe(0xef);
@@ -64,7 +80,7 @@ describe("writeNote", () => {
   });
 
   test("replaces a note whole, keeping its mode and any symbolic link, with no temporary file left", async () => {
-    const root = copyVault();
+    const root = folder();
     chmodSync(join(root, NOTE), 0o640);
     await writeNote(root, NOTE, (text = "") => `${text}more\n`, {});
     expect(statSync(join(root, NOTE)).mode & 0o777).toBe(0o640);

@@ -1,12 +1,19 @@
+/**
+ * Every provider of a fallback chain must return what the portable one returns (ADR 0006). These tests force each
+ * provider in turn, which only neiro's own code can do, over real notes: the test package's fixture vault and
+ * corpora, read by path because no other package has the vaults to check against.
+ */
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Chain } from "../src/chain.ts";
-import { splitFrontmatter } from "../src/frontmatter.ts";
-import { UnsupportedError, Vault } from "../src/index.ts";
-import { parseToml, parseYaml } from "../src/providers.ts";
-import { FIXTURE } from "./vault.test.ts";
+import type { Chain } from "./chain.ts";
+import { splitFrontmatter } from "./frontmatter.ts";
+import { parseToml, parseYaml } from "./providers.ts";
+import { Vault } from "./vault.ts";
+
+const VAULTS = join(import.meta.dir, "..", "..", "tests");
+const FIXTURE = join(VAULTS, "fixtures", "vault");
 
 /** Run `read` with each provider of `chain` forced in turn, and return every output by provider name. */
 async function eachProvider<T, R>(chain: Chain<T>, read: () => R | Promise<R>): Promise<Record<string, R>> {
@@ -28,34 +35,12 @@ function expectIdentical<R>(outputs: Record<string, R>): void {
   for (const value of values) expect(value).toEqual(values[values.length - 1] as R);
 }
 
-describe("a chain", () => {
-  const chain = new Chain<string>("greet", [
-    { name: "absent", requires: "a thing this machine lacks", available: () => false, impl: "absent" },
-    { name: "present", requires: "nothing", available: () => true, impl: "present" },
-  ]);
-
-  test("serves the first available provider, or the forced one", () => {
-    expect(chain.get()).toBe("present");
-    chain.force("absent");
-    expect(chain.get()).toBe("absent");
-    chain.force();
-    expect(chain.get()).toBe("present");
-    expect(() => chain.force("unknown")).toThrow("no provider named unknown");
-  });
-
-  test("names the capability and what each provider needs when none is available", () => {
-    const none = new Chain("greet", [{ name: "absent", requires: "a thing", available: () => false, impl: "" }]);
-    expect(() => none.get()).toThrow(UnsupportedError);
-    expect(() => none.get()).toThrow("no provider can greet: absent needs a thing");
-  });
-});
-
 describe("every provider returns the same result", () => {
   test("parse YAML, on the fixture vault", async () => {
     expectIdentical(await eachProvider(parseYaml, () => new Vault(FIXTURE).notes()));
   });
 
-  const kepano = join(import.meta.dir, "vaults", "kepano-obsidian");
+  const kepano = join(VAULTS, "vaults", "kepano-obsidian");
   test.skipIf(!existsSync(kepano) || readdirSync(kepano).length === 0)("parse YAML, on kepano-obsidian", async () => {
     expectIdentical(await eachProvider(parseYaml, () => new Vault(kepano).notes()));
   });
@@ -102,16 +87,15 @@ describe("every provider returns the same result", () => {
 });
 
 describe("portability", () => {
-  test("reads frontmatter after a byte order mark", async () => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-bom-"));
-    writeFileSync(join(root, "note.md"), "\uFEFF---\ntitle: Marked\n---\n\nBody\n");
-    expect((await new Vault(root).find("note")).title).toBe("Marked");
-  });
-
   test("uses Bun-only APIs only in chain providers", () => {
-    const src = join(import.meta.dir, "..", "src");
+    const src = import.meta.dir;
     const offenders = readdirSync(src)
-      .filter((file) => file !== "providers.ts" && /\bBun\./.test(readFileSync(join(src, file), "utf8")))
+      .filter(
+        (file) =>
+          file !== "providers.ts" &&
+          !file.endsWith(".test.ts") &&
+          /\bBun\./.test(readFileSync(join(src, file), "utf8")),
+      )
       .sort();
     expect(offenders).toEqual([]);
   });

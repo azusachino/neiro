@@ -170,7 +170,7 @@ make node-smoke # run the read commands on Node, and import the built SDK there,
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
-Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/core/test/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
+Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/tests/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
 
 ## License
 

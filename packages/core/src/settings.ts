@@ -98,8 +98,6 @@ function stringsIn(value: unknown): string[] {
   return [];
 }
 
-const text = (value: unknown): string | undefined => (typeof value === "string" ? value : undefined);
-
 /** A setting's allowed value: a type, or the strings an enum accepts. */
 type Rule = "string" | "boolean" | "strings" | "string table" | readonly string[];
 

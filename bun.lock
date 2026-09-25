@@ -14,7 +14,7 @@
       "name": "neiro",
       "version": "0.5.0",
       "bin": {
-        "neiro": "./src/cli.ts",
+        "neiro": "./dist/lib/cli.js",
       },
       "dependencies": {
         "diff": "9.0.0",
@@ -23,11 +23,18 @@
         "yaml": "2.9.0",
       },
     },
+    "packages/tests": {
+      "name": "neiro-tests",
+      "dependencies": {
+        "neiro": "workspace:*",
+        "neiro-tools": "workspace:*",
+      },
+    },
     "packages/tools": {
       "name": "neiro-tools",
       "version": "0.5.0",
       "bin": {
-        "neiro-tools": "./src/cli.ts",
+        "neiro-tools": "./dist/lib/cli.js",
       },
       "dependencies": {
         "neiro": "workspace:*",
@@ -104,6 +111,8 @@
     "ignore": ["ignore@7.0.9", "", {}, "sha512-brTTsvFRt5C1gGHtPst/281UjPD5t9fBqbgoMPlVWy11ZLTPfu7HxK4ZYqO9H7o/yC9rSTCI85EaQ4OoY12qYw=="],
 
     "neiro": ["neiro@workspace:packages/core"],
+
+    "neiro-tests": ["neiro-tests@workspace:packages/tests"],
 
     "neiro-tools": ["neiro-tools@workspace:packages/tools"],
 

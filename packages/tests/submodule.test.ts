@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Vault } from "../src/index.ts";
+import { Vault } from "neiro";
 import { git, gitVault } from "./git.ts";
 
 const NOTE = "Topics/Working memory.md";

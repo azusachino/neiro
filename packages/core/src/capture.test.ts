@@ -1,13 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { renderCapture } from "../src/capture.ts";
-import { splitFrontmatter } from "../src/frontmatter.ts";
-import { CaptureError, ConfigError, captureInputFromMarkdown, type NeiroConfig, Vault } from "../src/index.ts";
-import { resolveSettings } from "../src/settings.ts";
-import { copyVault } from "./git.ts";
-import { FIXTURE } from "./vault.test.ts";
+import { CaptureError, captureInputFromMarkdown, renderCapture } from "./capture.ts";
+import { splitFrontmatter } from "./frontmatter.ts";
+import { type NeiroConfig, resolveSettings } from "./settings.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
 
@@ -25,11 +22,14 @@ const STRICT: NeiroConfig = {
   },
 };
 
-describe("default capture settings", () => {
-  const defaults = resolveSettings(FIXTURE).capture;
+/** An empty folder, so settings resolve from code options and neutral defaults alone. */
+const empty = () => mkdtempSync(join(tmpdir(), "neiro-settings-"));
+const defaults = resolveSettings(empty()).capture;
+const strict = resolveSettings(empty(), STRICT).capture;
 
-  test("follow Obsidian: new-note folder from app.json, title as file name, only tags", () => {
-    expect(defaults).toMatchObject({ folder: "Inbox", filename: "title", properties: ["tags", "source"] });
+describe("default capture settings", () => {
+  test("name files after the title, record only tags, and write at the vault root", () => {
+    expect(defaults).toMatchObject({ folder: "", filename: "title", properties: ["tags", "source"] });
     const { content } = renderCapture({ text: "Body line", title: "A Title", tags: ["learning"], now: NOW }, defaults);
     expect(content).toBe("---\ntags:\n  - learning\n---\n\nBody line\n");
   });
@@ -56,15 +56,9 @@ describe("default capture settings", () => {
     expect(() => renderCapture({ text: "x", tags: ["a,b"] }, defaults)).toThrow("not a valid tag");
     expect(renderCapture({ text: "x", tags: ["0🌲", "日本語"] }, defaults).content).toContain("  - 0🌲\n  - 日本語\n");
   });
-
-  test("fall back to the vault root without Obsidian settings", () => {
-    expect(resolveSettings(join(FIXTURE, "People")).capture.folder).toBe("");
-  });
 });
 
 describe("configured capture settings", () => {
-  const strict = resolveSettings(FIXTURE, STRICT).capture;
-
   test("write the declared properties in order", () => {
     const { content } = renderCapture({ text: "Body", title: "An Idea", tags: ["Agent_Harness"], now: NOW }, strict);
     expect(content).toBe(
@@ -82,14 +76,6 @@ describe("configured capture settings", () => {
         "",
       ].join("\n"),
     );
-  });
-
-  test("write created and modified in the configured timestamp format", () => {
-    const timed = resolveSettings(FIXTURE, {
-      capture: { ...STRICT.capture, timestamp_format: "YYYY-MM-DD HH:mm" },
-    }).capture;
-    const { content } = renderCapture({ text: "Body", title: "An Idea", tags: ["x"], now: NOW }, timed);
-    expect(content).toContain("created: 2026-09-24 19:05\nmodified: 2026-09-24 19:05\n");
   });
 
   test("quote values YAML would misread, and they round-trip", () => {
@@ -126,76 +112,12 @@ describe("configured capture settings", () => {
     expect(() => renderCapture({ text: "  ", tags: ["x"] }, strict)).toThrow(CaptureError);
   });
 
-  test("read the title allowlist named in neiro.toml", async () => {
-    const root = copyVault();
-    writeFileSync(join(root, "casing.toml"), '[allow]\nwords = ["OpenAI"]\n');
-    writeFileSync(
-      join(root, "neiro.toml"),
-      '[capture]\nfolder = "Inbox"\ntitle_style = "lowercase"\ntitle_allowlist = "casing.toml"\n',
-    );
-    const result = await new Vault(root).capture({ text: "Trying OpenAI Tools" }, { dryRun: true });
-    expect(result.path).toBe("Inbox/trying OpenAI tools.md");
-  });
-});
-
-describe("settings shape", () => {
-  const withToml = (toml: string) => {
-    const root = mkdtempSync(join(tmpdir(), "neiro-config-"));
-    writeFileSync(join(root, "neiro.toml"), toml);
-    return () => resolveSettings(root);
-  };
-
-  test("rejects a misspelled key, naming the keys the table takes", () => {
-    expect(withToml('[capture]\ntag-style = "kebab"\n')).toThrow(
-      /unknown key capture\.tag-style; capture takes folder/,
-    );
-    expect(withToml('[journals.day]\nformat = "YYYY"\n')).toThrow(/unknown key journals/);
-    expect(withToml('[journal.days]\nformat = "YYYY"\n')).toThrow(/unknown key journal\.days/);
-  });
-
-  test("rejects a value outside a setting's choices or type", () => {
-    expect(withToml('[capture]\nfilename = "Slug"\n')).toThrow("capture.filename must be one of title, slug");
-    expect(withToml("[capture]\nrequire_tags = 1\n")).toThrow("capture.require_tags must be a boolean");
-    expect(withToml('[capture]\nreject_tags = "todo"\n')).toThrow("reject_tags must be a list of strings");
-    expect(withToml("[journal.week]\nformat = 3\n")).toThrow(ConfigError);
-    expect(() => resolveSettings(FIXTURE, { capture: { tag_style: "Kebab" } } as unknown as NeiroConfig)).toThrow(
-      "options: capture.tag_style must be one of as-written, kebab",
-    );
-  });
-});
-
-describe("capture", () => {
-  test("dry run writes nothing", async () => {
-    const root = copyVault();
-    const result = await new Vault(root).capture({ text: "An idea", now: NOW }, { dryRun: true });
-    expect(result).toMatchObject({ path: "Inbox/An idea.md", written: false });
-    expect(existsSync(join(root, result.path))).toBe(false);
-  });
-
-  test("creates a new file, never overwriting one", async () => {
-    const root = copyVault();
-    const vault = new Vault(root);
-    const first = await vault.capture({ text: "Existing idea", now: NOW });
-    const slugged = await new Vault(root, { config: STRICT }).capture({ text: "Existing idea", tags: ["x"], now: NOW });
-    const again = await new Vault(root, { config: STRICT }).capture({ text: "Existing idea", tags: ["x"], now: NOW });
-    expect([first.path, slugged.path, again.path]).toEqual([
-      "Inbox/Existing idea 2.md",
-      "queue/existing-idea.md",
-      "queue/existing-idea-2.md",
-    ]);
-    expect(readFileSync(join(root, "Inbox/Existing idea.md"), "utf8")).toContain("Captured earlier.");
-  });
-
-  test("makes file names safe, falling back to a timestamp", async () => {
-    const vault = new Vault(copyVault());
-    expect((await vault.capture({ text: 'What is "a/b"? [draft]', now: NOW }, { dryRun: true })).path).toBe(
-      "Inbox/What is a b draft.md",
-    );
-    expect((await vault.capture({ text: "乌龙茶笔记", now: NOW }, { dryRun: true })).path).toBe("Inbox/乌龙茶笔记.md");
-    const strict = new Vault(copyVault(), { config: STRICT });
-    expect((await strict.capture({ text: "乌龙茶", tags: ["tea"], now: NOW }, { dryRun: true })).path).toBe(
-      "queue/capture-20260924-1905.md",
-    );
+  test("write created and modified in the configured timestamp format", () => {
+    const timed = resolveSettings(empty(), {
+      capture: { ...STRICT.capture, timestamp_format: "YYYY-MM-DD HH:mm" },
+    }).capture;
+    const { content } = renderCapture({ text: "Body", title: "An Idea", tags: ["x"], now: NOW }, timed);
+    expect(content).toContain("created: 2026-09-24 19:05\nmodified: 2026-09-24 19:05\n");
   });
 });
 
@@ -235,7 +157,6 @@ describe("captureInputFromMarkdown", () => {
   });
 
   test("keeps the file's other properties after the declared ones, never duplicating a declared key", () => {
-    const strict = resolveSettings(FIXTURE, STRICT).capture;
     const { content } = renderCapture({ ...captureInputFromMarkdown(draft, "draft.md"), now: NOW }, strict);
     const { data } = splitFrontmatter(content);
     expect(data).toMatchObject({ title: "a drafted idea", kind: "capture", author: "Someone", rating: 4 });

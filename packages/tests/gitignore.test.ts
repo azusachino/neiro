@@ -3,10 +3,10 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NotFoundError, Vault } from "../src/index.ts";
+import { NotFoundError, Vault } from "neiro";
 import { FIXTURE } from "./vault.test.ts";
 
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 
 /**
  * A copy of the fixture with a .gitignore. It is built per test rather than checked in: a .gitignore inside the

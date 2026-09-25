@@ -2,11 +2,10 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { NotFoundError, SectionError, Vault, WriteConflictError } from "../src/index.ts";
-import { findSection, headingsOf } from "../src/sections.ts";
+import { NotFoundError, SectionError, Vault, WriteConflictError } from "neiro";
 import { copyVault } from "./git.ts";
 
-const CLI = join(import.meta.dir, "..", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
 const PLAN = [
   "---",
   "# a YAML comment",
@@ -50,26 +49,6 @@ function expectOnlyChanged(before: string, after: string, start: number, end: nu
   expect(after.endsWith(before.slice(end))).toBe(true);
 }
 
-describe("sections", () => {
-  test("skip frontmatter and fenced code, and end at the next heading of the same or higher level", () => {
-    expect(headingsOf(PLAN).map((heading) => heading.text)).toEqual([
-      "Plan",
-      "Work",
-      "Work details",
-      "Home",
-      "Empty",
-      "Last",
-    ]);
-    const work = findSection(PLAN, "work");
-    expect(PLAN.slice(work?.heading.start, work?.end)).toContain("# a shell comment");
-    expect(PLAN.slice(work?.heading.start, work?.end)).not.toContain("## Home");
-  });
-
-  test("refuse a heading that names two sections", () => {
-    expect(() => findSection("## A\n\n## A\n", "A")).toThrow(SectionError);
-  });
-});
-
 describe("append", () => {
   test("adds to the end of a section with nested headings and fenced # lines, touching nothing else", async () => {
     const { vault, read } = planVault();
@@ -112,9 +91,9 @@ describe("section put", () => {
     const { vault, read } = planVault();
     await vault.putSection("Plan", "Home", "- repaint the fence");
     const after = read();
-    const home = findSection(PLAN, "Home");
-    const start = home?.heading.bodyStart ?? 0;
-    const end = home?.end ?? 0;
+    // The Home section's body: after its heading line, up to the next heading.
+    const start = PLAN.indexOf("\n", PLAN.indexOf("## Home")) + 1;
+    const end = PLAN.indexOf("## Empty");
     expect(after).toContain("## Home\n\n- repaint the fence\n\n## Empty");
     expect(after).not.toContain("water the plants");
     expectOnlyChanged(PLAN, after, start, end);

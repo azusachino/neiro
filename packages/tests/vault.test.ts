@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "../src/index.ts";
+import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "neiro";
 
 export const FIXTURE = join(import.meta.dir, "fixtures", "vault");
 const vault = new Vault(FIXTURE);
