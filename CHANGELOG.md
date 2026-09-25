@@ -18,6 +18,7 @@
 - The SDK builds to JavaScript with declarations in `dist/lib`, which `exports` serves to Node and bundlers while Bun keeps the TypeScript source, so an installed package imports on Node. `make node-smoke` imports the built package from a `node_modules` folder. The `neiro` bin still runs the TypeScript source. ([#61](https://github.com/azusachino/neiro/issues/61))
 - `links`, `backlinks`, `orphans`, and `unresolved` resolve every note's links once per scan and reuse the result, and extraction skips lines with no `[`. On a 1,837-note vault the first link query after a scan takes about 25 ms and later ones under 1 ms, against 23 ms for every query in 0.4.0. ([#64](https://github.com/azusachino/neiro/issues/64))
 - Tests cover a vault checked out as a Git submodule, whose history lands in the submodule, and a bot sharing its owner's checkout: a capture adds one file and leaves the owner's staged and unstaged work as it was. ([#65](https://github.com/azusachino/neiro/issues/65))
+- Use cases record the new behaviour with their covering tests, including A12, a bot serving from its owner's checkout, and A13, importing neiro on Node; the roadmap lists 0.5.0. ([#66](https://github.com/azusachino/neiro/issues/66))
 
 ## 0.4.0
 

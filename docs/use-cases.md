@@ -29,9 +29,14 @@ What people and agents do with neiro, the commands each case walks through, and 
 
 ### T4. Check the vault's links
 
-`unresolved` for links pointing at nothing or at several notes, `backlinks <note>` before renaming or archiving. `orphans` lists notes nothing links to or embeds. Shipped.
+`unresolved` for links pointing at nothing or at several notes, `backlinks <note>` before renaming or archiving. `orphans` lists notes nothing links to or embeds. As in Obsidian, wikilinks in frontmatter values, such as `categories: "[[Books]]"`, and Markdown links to vault files count as links, and `[[Node.js]]` finds the note `Node.js.md`. The links are resolved once per scan. Shipped.
 
 - `vault.test › resolves each wikilink form the way Obsidian does`
+- `vault.test › counts frontmatter wikilinks and local Markdown links, as Obsidian does`
+- `corpus.test › counts category links written in frontmatter`
+- `vault.test › resolves a note whose name has a dot before calling it an attachment`
+- `vault.test › skips links in a fence that holds a shorter fence, as headings do`
+- `vault.test › sees a new link after a write, since the link graph goes with the scan`
 - `vault.test › finds backlinks and unresolved links`
 - `corpus.test › resolves links consistently`
 - `reads.test › counts embeds as links and self-links as nothing, narrowed by the filters`
@@ -104,12 +109,14 @@ The user writes "that note about oolong". `get` resolves a path, file name, titl
 
 ### A5. Capture a chat message into the vault
 
-A bot receives a message, previews it with `capture(…, { dryRun: true })`, and on confirmation writes it with `{ push: true, author: "bot <bot@example.com>" }`: one new file, one commit, attributed to the bot, never touching an existing note. Shipped.
+A bot receives a message, previews it with `capture(…, { dryRun: true })`, and on confirmation writes it with `{ push: true, author: "bot <bot@example.com>" }`: one new file, one commit, attributed to the bot, never touching an existing note. When the commit or push fails after the file is written, `PartialWriteError` names the note and whether it was committed, so the bot retries with `sync()` instead of capturing it twice. Shipped.
 
 - `capture.test › dry run writes nothing`
 - `capture.test › commits only the new note, as the given author`
 - `capture.test › pulls, commits, and pushes`
 - `capture.test › reports a Git failure`
+- `history.test › names the captured note and its commit when the push fails`
+- `history.test › a pull that fails before writing leaves nothing to report`
 
 ### A6. Tag a capture with the vault's own tags
 
@@ -129,28 +136,37 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A8. Edit a note without overwriting the owner's change
 
-`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. Shipped.
+`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. An agent tool that pushes pulls first, so the hash is checked against the remote's latest, and a write replaces the file whole through a rename, so nobody reads half a note. Shipped.
 
 - `vault.test › returns a content hash and marks truncation`
 - `write.test › refuses a stale hash and accepts the one get returned`
+- `container.test › a tool write with push pulls first, so a stale hash is refused against the remote`
+- `write.test › replaces a note whole, keeping its mode and any symbolic link, with no temporary file left`
 - `sections.test › a dry run returns the diff and writes nothing; a stale hash is refused`
 
 ### A9. Stop instead of guessing
 
-When the vault does not say where something lives, neiro raises `UnsupportedError` rather than inventing a path, and the CLI exits 1 for a missing or unsupported request and 2 for bad usage, so an agent can tell its own mistake from the vault's. Shipped.
+When the vault does not say where something lives, neiro raises `UnsupportedError` rather than inventing a path, and the CLI exits 1 for a missing or unsupported request and 2 for bad usage, so an agent can tell its own mistake from the vault's. A misspelled `neiro.toml` key or value raises `ConfigError` instead of being ignored, and every such error is a `NeiroError`. Shipped.
 
 - `vault.test › raises UnsupportedError for a period no setting covers`
+- `capture.test › rejects a misspelled key, naming the keys the table takes`
+- `cli.test › reports a bad date or a malformed neiro.toml in one line`
+- `errors.test › every error neiro raises is a NeiroError named after its class`
 - `cli.test › exits 1 for a missing note and 2 for bad usage`
 - `chain.test › names the capability and what each provider needs when none is available`
 
 ### A10. Serve a long-running bot from a Git clone
 
-A bot in a container with no GUI keeps one `Vault` over its own clone, with `watch` so edits are seen without a rescan on every read, and `vault.sync()` to pull before reads and push after writes. It runs on Bun or Node. [running neiro in a container](container.md) is the recipe, deploy key included. Shipped.
+A bot in a container with no GUI keeps one `Vault` over its own clone, with `watch` so edits are seen without a rescan on every read, and `vault.sync()` to pull before reads and push after writes. It runs on Bun or Node. Git runs without blocking the bot and stops after a timeout; a pull whose rebase conflicts is aborted, leaving the clone usable, and reads arriving during a scan share it. The clone may be a submodule of another repository. [running neiro in a container](container.md) is the recipe, deploy key included. Shipped.
 
 - `make node-smoke`, which runs the read commands on Node and requires Bun's output
 - `chain.test › parse TOML, for neiro.toml and its title allowlist`
 - `refresh.test › a live vault sees a changed and a new file on its next read`
 - `container.test › pulls the owner's edits before reading, and pushes one commit per write`
+- `container.test › a sync that conflicts aborts the rebase and keeps the local commit`
+- `history.test › stops a git command that runs past its timeout`
+- `refresh.test › reads that arrive during a scan share it`
+- `submodule.test › records history in the submodule, not the superproject`
 
 ### A11. Hand an agent framework neiro's tools
 
@@ -158,3 +174,21 @@ Import ready-made tool definitions with parameter schemas and read-only or destr
 
 - `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
 - `tools.test › writes take the model's guards and the consumer's commit policy`
+- `tools.test › grep reads a model's pattern as literal text unless regex is set, and caps its length`
+- `tools.test › refuses a malformed line range instead of reading the whole note`
+
+### A12. Serve a bot beside its owner, in one checkout
+
+The owner edits one checkout every day, and a bot on the same machine answers from it and captures into it. The bot opens the owner's checkout with `watch`, so its next read sees an edit the owner has not committed, registers the read tools and `neiro_capture`, and runs them with no commit or push. A capture adds one new file and leaves the owner's staged and unstaged work as it was; the owner commits it with the rest. The checkout may be a submodule of the owner's workstation. Shipped.
+
+- `submodule.test › captures one new file and leaves the owner's staged and unstaged work alone`
+- `submodule.test › a watching reader sees the owner's uncommitted edit on its next read`
+- `submodule.test › a committed capture commits only its note, keeping the owner's staged change staged`
+- `submodule.test › a vault at the superproject's root skips the checked-out submodule`
+- `tools.test › default to the roadmap's exposure, and agentTools never offers cli-only tools`
+
+### A13. Import neiro in a Node project
+
+A consumer installs neiro and imports it on Node, which strips no types under `node_modules`; `exports` serves Node the built JavaScript and declarations, and Bun the TypeScript source. Shipped.
+
+- `make node-smoke`, which imports the built package from a `node_modules` folder on Node and requires Bun's output
