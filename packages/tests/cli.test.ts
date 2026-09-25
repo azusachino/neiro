@@ -198,7 +198,7 @@ describe("help", () => {
   });
 
   test("the skill names only commands and options the CLI takes", () => {
-    const skill = readFileSync(join(import.meta.dir, "..", "core", "skills", "neiro", "SKILL.md"), "utf8");
+    const skill = readFileSync(join(import.meta.dir, "..", "..", "skills", "neiro", "SKILL.md"), "utf8");
     const commands = new Map(help().commands.map((command) => [command.name, command] as const));
     const global = ["--json", "--vault", "--format", "--help", "--version"];
     // A code span naming a command: its first two words when they are one, such as `prop set`, else its first.

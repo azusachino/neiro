@@ -46,7 +46,6 @@
   "types": "./dist/lib/index.d.ts",
   "files": [
     "dist/lib",
-    "src",
-    "skills"
+    "src"
   ]
 }

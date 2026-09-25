@@ -155,7 +155,7 @@ The [`neiro-tools`](packages/tools/README.md) package, released with neiro at th
 
 ### Agent skill
 
-[`SKILL.md`](packages/core/skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+[`SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
 
 ## Development
 

@@ -27,7 +27,7 @@ packages/core/src/*.test.ts        Unit tests of internals, beside the code they
 packages/tests/                    Contract tests through the public entries and the CLIs, the fixture, and the corpora
 packages/tests/fixtures/vault      A small synthetic vault for edge cases; never copy personal notes into it
 packages/tests/vaults/             Public Obsidian vaults pinned as submodules; tests assert invariants on them
-packages/core/skills/neiro/        SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
+skills/neiro/                      SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
 packages/tools/src/index.ts        neiro-tools: agent tool definitions over the prelude, and nothing else
 packages/tools/src/cli.ts          neiro-tools --json, which prints the definitions
 docs/decisions/                    Architecture decision records: every rule below, with its reasons
