@@ -44,9 +44,14 @@ describe("GitHistory", () => {
 
   test("stops a git command that runs past its timeout", async () => {
     const { root } = await revisedVault();
-    await expect(new GitHistory(root, { timeout: 1 }).log(NOTE)).rejects.toThrow(
-      /git log failed: timed out after 1 ms/,
+    // A remote whose SSH command never answers, as a hung network does; the timeout, not the machine's speed, ends it.
+    git(root, "remote", "set-url", "origin", "ssh://git@example.invalid/vault.git");
+    git(root, "config", "core.sshCommand", "sleep 5 #");
+    const started = performance.now();
+    await expect(new GitHistory(root, { timeout: 300 }).sync()).rejects.toThrow(
+      /git pull failed: timed out after 300 ms/,
     );
+    expect(performance.now() - started).toBeLessThan(10_000);
   });
 
   test("resolves paths against a vault that sits below the repository root", async () => {
