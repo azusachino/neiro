@@ -15,7 +15,7 @@ import { NeiroError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
-import { type History, historyChain } from "./history.ts";
+import { type History, historyChain, PartialWriteError } from "./history.ts";
 import { journalPath } from "./journal.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
@@ -359,21 +359,21 @@ export class Vault {
     if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
       throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
     }
-    const result = await writeNote(
-      this.root,
-      target,
-      (current) => {
-        if (current !== undefined && options.ifHash === undefined) {
-          throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
-        }
-        return content;
-      },
-      `docs: put ${target}`,
-      options,
-      () => this.history,
+    return this.recorded(
+      writeNote(
+        this.root,
+        target,
+        (current) => {
+          if (current !== undefined && options.ifHash === undefined) {
+            throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
+          }
+          return content;
+        },
+        `docs: put ${target}`,
+        options,
+        () => this.history,
+      ),
     );
-    if (result.written) this.reload();
-    return result;
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */
@@ -383,19 +383,31 @@ export class Vault {
     options: WriteOptions,
     next: (current: string) => string,
   ): Promise<WriteResult> {
-    const result = await writeNote(
-      this.root,
-      path,
-      (current) => {
-        if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
-        return next(current);
-      },
-      message,
-      options,
-      () => this.history,
+    return this.recorded(
+      writeNote(
+        this.root,
+        path,
+        (current) => {
+          if (current === undefined) throw new NotFoundError(`${path} no longer exists`);
+          return next(current);
+        },
+        message,
+        options,
+        () => this.history,
+      ),
     );
-    if (result.written) this.reload();
-    return result;
+  }
+
+  /** Forget the scan after a write, including one whose commit or push then failed, so reads see the file. */
+  private async recorded<T extends { written: boolean }>(write: Promise<T>): Promise<T> {
+    try {
+      const result = await write;
+      if (result.written) this.reload();
+      return result;
+    } catch (error) {
+      if (error instanceof PartialWriteError) this.reload();
+      throw error;
+    }
   }
 
   /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
@@ -497,9 +509,7 @@ export class Vault {
   }
 
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    const result = await capture(this.root, input, this.settings.capture, options, () => this.history);
-    if (result.written) this.reload();
-    return result;
+    return this.recorded(capture(this.root, input, this.settings.capture, options, () => this.history));
   }
 
   /**

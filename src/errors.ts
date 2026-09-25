@@ -1,7 +1,7 @@
 /** The base of every error neiro raises on purpose, so a consumer can catch them all with one check. */
 export class NeiroError extends Error {
-  constructor(message?: string) {
-    super(message);
+  constructor(message?: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = new.target.name;
   }
 }

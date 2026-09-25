@@ -19,6 +19,7 @@ export {
   type History,
   HistoryError,
   historyChain,
+  PartialWriteError,
   type Revision,
 } from "./history.ts";
 export { journalPath } from "./journal.ts";

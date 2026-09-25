@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createTwoFilesPatch } from "diff";
 import { NeiroError } from "./errors.ts";
-import type { History } from "./history.ts";
+import { type History, PartialWriteError } from "./history.ts";
 
 const BOM = "\uFEFF";
 
@@ -79,6 +79,10 @@ export async function writeNote(
   const store = options.commit ? history() : undefined;
   mkdirSync(dirname(file), { recursive: true });
   writeFileSync(file, bom ? BOM + content : content);
-  await store?.commit([path], message, options.author);
+  try {
+    await store?.commit([path], message, options.author);
+  } catch (error) {
+    throw new PartialWriteError({ path, hash: result.hash, committed: false }, error);
+  }
   return { ...result, written: true, committed: store !== undefined };
 }

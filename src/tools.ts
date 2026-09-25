@@ -5,6 +5,7 @@
 import { parseDate } from "./dateformat.ts";
 import { InputError } from "./errors.ts";
 import { propertyValue } from "./frontmatter.ts";
+import { PartialWriteError } from "./history.ts";
 import { PERIODS, type Period } from "./settings.ts";
 import { SORT_KEYS, type Vault } from "./vault.ts";
 
@@ -125,14 +126,20 @@ function writeOf(input: Record<string, unknown>, context: ToolContext = {}) {
 }
 
 /** With push: take the remote's revisions before the write, so its guards see them, and publish the write after. */
-async function published<T extends { committed: boolean }>(
+async function published<T extends { path: string; hash: string; committed: boolean }>(
   vault: Vault,
   context: ToolContext = {},
   write: () => Promise<T>,
 ): Promise<T> {
   if (context.push) await vault.sync();
   const result = await write();
-  if (context.push && result.committed) await vault.sync();
+  if (context.push && result.committed) {
+    try {
+      await vault.sync();
+    } catch (error) {
+      throw new PartialWriteError(result, error);
+    }
+  }
   return result;
 }
 

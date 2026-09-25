@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { chmodSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { GitHistory, UnsupportedError, Vault } from "../src/index.ts";
+import { GitHistory, HistoryError, PartialWriteError, UnsupportedError, Vault } from "../src/index.ts";
 import { copyVault, git, gitVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
@@ -88,5 +88,45 @@ describe("history commands", () => {
     const { root } = await revisedVault();
     expect(run(root, "show", "Working memory", "--rev", "nope").status).toBe(1);
     expect(run(root, "show", "Working memory").status).toBe(2);
+  });
+});
+
+/** A Git hook that refuses whatever reaches it. */
+function refuse(hooks: string, hook: string): void {
+  writeFileSync(join(hooks, hook), "#!/bin/sh\nexit 1\n");
+  chmodSync(join(hooks, hook), 0o755);
+}
+
+describe("a write that is not recorded", () => {
+  test("names the captured note and its commit when the push fails", async () => {
+    const { root, remote } = gitVault();
+    refuse(join(remote, "hooks"), "pre-receive");
+    const vault = new Vault(root);
+    const error = await vault.capture({ text: "Kept locally" }, { push: true }).catch((caught) => caught);
+    expect(error).toBeInstanceOf(PartialWriteError);
+    expect(error).toBeInstanceOf(HistoryError);
+    expect(error).toMatchObject({ path: "Inbox/Kept locally.md", committed: true });
+    expect(error.message).toStartWith("Inbox/Kept locally.md was written and committed, but git push failed");
+    expect(existsSync(join(root, "Inbox/Kept locally.md"))).toBe(true);
+    expect(error.hash).toBe((await vault.get("Inbox/Kept locally.md")).hash);
+  });
+
+  test("names the note and its new hash when the commit fails", async () => {
+    const { root } = gitVault();
+    refuse(join(root, ".git", "hooks"), "pre-commit");
+    const vault = new Vault(root);
+    const error = await vault.append("Home", "- added", { commit: true }).catch((caught) => caught);
+    expect(error).toBeInstanceOf(PartialWriteError);
+    expect(error).toMatchObject({ path: "Home.md", committed: false });
+    expect(error.hash).toBe((await vault.get("Home")).hash);
+  });
+
+  test("a pull that fails before writing leaves nothing to report", async () => {
+    const { root } = gitVault();
+    git(root, "remote", "set-url", "origin", join(root, "no-such-remote"));
+    const error = await new Vault(root).capture({ text: "Never written" }, { push: true }).catch((caught) => caught);
+    expect(error).toBeInstanceOf(HistoryError);
+    expect(error).not.toBeInstanceOf(PartialWriteError);
+    expect(existsSync(join(root, "Inbox/Never written.md"))).toBe(false);
   });
 });

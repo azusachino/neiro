@@ -4,9 +4,10 @@ import { stringify } from "yaml";
 import { formatDate } from "./dateformat.ts";
 import { NeiroError } from "./errors.ts";
 import { splitFrontmatter, stringList, yamlScalar } from "./frontmatter.ts";
-import { type History, historyChain } from "./history.ts";
+import { type History, historyChain, PartialWriteError } from "./history.ts";
 import type { CaptureSettings } from "./settings.ts";
 import { lowercaseTitle } from "./title.ts";
+import { contentHash } from "./write.ts";
 
 export interface CaptureInput {
   /** The note body. */
@@ -192,8 +193,14 @@ export async function capture(
   mkdirSync(dirname(join(root, path)), { recursive: true });
   writeFileSync(join(root, path), content, { flag: "wx" });
 
-  await store?.commit([path], `chore: capture ${path}`, options.author);
-  if (options.push) await store?.sync();
+  let committed = false;
+  try {
+    await store?.commit([path], `chore: capture ${path}`, options.author);
+    committed = store !== undefined;
+    if (options.push) await store?.sync();
+  } catch (error) {
+    throw new PartialWriteError({ path, hash: contentHash(content), committed }, error);
+  }
   return { path, content, written: true, committed: commit, pushed: options.push ?? false };
 }
 

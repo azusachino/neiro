@@ -30,6 +30,26 @@ export interface History {
 
 export class HistoryError extends NeiroError {}
 
+/**
+ * A note was written, but committing or publishing it failed. The file stays as written: retrying the write would
+ * duplicate a capture or fail its own `ifHash`, so a caller retries with `sync()`, or commits, instead.
+ */
+export class PartialWriteError extends HistoryError {
+  readonly path: string;
+  /** The written content's hash, as `get` would now return it. */
+  readonly hash: string;
+  /** Whether the write was committed before the failure, so only the push is left. */
+  readonly committed: boolean;
+
+  constructor(written: { path: string; hash: string; committed: boolean }, cause: unknown) {
+    const done = written.committed ? "written and committed" : "written";
+    super(`${written.path} was ${done}, but ${(cause as Error).message}`, { cause });
+    this.path = written.path;
+    this.hash = written.hash;
+    this.committed = written.committed;
+  }
+}
+
 export interface GitHistoryOptions {
   /** Milliseconds a git command may run before it is stopped; 60 seconds by default. */
   timeout?: number;
