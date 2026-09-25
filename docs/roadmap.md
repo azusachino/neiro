@@ -8,6 +8,16 @@ The rules that bound this roadmap are [decision records](decisions/README.md): f
 
 ## shipped
 
+### 0.6.0: files only, a prelude, and neiro-tools
+
+A reshaping recorded in [decision records](decisions/README.md); the [changelog](../CHANGELOG.md) lists every breaking change with its issue.
+
+- **Files only:** no Git and no server ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)), and settings from `neiro.toml` only, not `.obsidian/` ([ADR 0011](decisions/0011-settings-from-neiro-toml-only.md)).
+- **The contract:** the root `neiro` entry is a prelude of 16 runtime names, snapshotted by a test, with deep imports refused ([ADR 0009](decisions/0009-the-core-contract-and-prelude.md)).
+- **neiro-tools:** the agent tools as their own package, released at the same version ([ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md)).
+- **Layout:** a Bun workspace of `packages/core`, `packages/tools`, and `packages/tests`, the skill at the root, and installed CLIs that run on Node.
+- **Decision records** backfilling the standing rules, 0001 to 0007.
+
 ### 0.5.0: design review and agent CLI
 
 The fixes from a best-practice review, and a CLI made for agents, in [#63](https://github.com/azusachino/neiro/pull/63); the [changelog](../CHANGELOG.md) lists each with its issue.
