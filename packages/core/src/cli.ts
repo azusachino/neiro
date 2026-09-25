@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 import { readFileSync } from "node:fs";
 import { text } from "node:stream/consumers";
 import { parseArgs } from "node:util";

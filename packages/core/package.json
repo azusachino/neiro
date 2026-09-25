@@ -13,7 +13,7 @@
     }
   },
   "bin": {
-    "neiro": "./src/cli.ts"
+    "neiro": "./dist/lib/cli.js"
   },
   "engines": {
     "bun": ">=1.4.0",
@@ -21,7 +21,7 @@
   },
   "scripts": {
     "build": "bun build --compile src/cli.ts --outfile dist/neiro",
-    "build:lib": "tsc -p tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json && bun build src/cli.ts --target=node --packages=external --outfile dist/lib/cli.js",
     "prepack": "bun run build:lib"
   },
   "dependencies": {

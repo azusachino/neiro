@@ -14,7 +14,7 @@
     }
   },
   "bin": {
-    "neiro-tools": "./src/cli.ts"
+    "neiro-tools": "./dist/lib/cli.js"
   },
   "files": [
     "dist/lib",
@@ -25,7 +25,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build:lib": "tsc -p tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json && bun build src/cli.ts --target=node --packages=external --outfile dist/lib/cli.js",
     "prepack": "bun run build:lib"
   },
   "dependencies": {

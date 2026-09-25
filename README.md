@@ -145,7 +145,7 @@ const today = await vault.journalFor("day"); // from .obsidian/daily-notes.json 
 await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 
-- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too.
+- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too. The installed `neiro` command runs on Node as well as Bun.
 - Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
 
