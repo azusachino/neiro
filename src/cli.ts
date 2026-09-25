@@ -74,7 +74,8 @@ const OPTIONS = {
     type: "string",
     multiple: true,
     value: "<tag>",
-    summary: "may repeat; as a filter every tag must match, case-insensitively, and area matches area/sub",
+    summary:
+      "a tag, may repeat: capture and new add it; elsewhere every tag must match, case-insensitively, and area matches area/sub",
   },
   status: { type: "string", value: "<status>", summary: "only notes whose status property is this" },
   under: { type: "string", value: "<folder>", summary: "only notes in this folder" },

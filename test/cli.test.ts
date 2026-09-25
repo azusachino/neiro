@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TOOLS } from "../src/index.ts";
@@ -192,6 +192,21 @@ describe("help", () => {
     expect(commands.find((command) => command.name === "grep")?.options.map((option) => option.name)).toContain(
       "--fixed-strings",
     );
+  });
+
+  test("docs/cli.md names every command and each of its options, and nothing else", () => {
+    const page = readFileSync(join(import.meta.dir, "..", "docs", "cli.md"), "utf8");
+    const sections = new Map(
+      page
+        .split(/^### /m)
+        .slice(1)
+        .map((section) => [section.slice(0, section.indexOf("\n")), section] as const),
+    );
+    const commands = help().commands;
+    expect([...sections.keys()].sort()).toEqual(commands.map((command) => command.name).sort());
+    for (const { name, options } of commands) {
+      for (const option of options) expect(sections.get(name), `${name} ${option.name}`).toContain(`${option.name}`);
+    }
   });
 
   test("refuses an option the command does not take", () => {
