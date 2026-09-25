@@ -3,6 +3,7 @@
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
 import { parseDate } from "./dateformat.ts";
+import { InputError } from "./errors.ts";
 import { propertyValue } from "./frontmatter.ts";
 import { PERIODS, type Period } from "./settings.ts";
 import { SORT_KEYS, type Vault } from "./vault.ts";
@@ -46,7 +47,7 @@ export interface ToolContext {
   author?: string;
 }
 
-export class ToolInputError extends Error {}
+export class ToolInputError extends InputError {}
 
 const str = (description: string): PropertySchema => ({ type: "string", description });
 const int = (description: string): PropertySchema => ({ type: "integer", description, minimum: 1 });

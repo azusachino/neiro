@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { Chain } from "./chain.ts";
+import { NeiroError } from "./errors.ts";
 
 /** One recorded revision of a note. */
 export interface Revision {
@@ -24,7 +25,7 @@ export interface History {
   sync(): void;
 }
 
-export class HistoryError extends Error {}
+export class HistoryError extends NeiroError {}
 
 /** History through the git CLI, run in the vault root, which may sit anywhere inside a repository. */
 export class GitHistory implements History {

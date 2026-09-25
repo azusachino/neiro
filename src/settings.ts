@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { ConfigError } from "./errors.ts";
 import { parseToml } from "./providers.ts";
 
 export const CONFIG_FILE = "neiro.toml";
@@ -102,7 +103,11 @@ function readJson(root: string, path: string): Record<string, unknown> | undefin
 }
 
 function readToml(root: string, path: string): unknown {
-  return parseToml.get()(readFileSync(join(root, path), "utf8"));
+  try {
+    return parseToml.get()(readFileSync(join(root, path), "utf8"));
+  } catch (error) {
+    throw new ConfigError(`${path}: ${(error as Error).message.split("\n")[0]}`);
+  }
 }
 
 function stringsIn(value: unknown): string[] {

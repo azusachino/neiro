@@ -12,6 +12,7 @@ neiro is an SDK and CLI over an Obsidian-compatible Markdown vault, working on t
 src/index.ts         The public SDK surface; everything a library consumer may import
 src/vault.ts         Vault: scanning, lookup, list, links, nav, and journal
 src/settings.ts      The settings chain: code options, neiro.toml, .obsidian settings, defaults
+src/errors.ts        NeiroError, the base of every error neiro raises on purpose
 src/chain.ts         Fallback chains: the first available provider serves a capability
 src/providers.ts     The capability chains; the only place a Bun-only API may appear
 src/links.ts         Link extraction (wikilinks, Markdown links, frontmatter) and Obsidian-style resolution

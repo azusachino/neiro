@@ -3,6 +3,7 @@
  * in the frontmatter and in fenced code blocks do not count.
  */
 
+import { NeiroError } from "./errors.ts";
 import { FRONTMATTER } from "./frontmatter.ts";
 
 export interface HeadingAt {
@@ -22,7 +23,7 @@ export interface Section {
   end: number;
 }
 
-export class SectionError extends Error {}
+export class SectionError extends NeiroError {}
 
 const HEADING = /^ {0,3}(#{1,6})[ \t]+(.+?)(?:[ \t]+#+)?[ \t]*$/;
 const FENCE = /^\s{0,3}(`{3,}|~{3,})/;

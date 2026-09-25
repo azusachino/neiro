@@ -6,12 +6,13 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { createTwoFilesPatch } from "diff";
+import { NeiroError } from "./errors.ts";
 import type { History } from "./history.ts";
 
 const BOM = "\uFEFF";
 
 /** Raised when a write would overwrite a change made since the caller read the note. */
-export class WriteConflictError extends Error {}
+export class WriteConflictError extends NeiroError {}
 
 export interface WriteOptions {
   /** Report the diff without writing or committing. */

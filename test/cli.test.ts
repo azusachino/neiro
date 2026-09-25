@@ -21,6 +21,18 @@ describe("cli", () => {
     ]);
   });
 
+  test("reports a bad date or a malformed neiro.toml in one line", () => {
+    const date = run("journal", "day", "--date", "2026-13-01");
+    expect(date.code).toBe(1);
+    expect(date.stderr.trim()).toBe('neiro: not a calendar date: "2026-13-01"');
+    const root = mkdtempSync(join(tmpdir(), "neiro-badtoml-"));
+    writeFileSync(join(root, "neiro.toml"), "capture = [\n");
+    const result = Bun.spawnSync(["bun", CLI, "--vault", root, "list"], { stderr: "pipe" });
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr.toString()).toStartWith("neiro: neiro.toml: ");
+    expect(result.stderr.toString().trim().split("\n")).toHaveLength(1);
+  });
+
   test("prints a journal note for a date", () => {
     const { code, stdout } = run("journal", "day", "--date", "2026-09-16");
     expect(code).toBe(0);

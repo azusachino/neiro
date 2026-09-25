@@ -5,6 +5,8 @@
  * first Thursday). Text in square brackets is literal, as in moment.
  */
 
+import { InputError } from "./errors.ts";
+
 const MONTHS = [
   "January",
   "February",
@@ -100,8 +102,8 @@ export function formatDate(date: Date, format: string): string {
 /** Parse `YYYY-MM-DD` as a local calendar date. */
 export function parseDate(text: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-  if (!match) throw new Error(`expected a date as YYYY-MM-DD, got "${text}"`);
+  if (!match) throw new InputError(`expected a date as YYYY-MM-DD, got "${text}"`);
   const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  if (date.getMonth() !== Number(match[2]) - 1) throw new Error(`not a calendar date: "${text}"`);
+  if (date.getMonth() !== Number(match[2]) - 1) throw new InputError(`not a calendar date: "${text}"`);
   return date;
 }

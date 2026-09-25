@@ -6,6 +6,7 @@
 - A wikilink to a note whose name contains a dot, such as `[[Node.js]]`, resolves to the note instead of being taken for an attachment. ([#50](https://github.com/azusachino/neiro/issues/50))
 - An empty frontmatter block (`---` then `---`) is read as frontmatter, as in Obsidian, so `prop set` fills it instead of adding a second block. ([#51](https://github.com/azusachino/neiro/issues/51))
 - `nav` no longer lists heading-like lines inside fenced code, and links and headings follow one fence rule: a fence closes only on a fence of the same character at least as long. ([#52](https://github.com/azusachino/neiro/issues/52))
+- Every error neiro raises extends `NeiroError` and carries its class name. A date that is not a calendar date raises `InputError` and a malformed `neiro.toml` raises `ConfigError`; the CLI reports both in one line instead of a stack trace. ([#53](https://github.com/azusachino/neiro/issues/53))
 
 ## 0.4.0
 

@@ -11,6 +11,7 @@ import {
   captureInputFromMarkdown,
 } from "./capture.ts";
 import type { Chain } from "./chain.ts";
+import { NeiroError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
@@ -150,7 +151,7 @@ export interface VaultOptions {
   watch?: number;
 }
 
-export class NotFoundError extends Error {
+export class NotFoundError extends NeiroError {
   /** The closest notes by fuzzy match, when a reference resolved to none. */
   readonly suggestions: string[];
 
@@ -167,7 +168,7 @@ export interface Suggestion extends NoteSummary {
 }
 
 /** A line range that does not fit the note; the message gives the note's line count. */
-export class LineRangeError extends Error {}
+export class LineRangeError extends NeiroError {}
 
 export class Vault {
   readonly root: string;

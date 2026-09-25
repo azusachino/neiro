@@ -9,6 +9,7 @@ export {
   renderCapture,
 } from "./capture.ts";
 export { formatDate, isoWeek, localeWeek, parseDate } from "./dateformat.ts";
+export { ConfigError, InputError, NeiroError } from "./errors.ts";
 export { type Frontmatter, propertyValue, splitFrontmatter } from "./frontmatter.ts";
 export { type FuzzyCandidate, type FuzzyHit, fuzzyRank, fuzzyScore } from "./fuzzy.ts";
 export { formatGrep, type GrepHit, type GrepLine, type GrepOptions, grepPattern } from "./grep.ts";

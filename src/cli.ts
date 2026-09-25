@@ -5,24 +5,18 @@ import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
 import {
-  CaptureError,
   captureInputFromMarkdown,
   type Filter,
   formatGrep,
   type GrepHit,
-  HistoryError,
-  LineRangeError,
-  NotFoundError,
+  NeiroError,
   PERIODS,
   type Period,
   parseDate,
   propertyValue,
-  SectionError,
   type SectionWriteOptions,
   SORT_KEYS,
-  UnsupportedError,
   Vault,
-  WriteConflictError,
   type WriteOptions,
   type WriteResult,
 } from "./index.ts";
@@ -480,15 +474,7 @@ try {
     console.error(`neiro: ${error.message}\n\n${USAGE}`);
     process.exit(2);
   }
-  if (
-    error instanceof NotFoundError ||
-    error instanceof LineRangeError ||
-    error instanceof HistoryError ||
-    error instanceof SectionError ||
-    error instanceof WriteConflictError ||
-    error instanceof CaptureError ||
-    error instanceof UnsupportedError
-  ) {
+  if (error instanceof NeiroError) {
     console.error(`neiro: ${error.message}`);
     process.exit(1);
   }
