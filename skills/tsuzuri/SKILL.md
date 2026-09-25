@@ -7,6 +7,8 @@ description: tsuzuri, the CLI for an Obsidian-compatible Markdown vault. Use whe
 
 tsuzuri reads and writes a vault's Markdown files directly; Obsidian need not run. Run it with `--vault <dir>` or `$TSUZURI_VAULT` set, and pass `--json` to every call you parse. `tsuzuri help <command>` gives a command's options and an example; this skill covers what help cannot: which command to reach for, and how to write without clobbering the owner.
 
+If `tsuzuri` is not on the PATH, run it as `npx tsuzuri` or `bunx tsuzuri` (Node 24 or Bun 1.4 and later); every command and option below is the same.
+
 Before writing, read the vault's own instructions (`AGENTS.md` or similar at its root). They decide where new notes go and who commits them; tsuzuri only writes files, and leaves Git to the owner.
 
 ## Read

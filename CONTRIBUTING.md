@@ -36,10 +36,10 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 1. Update `CHANGELOG.md` and the `version` in `packages/core/package.json`, and merge.
 2. Tag the merge commit `v<version>` and push the tag.
-3. `make pack`, which writes `tsuzuri-<version>.tgz` to `dist/pack`.
+3. `make publish`, which packs `tsuzuri-<version>.tgz` into `dist/pack` and publishes it to npm; it needs `npm login` as the package owner.
 4. `gh release create v<version> dist/pack/*.tgz --notes-file <the version's changelog section>`.
 
-Consumers install the release assets, as the [README](README.md#installing) shows; a Git dependency on the repository installs the workspace root, not the packages.
+Consumers install from npm, as the [README](README.md#installing) shows. A Git dependency on the repository does not work: it installs the workspace root, not the package.
 
 ## Reporting a security issue
 

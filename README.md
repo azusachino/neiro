@@ -7,7 +7,7 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 ## Quick start
 
 ```sh
-make install && make build          # the CLI at packages/core/dist/tsuzuri
+npx tsuzuri --version                 # or bunx tsuzuri; or npm install -g tsuzuri for a `tsuzuri` command
 export TSUZURI_VAULT=~/notes          # or pass --vault <dir>; the default is the current directory
 
 tsuzuri nav                           # the vault's top folders and notes
@@ -151,21 +151,7 @@ await vault.capture({ text: "An idea", tags: ["learning"] });
 
 ### Installing
 
-tsuzuri is not on npm. Each [release](https://github.com/azusachino/tsuzuri/releases) carries `tsuzuri-<version>.tgz` and `tsuzuri-tools-<version>.tgz`; depend on their URLs, and pin `tsuzuri` in `overrides` to the same tarball, so `tsuzuri-tools`' dependency on `tsuzuri` resolves to it rather than to npm:
-
-```json
-{
-  "dependencies": {
-    "tsuzuri": "https://github.com/azusachino/tsuzuri/releases/download/v0.6.0/tsuzuri-0.6.0.tgz",
-    "tsuzuri-tools": "https://github.com/azusachino/tsuzuri/releases/download/v0.6.0/tsuzuri-tools-0.6.0.tgz"
-  },
-  "overrides": {
-    "tsuzuri": "https://github.com/azusachino/tsuzuri/releases/download/v0.6.0/tsuzuri-0.6.0.tgz"
-  }
-}
-```
-
-A Git dependency on this repository does not work: it installs the workspace root, not the packages.
+tsuzuri is one package on npm: `npm install tsuzuri`, or `bun add tsuzuri`. It holds the SDK, the agent tools at `tsuzuri/tools`, and the `tsuzuri` and `tsuzuri-tools` commands. `npx tsuzuri` and `bunx tsuzuri` run the CLI without installing it; `npx -p tsuzuri tsuzuri-tools --json` prints the tool definitions.
 
 ### Agent tools
 
@@ -190,6 +176,12 @@ The `tsuzuri-tools` command lists each tool with its exposure and whether it rea
 ### Agent skill
 
 [`SKILL.md`](skills/tsuzuri/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+
+Install it into Claude Code, Codex, Cursor, and other coding agents with the [skills](https://skills.sh) installer:
+
+```sh
+npx skills add azusachino/tsuzuri
+```
 
 ## Development
 

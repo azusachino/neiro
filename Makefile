@@ -1,4 +1,4 @@
-.PHONY: install check validate build node-smoke pack format corpus
+.PHONY: install check validate build node-smoke pack publish format corpus
 
 install: ## Install dependencies from the lockfile and check out the CI corpus
 	bun install --frozen-lockfile
@@ -23,13 +23,19 @@ build: ## Compile tsuzuri into one binary at packages/core/dist/tsuzuri, and the
 	bun run --cwd packages/core build
 	bun run --cwd packages/core build:lib
 
-pack: ## Pack tsuzuri into dist/pack, the tarball each GitHub release carries
+pack: ## Pack tsuzuri into dist/pack, the tarball npm and each GitHub release carry
 	rm -rf dist/pack
 	# bun pm pack does not run prepack, so build the JavaScript and declarations Node and tsc need first
 	bun run --cwd packages/core build:lib
+	cp README.md LICENSE packages/core/
 	cd packages/core && bun pm pack --destination ../../dist/pack
 	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/index.d.ts
 	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/tools.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/README.md
+
+# Needs `npm login` as the package owner; npm asks for a one-time password when 2FA is on.
+publish: pack ## Publish the packed tarball to npm, after the release is tagged
+	npm publish dist/pack/tsuzuri-[0-9]*.tgz
 
 format: ## Apply Biome and rumdl formatting
 	bun run format

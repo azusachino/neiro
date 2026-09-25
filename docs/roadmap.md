@@ -8,75 +8,82 @@ The rules that bound this roadmap are [decision records](decisions/README.md): f
 
 ## shipped
 
-### 0.6.0: files only, a prelude, and tsuzuri-tools
+### 0.7.0: tsuzuri on npm
+
+neiro is renamed tsuzuri and published to npm as one package, with the agent tools at `tsuzuri/tools` ([ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md)); the [changelog](../CHANGELOG.md) lists each rename.
+
+- **Install:** `npm install tsuzuri`, or run it with `npx tsuzuri` or `bunx tsuzuri`.
+- **Agents:** the skill installs with `npx skills add azusachino/tsuzuri`.
+
+### 0.6.0: files only, a prelude, and neiro-tools
 
 A reshaping recorded in [decision records](decisions/README.md); the [changelog](../CHANGELOG.md) lists every breaking change with its issue.
 
-- **Files only:** no Git and no server ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)), and settings from `tsuzuri.toml` only, not `.obsidian/` ([ADR 0011](decisions/0011-settings-from-neiro-toml-only.md)).
-- **The contract:** the root `tsuzuri` entry is a prelude of 16 runtime names, snapshotted by a test, with deep imports refused ([ADR 0009](decisions/0009-the-core-contract-and-prelude.md)).
-- **tsuzuri-tools:** the agent tools as their own package, released at the same version ([ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md)).
+- **Files only:** no Git and no server ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)), and settings from `neiro.toml` only, not `.obsidian/` ([ADR 0011](decisions/0011-settings-from-neiro-toml-only.md)).
+- **The contract:** the root `neiro` entry is a prelude of 16 runtime names, snapshotted by a test, with deep imports refused ([ADR 0009](decisions/0009-the-core-contract-and-prelude.md)).
+- **neiro-tools:** the agent tools as their own package, released at the same version ([ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md)).
 - **Layout:** a Bun workspace of `packages/core`, `packages/tools`, and `packages/tests`, the skill at the root, and installed CLIs that run on Node.
 - **Decision records** backfilling the standing rules, 0001 to 0007.
 
 ### 0.5.0: design review and agent CLI
 
-The fixes from a best-practice review, and a CLI made for agents, in [#63](https://github.com/azusachino/tsuzuri/pull/63); the [changelog](../CHANGELOG.md) lists each with its issue.
+The fixes from a best-practice review, and a CLI made for agents, in [#63](https://github.com/azusachino/neiro/pull/63); the [changelog](../CHANGELOG.md) lists each with its issue.
 
-- **Obsidian's links:** frontmatter wikilinks and Markdown links count, a dotted note name resolves to the note, and links, headings, and frontmatter share one parser each for fences and blocks. ([#49](https://github.com/azusachino/tsuzuri/issues/49)–[#52](https://github.com/azusachino/tsuzuri/issues/52))
-- **Errors and settings:** every error extends `TsuzuriError`, and `tsuzuri.toml` is checked against its shape. ([#53](https://github.com/azusachino/tsuzuri/issues/53), [#54](https://github.com/azusachino/tsuzuri/issues/54))
-- **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/tsuzuri/issues/55)–[#58](https://github.com/azusachino/tsuzuri/issues/58))
-- **An agent's reach:** `tsuzuri_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/tsuzuri/issues/59))
-- **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/tsuzuri/issues/60), [#64](https://github.com/azusachino/tsuzuri/issues/64))
-- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `tsuzuri tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/tsuzuri/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/tsuzuri/issues/67)–[#71](https://github.com/azusachino/tsuzuri/issues/71))
-- **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/tsuzuri/issues/61), [#65](https://github.com/azusachino/tsuzuri/issues/65), [#66](https://github.com/azusachino/tsuzuri/issues/66))
+- **Obsidian's links:** frontmatter wikilinks and Markdown links count, a dotted note name resolves to the note, and links, headings, and frontmatter share one parser each for fences and blocks. ([#49](https://github.com/azusachino/neiro/issues/49)–[#52](https://github.com/azusachino/neiro/issues/52))
+- **Errors and settings:** every error extends `NeiroError`, and `neiro.toml` is checked against its shape. ([#53](https://github.com/azusachino/neiro/issues/53), [#54](https://github.com/azusachino/neiro/issues/54))
+- **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/neiro/issues/55)–[#58](https://github.com/azusachino/neiro/issues/58))
+- **An agent's reach:** `neiro_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/neiro/issues/59))
+- **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/neiro/issues/60), [#64](https://github.com/azusachino/neiro/issues/64))
+- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/tsuzuri/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
+- **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/neiro/issues/61), [#65](https://github.com/azusachino/neiro/issues/65), [#66](https://github.com/azusachino/neiro/issues/66))
 
 ### 0.4.0: agent integration
 
-- Export ready-made tool definitions: names, parameter schemas, and read-only or destructive hints for each operation. ([#19](https://github.com/azusachino/tsuzuri/issues/19))
-- A default exposure for agents, following this proposal and pending the owner's agreement (overridable through `agentTools`): `capture` and `journal append` directly; `append`, `section put`, and `prop set` behind a human confirmation step; `put` stays CLI-only. ([#19](https://github.com/azusachino/tsuzuri/issues/19))
-- A `Vault` refresh policy for a long-running process: reload after `git pull`, or when the files' modification times change. ([#20](https://github.com/azusachino/tsuzuri/issues/20))
-- A documented way to run tsuzuri against a Git clone of the vault in a container, synced through `History`. ([#21](https://github.com/azusachino/tsuzuri/issues/21))
+- Export ready-made tool definitions: names, parameter schemas, and read-only or destructive hints for each operation. ([#19](https://github.com/azusachino/neiro/issues/19))
+- A default exposure for agents, following this proposal and pending the owner's agreement (overridable through `agentTools`): `capture` and `journal append` directly; `append`, `section put`, and `prop set` behind a human confirmation step; `put` stays CLI-only. ([#19](https://github.com/azusachino/neiro/issues/19))
+- A `Vault` refresh policy for a long-running process: reload after `git pull`, or when the files' modification times change. ([#20](https://github.com/azusachino/neiro/issues/20))
+- A documented way to run neiro against a Git clone of the vault in a container, synced through `History`. ([#21](https://github.com/azusachino/neiro/issues/21))
 
 ### 0.3.0: history and targeted writes
 
 The Git features of 0.1 to 0.5 (commits, pushes, `History`, `sync()`, and the history commands) were removed in 0.6 by [ADR 0008](decisions/0008-files-only-no-git-no-server.md); these entries record what shipped at the time.
 
-Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are tsuzuri's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/tsuzuri/issues/13).
+Every write in this milestone previews as a unified diff with `--dry-run`, refuses to run when `--if-hash` does not match the note's current hash, commits once, and changes only its target. Diffs come from [`diff`](https://www.npmjs.com/package/diff); patches are neiro's own range splices, sd's "touch only the match" idea applied to Markdown structure. Nothing deletes. Shared write safety is [#13](https://github.com/azusachino/neiro/issues/13).
 
-- **A `History` interface** with `commit`, `log`, `show`, `diff`, and `sync`. `GitHistory` implements it through the git CLI; in a folder without Git, the history chain raises `UnsupportedError` instead of pretending to record anything. Capture's Git calls move behind it. ([#12](https://github.com/azusachino/tsuzuri/issues/12))
-- **History commands:** `history <note>`, `show <note> --rev <rev>`, and `diff <note>`. Restoring is an ordinary write: read an old revision and `put` it with `--if-hash`, which makes a new revision instead of rewriting history. ([#12](https://github.com/azusachino/tsuzuri/issues/12))
-- **`append <note> <text> [--heading H]`**: at the end of the note, or at the end of section H. A missing heading fails unless `--create-heading` is given. ([#14](https://github.com/azusachino/tsuzuri/issues/14))
-- **`section put <note> --heading H`**: replace section H's body, or create the section. ([#15](https://github.com/azusachino/tsuzuri/issues/15))
-- **`prop set <note> <key> <value>`**: upsert one frontmatter key, keeping comments and key order. ([#16](https://github.com/azusachino/tsuzuri/issues/16))
-- **`put <path>`**: create a note, or replace it only with a matching `--if-hash`. Replacing without the hash is refused. ([#17](https://github.com/azusachino/tsuzuri/issues/17))
-- **`journal append <week|month> <text> --heading <h>`**: `append` on the note for a date. ([#14](https://github.com/azusachino/tsuzuri/issues/14))
-- **`new <type> <title>`** from the vault's templates. ([#18](https://github.com/azusachino/tsuzuri/issues/18))
+- **A `History` interface** with `commit`, `log`, `show`, `diff`, and `sync`. `GitHistory` implements it through the git CLI; in a folder without Git, the history chain raises `UnsupportedError` instead of pretending to record anything. Capture's Git calls move behind it. ([#12](https://github.com/azusachino/neiro/issues/12))
+- **History commands:** `history <note>`, `show <note> --rev <rev>`, and `diff <note>`. Restoring is an ordinary write: read an old revision and `put` it with `--if-hash`, which makes a new revision instead of rewriting history. ([#12](https://github.com/azusachino/neiro/issues/12))
+- **`append <note> <text> [--heading H]`**: at the end of the note, or at the end of section H. A missing heading fails unless `--create-heading` is given. ([#14](https://github.com/azusachino/neiro/issues/14))
+- **`section put <note> --heading H`**: replace section H's body, or create the section. ([#15](https://github.com/azusachino/neiro/issues/15))
+- **`prop set <note> <key> <value>`**: upsert one frontmatter key, keeping comments and key order. ([#16](https://github.com/azusachino/neiro/issues/16))
+- **`put <path>`**: create a note, or replace it only with a matching `--if-hash`. Replacing without the hash is refused. ([#17](https://github.com/azusachino/neiro/issues/17))
+- **`journal append <week|month> <text> --heading <h>`**: `append` on the note for a date. ([#14](https://github.com/azusachino/neiro/issues/14))
+- **`new <type> <title>`** from the vault's templates. ([#18](https://github.com/azusachino/neiro/issues/18))
 - Also: an argument starting with a dash and a space, or a negative number, is text rather than an option, so bullets and values such as `-428` reach a write unchanged; a capture keeps a template's empty properties as `key:`; emoji tags such as `0🌲` are valid, as in Obsidian.
 
 Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ### 0.2.0: portable core and reads that agents can aim
 
-- **Portable core.** Replace the eight Bun-only calls with `node:` modules or a fallback chain, and add a Node run to CI next to Bun. The [fallback chains](#capabilities-and-fallback-chains) start here. ([#2](https://github.com/azusachino/tsuzuri/issues/2))
-- **Parse frontmatter through the YAML chain, `Bun.YAML` first.** It parses that vault's 1,837 frontmatter blocks in 12 ms instead of 53 ms. `Bun.YAML` alone disagrees with `yaml` on unquoted `{{placeholders}}`, repeated keys, merge keys, tags, and directives, so a block containing any of them goes to `yaml`; the two then agree on all 8,049 blocks of the corpora and that vault. ([#3](https://github.com/azusachino/tsuzuri/issues/3))
-- **Return the same metadata from every command.** Search hits gain `type`, `status`, `tags`, `created`, and `modified`, alongside `score` and `snippet`. `--fields` limits the output to named fields, including any frontmatter key, like the `select` clause in SilverBullet's queries. ([#4](https://github.com/azusachino/tsuzuri/issues/4))
-- **Read by line.** `get <note> --lines 20:60` and `--around <line> --context <n>` return a slice plus `start`, `end`, and `total`. Line numbers count from the top of the file, frontmatter included, so they match `rg -n`, editors, and Git diffs. ([#5](https://github.com/azusachino/tsuzuri/issues/5))
-- **`grep <pattern>`**, printing `path:line:text` like `rg -n`, with `-F` for literal text and ripgrep's smart case: case-insensitive unless the pattern contains a capital. Grep to find, then read the lines around a hit. ([#6](https://github.com/azusachino/tsuzuri/issues/6))
-- **`find <query>`**, fuzzy matching over paths, titles, and aliases, ranked with fzf's scoring rules in tsuzuri's own implementation. A failed `get` suggests the closest matches instead of only reporting not found. ([#7](https://github.com/azusachino/tsuzuri/issues/7))
-- **`tags`**: every tag with its note count, so an agent picks an existing tag instead of inventing one. ([#8](https://github.com/azusachino/tsuzuri/issues/8))
-- **Obsidian tag semantics.** Matching is case-insensitive, and a nested tag `area/sub` matches a filter on `area`. `tags` written as one string (`a, b`) and `#`-prefixed values are read too. Several `--tag` flags must all match. ([#8](https://github.com/azusachino/tsuzuri/issues/8))
-- **Filter and sort any frontmatter key.** `--where key=value` works on any property, not only `type` and `status`. `--sort modified|created|title|path` with `--desc` and `--limit` cover "recently touched" and "latest books". ([#9](https://github.com/azusachino/tsuzuri/issues/9))
-- **Honor the vault's `.gitignore`**, as ripgrep does, using [`ignore`](https://www.npmjs.com/package/ignore). ([#10](https://github.com/azusachino/tsuzuri/issues/10))
-- **`--format paths`**: one path per line, for `xargs` and `fzf`. ([#4](https://github.com/azusachino/tsuzuri/issues/4))
-- **More reads:** `orphans` (notes nothing links to), `outline <note>` (headings), and `prop get <note> <key>`. ([#11](https://github.com/azusachino/tsuzuri/issues/11))
+- **Portable core.** Replace the eight Bun-only calls with `node:` modules or a fallback chain, and add a Node run to CI next to Bun. The [fallback chains](#capabilities-and-fallback-chains) start here. ([#2](https://github.com/azusachino/neiro/issues/2))
+- **Parse frontmatter through the YAML chain, `Bun.YAML` first.** It parses that vault's 1,837 frontmatter blocks in 12 ms instead of 53 ms. `Bun.YAML` alone disagrees with `yaml` on unquoted `{{placeholders}}`, repeated keys, merge keys, tags, and directives, so a block containing any of them goes to `yaml`; the two then agree on all 8,049 blocks of the corpora and that vault. ([#3](https://github.com/azusachino/neiro/issues/3))
+- **Return the same metadata from every command.** Search hits gain `type`, `status`, `tags`, `created`, and `modified`, alongside `score` and `snippet`. `--fields` limits the output to named fields, including any frontmatter key, like the `select` clause in SilverBullet's queries. ([#4](https://github.com/azusachino/neiro/issues/4))
+- **Read by line.** `get <note> --lines 20:60` and `--around <line> --context <n>` return a slice plus `start`, `end`, and `total`. Line numbers count from the top of the file, frontmatter included, so they match `rg -n`, editors, and Git diffs. ([#5](https://github.com/azusachino/neiro/issues/5))
+- **`grep <pattern>`**, printing `path:line:text` like `rg -n`, with `-F` for literal text and ripgrep's smart case: case-insensitive unless the pattern contains a capital. Grep to find, then read the lines around a hit. ([#6](https://github.com/azusachino/neiro/issues/6))
+- **`find <query>`**, fuzzy matching over paths, titles, and aliases, ranked with fzf's scoring rules in neiro's own implementation. A failed `get` suggests the closest matches instead of only reporting not found. ([#7](https://github.com/azusachino/neiro/issues/7))
+- **`tags`**: every tag with its note count, so an agent picks an existing tag instead of inventing one. ([#8](https://github.com/azusachino/neiro/issues/8))
+- **Obsidian tag semantics.** Matching is case-insensitive, and a nested tag `area/sub` matches a filter on `area`. `tags` written as one string (`a, b`) and `#`-prefixed values are read too. Several `--tag` flags must all match. ([#8](https://github.com/azusachino/neiro/issues/8))
+- **Filter and sort any frontmatter key.** `--where key=value` works on any property, not only `type` and `status`. `--sort modified|created|title|path` with `--desc` and `--limit` cover "recently touched" and "latest books". ([#9](https://github.com/azusachino/neiro/issues/9))
+- **Honor the vault's `.gitignore`**, as ripgrep does, using [`ignore`](https://www.npmjs.com/package/ignore). ([#10](https://github.com/azusachino/neiro/issues/10))
+- **`--format paths`**: one path per line, for `xargs` and `fzf`. ([#4](https://github.com/azusachino/neiro/issues/4))
+- **More reads:** `orphans` (notes nothing links to), `outline <note>` (headings), and `prop get <note> <key>`. ([#11](https://github.com/azusachino/neiro/issues/11))
 - Decided by measurement: file listing is a plain `node:fs` walk rather than a `Bun.Glob` chain, and `grep` scans in process rather than behind an `rg -l` prefilter. See [capabilities and fallback chains](#capabilities-and-fallback-chains).
-- Still open: whether Obsidian resolves a bare alias link needs a check in the app ([#24](https://github.com/azusachino/tsuzuri/issues/24)).
+- Still open: whether Obsidian resolves a bare alias link needs a check in the app ([#24](https://github.com/azusachino/neiro/issues/24)).
 
 ### 0.1.0
 
 - Reads: `get`, `search`, `list`, `nav`, `links`, `backlinks`, `unresolved`, and `journal` for day, week, month, quarter, and year. Every command supports `--json`.
 - The one write: `capture`, which creates a new note from text, stdin, or a Markdown file (`--file`) and can commit and push only that file.
-- No layout or house style is assumed. Settings resolve from code options, then `tsuzuri.toml`, then the vault's Obsidian settings (new-note location, Daily Notes, Periodic Notes), then neutral defaults or `UnsupportedError`. Journal paths use Obsidian's moment-style formats.
+- No layout or house style is assumed. Settings resolve from code options, then `neiro.toml`, then the vault's Obsidian settings (new-note location, Daily Notes, Periodic Notes), then neutral defaults or `UnsupportedError`. Journal paths use Obsidian's moment-style formats.
 - Tests run against a synthetic fixture and real public vaults pinned as submodules: kepano-obsidian in CI and Obsidian's help vault, 6,386 notes in about 30 languages, on request.
 - Measured on a real vault of 1,837 notes and 8.3 M characters: 18 ms process start-up, about 10 ms to find files, 25 ms to read them, and **100 ms to parse YAML frontmatter**. After loading, `list` takes 0.5 ms, `search` 17–33 ms, and `backlinks` 25 ms.
 

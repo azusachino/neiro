@@ -1,9 +1,8 @@
 {
   "name": "tsuzuri",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "An SDK and CLI for reading and capturing into an Obsidian-compatible Markdown vault",
   "type": "module",
-  "private": true,
   "module": "./dist/lib/index.js",
   "exports": {
     ".": {
@@ -55,6 +54,15 @@
   "types": "./dist/lib/index.d.ts",
   "files": [
     "dist/lib",
-    "src"
-  ]
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://github.com/azusachino/tsuzuri#readme",
+  "bugs": {
+    "url": "https://github.com/azusachino/tsuzuri/issues"
+  }
 }

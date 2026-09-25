@@ -1,8 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.7.0
 
-- Each release carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`, built by `make pack`, which builds `dist/lib` first since `bun pm pack` does not run `prepack`, and the README shows how to depend on them; a Git dependency installs the workspace root, not the packages. ([#83](https://github.com/azusachino/neiro/issues/83))
+neiro is renamed tsuzuri and published to npm as one package ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)). Every rename below is breaking, and no old name is read as a fallback.
+
+- **Breaking:** the package, and its command, are `tsuzuri`: `npm install tsuzuri`, `npx tsuzuri`, or `bunx tsuzuri`.
+- **Breaking:** the settings file is `tsuzuri.toml`, and the vault variable `TSUZURI_VAULT`; rename a vault's `neiro.toml`.
+- **Breaking:** `NeiroError` is `TsuzuriError`, and every agent tool is named `tsuzuri_` instead of `neiro_`.
+- **Breaking:** the agent tools are the `tsuzuri/tools` entry of the same package, and `neiro-tools` is its second command, `tsuzuri-tools`; the `neiro-tools` package is gone.
+- The skill moves to `skills/tsuzuri/SKILL.md`, installable with `npx skills add azusachino/tsuzuri`, and says to run the CLI through `npx` or `bunx` when it is not installed.
+- `make pack` builds `dist/lib` before packing, since `bun pm pack` does not run `prepack`, and `make publish` publishes the tarball to npm; each GitHub release still carries it. ([#83](https://github.com/azusachino/tsuzuri/issues/83))
 
 ## 0.6.0
 
