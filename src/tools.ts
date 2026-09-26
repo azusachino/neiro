@@ -1,11 +1,8 @@
 /**
- * Ready-made agent tools over a `Vault`: a name, a JSON Schema for the input, MCP-style hints, an exposure, and a
+ * Ready-made agent tools over a `Vault`: a name, the operation it runs, a JSON Schema for the input, MCP-style hints, and a
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
 import { InputError, type OperationName, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
-
-/** `direct`: an agent may call it; `confirm`: only after a human approves the call; `cli-only`: never offered. */
-export type Exposure = "direct" | "confirm" | "cli-only";
 
 export interface PropertySchema {
   type: "string" | "integer" | "boolean" | "array" | "object";
@@ -33,7 +30,6 @@ export interface ToolDefinition {
   inputSchema: InputSchema;
   /** The Model Context Protocol's tool annotations. */
   annotations: { readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean };
-  exposure: Exposure;
   run(vault: Vault, input: Record<string, unknown>): Promise<unknown>;
 }
 
@@ -132,7 +128,6 @@ export const TOOLS: ToolDefinition[] = [
       ["note"],
     ),
     annotations: READ,
-    exposure: "direct",
     run: async (vault, input) => {
       const lines = o<string>(input, "lines");
       if (lines !== undefined && !/^(?:\d+:\d*|:\d+|\d+)$/.test(lines)) {
@@ -155,7 +150,6 @@ export const TOOLS: ToolDefinition[] = [
       "query",
     ]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.search(s(input, "query"), { ...filterOf(input), limit: o<number>(input, "limit") }),
   },
   {
@@ -173,7 +167,6 @@ export const TOOLS: ToolDefinition[] = [
       ["pattern"],
     ),
     annotations: READ,
-    exposure: "direct",
     run: async (vault, input) => {
       const pattern = s(input, "pattern");
       // A model's regular expression runs in the host's process; literal text by default and a length cap keep a
@@ -199,7 +192,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "Fuzzy-match notes by path, title, or alias, for a loose reference such as a half-remembered name.",
     inputSchema: schema({ query: str("A loose name, abbreviation, or typo"), limit: int("Most results") }, ["query"]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.suggest(s(input, "query"), { limit: o<number>(input, "limit") }),
   },
   {
@@ -218,7 +210,6 @@ export const TOOLS: ToolDefinition[] = [
       limit: int("Most results"),
     }),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) =>
       vault.list({
         ...filterOf(input),
@@ -234,7 +225,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "A folder's index note and headings, subfolders, and notes: how the vault is laid out.",
     inputSchema: schema({ folder: str("A folder; the vault root by default") }),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.nav(o<string>(input, "folder")),
   },
   {
@@ -244,7 +234,6 @@ export const TOOLS: ToolDefinition[] = [
       "A note's outgoing links (wikilinks, Markdown links, and frontmatter links) and what each resolves to.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.links(s(input, "note")),
   },
   {
@@ -253,7 +242,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "Notes that link to a note.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.backlinks(s(input, "note")),
   },
   {
@@ -262,7 +250,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "Every tag with its note count. Reuse one of these instead of inventing a near-duplicate.",
     inputSchema: schema({ ...FILTERS }),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.tags(filterOf(input)),
   },
   {
@@ -271,7 +258,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "A note's headings with their levels and line numbers.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.outline(s(input, "note")),
   },
   {
@@ -280,7 +266,6 @@ export const TOOLS: ToolDefinition[] = [
     description: "One frontmatter value of a note.",
     inputSchema: schema({ note: NOTE, key: str("The property") }, ["note", "key"]),
     annotations: READ,
-    exposure: "direct",
     run: (vault, input) => vault.property(s(input, "note"), s(input, "key")),
   },
   {
@@ -298,7 +283,6 @@ export const TOOLS: ToolDefinition[] = [
       ["text"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    exposure: "direct",
     run: (vault, input) =>
       vault.capture(
         { text: s(input, "text"), title: o(input, "title"), tags: o(input, "tags"), source: o(input, "source") },
@@ -320,7 +304,6 @@ export const TOOLS: ToolDefinition[] = [
       ["note", "text"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    exposure: "confirm",
     run: (vault, input) =>
       vault.append(s(input, "note"), s(input, "text"), {
         ...writeOf(input),
@@ -338,7 +321,6 @@ export const TOOLS: ToolDefinition[] = [
       "text",
     ]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
-    exposure: "confirm",
     run: (vault, input) => vault.putSection(s(input, "note"), s(input, "heading"), s(input, "text"), writeOf(input)),
   },
   {
@@ -355,7 +337,6 @@ export const TOOLS: ToolDefinition[] = [
       ["note", "key", "value"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
-    exposure: "confirm",
     run: (vault, input) =>
       vault.setProperty(s(input, "note"), s(input, "key"), propertyValue(s(input, "value")), writeOf(input)),
   },
@@ -373,7 +354,6 @@ export const TOOLS: ToolDefinition[] = [
       ["type", "title"],
     ),
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    exposure: "confirm",
     run: (vault, input) =>
       vault.create(s(input, "type"), s(input, "title"), {
         tags: o(input, "tags"),
@@ -386,19 +366,35 @@ export const TOOLS: ToolDefinition[] = [
     description: "Replace a whole existing note. Pass the hash get returned as ifHash to refuse a note changed since.",
     inputSchema: schema({ note: NOTE, content: str("The whole new note"), ...GUARDS }, ["note", "content"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
-    exposure: "cli-only",
     run: (vault, input) => vault.put(s(input, "note"), s(input, "content"), writeOf(input)),
+  },
+  {
+    name: "tsuzuri_write",
+    operation: "write",
+    description: "Create a note at a vault path ending in .md, with this content. An existing file is refused.",
+    inputSchema: schema(
+      { path: str("A vault path ending in .md"), content: str("The whole note"), dryRun: GUARDS.dryRun },
+      ["path", "content"],
+    ),
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
+    run: (vault, input) => vault.write(s(input, "path"), s(input, "content"), { dryRun: o(input, "dryRun") }),
+  },
+  {
+    name: "tsuzuri_move",
+    operation: "move",
+    description:
+      "Move or rename a note to a vault path ending in .md, rewriting every link the move would break. Run with dryRun first: it returns every note it rewrites.",
+    inputSchema: schema({ note: NOTE, to: str("The new vault path, ending in .md"), ...GUARDS }, ["note", "to"]),
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+    run: (vault, input) => vault.move(s(input, "note"), s(input, "to"), writeOf(input)),
   },
 ];
 
-/** The default exposure of every tool, as ADR 0010 agrees it; pass a changed copy to `agentTools`. */
-export const DEFAULT_EXPOSURE: Readonly<Record<string, Exposure>> = Object.fromEntries(
-  TOOLS.map((tool) => [tool.name, tool.exposure]),
-);
-
-/** The tools an agent may be offered under an exposure: everything but `cli-only`, each carrying its exposure. */
-export function agentTools(exposure: Record<string, Exposure> = DEFAULT_EXPOSURE): ToolDefinition[] {
-  return TOOLS.map((tool) => ({ ...tool, exposure: exposure[tool.name] ?? tool.exposure })).filter(
-    (tool) => tool.exposure !== "cli-only",
-  );
+/**
+ * The tools to offer an agent for `vault`: each whose operation the vault's mask allows (ADR 0018). tsuzuri decides
+ * no more than that; which of them to confirm with a human is the host's choice, and the hints say what each does.
+ * Without a vault, every tool.
+ */
+export function agentTools(vault?: Vault): ToolDefinition[] {
+  return vault ? TOOLS.filter((tool) => vault.allows(tool.operation)) : [...TOOLS];
 }

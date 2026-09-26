@@ -242,6 +242,11 @@ export class Vault {
     this.generation++;
   }
 
+  /** Whether this vault's mask allows `op` anywhere, as `agentTools` asks before offering a tool. */
+  allows(op: OperationName): boolean {
+    return this.mask.allows(op);
+  }
+
   async notes(): Promise<Note[]> {
     return this.reachable("notes");
   }

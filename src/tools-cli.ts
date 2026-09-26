@@ -7,8 +7,8 @@ const USAGE = `tsuzuri-tools ${pkg.version}: tsuzuri's agent tool definitions
 
 usage: tsuzuri-tools [--json]
 
-Lists each tool with its exposure and whether it reads, adds, or changes notes.
---json prints the definitions a tool-calling model takes: name, description, inputSchema, annotations, and exposure.`;
+Lists each tool with the operation it runs and whether it reads, adds, or changes notes.
+--json prints the definitions a tool-calling model takes: name, operation, description, inputSchema, and annotations.`;
 
 function parse() {
   try {
@@ -30,9 +30,9 @@ if (opts.help) {
   if (opts.json) {
     console.log(JSON.stringify(definitions, null, 2));
   } else {
-    for (const { name, exposure, annotations, description } of definitions) {
+    for (const { name, operation, annotations, description } of definitions) {
       const effect = annotations.readOnlyHint ? "reads" : annotations.destructiveHint ? "changes" : "adds";
-      console.log(`${name}\t${exposure}\t${effect}\t${description}`);
+      console.log(`${name}\t${operation}\t${effect}\t${description}`);
     }
   }
 }

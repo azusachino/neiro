@@ -200,11 +200,11 @@ const tool = tools.find((candidate) => candidate.name === "tsuzuri_search");
 const result = await tool?.run(vault, validateInput(tool, { query: "cognitive load" }));
 ```
 
-`agentTools()` returns each tool with a `tsuzuri_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
+`agentTools(vault)` returns each tool with a `tsuzuri_` name, the `operation` it runs, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
 
-The default exposure: reads and `tsuzuri_capture` are `direct`; `tsuzuri_append`, `tsuzuri_section_put`, `tsuzuri_prop_set`, and `tsuzuri_new` need a human's `confirm`; `tsuzuri_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+tsuzuri offers the tools the vault's [permission mask](#permission-mask) allows, and every tool without a vault; which of them to confirm with a human is the host's choice, which the hints inform ([ADR 0016](docs/decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md)). A bot sharing its owner's vault opens it with `allow: ["read", "capture"]` and offers `agentTools(vault)`. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
 
-The `tsuzuri-tools` command lists each tool with its exposure and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
+The `tsuzuri-tools` command lists each tool with its operation and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
 
 ### Agent skill
 

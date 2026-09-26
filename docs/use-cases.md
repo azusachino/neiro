@@ -156,7 +156,7 @@ A bot keeps one `Vault` for its lifetime and passes `watch`, so a read rescans, 
 
 ### A11. Hand an agent framework tsuzuri's tools
 
-Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `tsuzuri/tools` entry's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, an exposure (`direct` or `confirm`), and a `run` bound to the SDK, and `tsuzuri-tools --json` prints them for an agent with only a shell. Shipped; the default exposure is agreed in [ADR 0010](decisions/0010-agent-tools-as-an-extension-package.md), and the tools ship in the one package since [ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md).
+Import ready-made tool definitions with parameter schemas and read-only or destructive hints, instead of writing wrappers. The `tsuzuri/tools` entry's `agentTools()` returns each tool with its JSON Schema, MCP-style hints, the operation it runs, and a `run` bound to the SDK, filtered by the vault's mask, and `tsuzuri-tools --json` prints them for an agent with only a shell. Shipped; which tools to offer is the host's mask ([ADR 0016](decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md), [ADR 0018](decisions/0018-operations-and-a-permission-mask.md)), and the tools ship in the one package since [ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md).
 
 - `tools.test › have valid JSON Schemas: closed objects whose required inputs are declared and described`
 - `tools.test › writes take the model's guards and change only the files`
@@ -170,7 +170,7 @@ The owner edits one checkout every day, and a bot on the same machine answers fr
 - `submodule.test › captures one new file and leaves the owner's staged and unstaged work alone`
 - `submodule.test › a watching reader sees the owner's uncommitted edit on its next read`
 - `submodule.test › a vault at the superproject's root skips the checked-out submodule`
-- `tools.test › default to the roadmap's exposure, and agentTools never offers cli-only tools`
+- `tools.test › are offered as the vault's mask allows, and all of them without a vault`
 
 ### A13. Import tsuzuri in a Node project
 
