@@ -284,13 +284,22 @@ const COMMANDS: readonly CommandSpec[] = [
     example: 'tsuzuri prop set "Cognitive load" rating 4 --dry-run',
   },
   {
+    name: "write",
+    operation: "write",
+    args: "<path> [text...]",
+    summary: "create a note at any .md path in the vault (text, --file, or stdin); an existing file is refused",
+    writes: true,
+    options: ["file", "dry-run"],
+    example: 'tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run',
+  },
+  {
     name: "put",
     operation: "put",
-    args: "<path> [text...]",
-    summary: "create a note, or replace one only with --if-hash (text, --file, or stdin)",
+    args: "<note> [text...]",
+    summary: "replace a whole note (text, --file, or stdin); --if-hash refuses one changed since get",
     writes: true,
     options: ["file", ...WRITE],
-    example: 'tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run',
+    example: 'tsuzuri put "Existing idea" "A whole new body." --dry-run',
   },
   {
     name: "help",
@@ -647,12 +656,14 @@ async function main(): Promise<void> {
       const value = await vault.property(ref, key);
       return emit(value, () => (typeof value === "string" ? value : JSON.stringify(value)));
     }
+    case "write":
     case "put": {
-      const [path, ...words] = args;
-      if (!path) throw new UsageError("put needs a vault path");
-      if (opts.file && words.length > 0) throw new UsageError("put takes text or --file, not both");
+      const [target, ...words] = args;
+      if (!target) throw new UsageError(`${command} needs a ${command === "write" ? "vault path" : "note"}`);
+      if (opts.file && words.length > 0) throw new UsageError(`${command} takes text or --file, not both`);
       const content = opts.file ? readFileSync(opts.file, "utf8") : await inputText(words);
-      return emitWrite(await vault.put(path, content, writeOptions()));
+      if (command === "write") return emitWrite(await vault.write(target, content, { dryRun: opts["dry-run"] }));
+      return emitWrite(await vault.put(target, content, writeOptions()));
     }
     case "backlinks": {
       const notes = await vault.backlinks(one(args, "note"));

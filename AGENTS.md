@@ -28,7 +28,7 @@ Each rule below is a decision record in [`docs/decisions/`](docs/decisions/READM
 - **Files are the only truth,** and tsuzuri keeps no index until a measurement asks for one. ([0002](docs/decisions/0002-files-are-the-only-truth.md))
 - **Obsidian semantics, never the Obsidian app.** ([0003](docs/decisions/0003-obsidian-semantics-without-the-app.md))
 - **Assume no layout or house style;** settings come from the settings chain, and test data is synthetic or public. ([0004](docs/decisions/0004-assume-no-layout-or-house-style.md))
-- **Capture creates; an edit targets one heading or key,** guarded by `--dry-run` and `--if-hash`. A new write verb needs the owner's agreement. ([0005](docs/decisions/0005-the-write-model.md))
+- **The SDK reads and writes the whole vault:** it creates at any path, edits a section or key, and replaces a note, with `--dry-run` and `--if-hash` as optional guards; which of these a caller may use is the host's mask, not tsuzuri's. ([0016](docs/decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md))
 - **Every operation is in the operations table, with its kind;** a new `Vault` method that touches files, CLI command, or tool names its entry in `OPERATIONS`. A host limits them with a mask, and tsuzuri ships none. ([0018](docs/decisions/0018-operations-and-a-permission-mask.md))
 - **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
 - **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))

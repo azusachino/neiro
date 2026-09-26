@@ -368,11 +368,28 @@ With `--json`: a write result, as `append`.
 tsuzuri prop set "Cognitive load" rating 4 --dry-run
 ```
 
+### write
+
+`tsuzuri write <path> [text...]`
+
+Create a note at any .md path in the vault (text, --file, or stdin); an existing file is refused. Missing folders are created.
+
+| Option | Meaning |
+| --- | --- |
+| `--file <path>` | read the note from a Markdown file |
+| `--dry-run` | show the result, a diff for edits, without writing |
+
+With `--json`: a write result, as `append`, with `created: true`.
+
+```sh
+tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run
+```
+
 ### put
 
-`tsuzuri put <path> [text...]`
+`tsuzuri put <note> [text...]`
 
-Create a note, or replace one only with --if-hash (text, --file, or stdin).
+Replace a whole note (text, --file, or stdin); --if-hash refuses one changed since get. The note must exist; `write` creates one.
 
 | Option | Meaning |
 | --- | --- |
@@ -383,5 +400,5 @@ Create a note, or replace one only with --if-hash (text, --file, or stdin).
 With `--json`: a write result, as `append`.
 
 ```sh
-tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run
+tsuzuri put "Existing idea" "A whole new body." --dry-run
 ```

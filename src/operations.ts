@@ -28,6 +28,7 @@ export const OPERATIONS = {
   nav: "read",
   select: "read",
   capture: "create",
+  write: "create",
   create: "create",
   append: "edit",
   putSection: "edit",

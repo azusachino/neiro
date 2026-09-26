@@ -79,9 +79,10 @@ tsuzuri capture --tag reading "Read: how agents plan"
 | `append <note> [text...]` | adds text at the end of a note, or of section `--heading` |
 | `section put <note> [text...]` | replaces the body of section `--heading`, or adds the section |
 | `prop set <note> <key> <value>` | sets one frontmatter key, keeping comments and key order |
-| `put <path> [text...]` | creates a note, or replaces one only with `--if-hash` |
+| `write <path> [text...]` | creates a note at any `.md` path; an existing file is refused |
+| `put <note> [text...]` | replaces a whole note; `--if-hash` refuses one changed since `get` |
 
-`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
+`capture`, `new`, and `write` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 
 The `tsuzuri/tools` entry offers the same operations as agent tools, and `tsuzuri-tools --json` prints their definitions.
 

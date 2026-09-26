@@ -369,29 +369,30 @@ export class Vault {
     });
   }
 
-  /**
-   * Write a whole note at a vault path: create it, or replace it only when `ifHash` matches its current content.
-   * Replacing without the hash is refused.
-   */
-  async put(path: string, content: string, options: WriteOptions = {}): Promise<WriteResult> {
-    const target = posix.normalize(path.replaceAll("\\", "/")).replace(/^\.\//, "");
-    if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
-      throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
+  /** Create a note at any `.md` path in the vault, with this content; an existing file is refused. */
+  async write(path: string, content: string, options: Pick<WriteOptions, "dryRun"> = {}): Promise<WriteResult> {
+    const target = posix.normalize(path.replaceAll("\\", "/").trim()).replace(/^\.\//, "");
+    if (target.startsWith("/") || target === ".." || target.startsWith("../") || !target.endsWith(".md")) {
+      throw new WriteConflictError(`write takes a .md path inside the vault, not "${path}"`);
     }
-    this.mask.check("put", [target]);
+    this.mask.check("write", [target]);
     return this.recorded(
       writeNote(
         this.root,
         target,
         (current) => {
-          if (current !== undefined && options.ifHash === undefined) {
-            throw new WriteConflictError(`${target} exists; replacing it needs --if-hash with the hash get returned`);
-          }
+          if (current !== undefined) throw new WriteConflictError(`${target} exists; write only creates, put replaces`);
           return content;
         },
         options,
       ),
     );
+  }
+
+  /** Replace a whole note. With `ifHash`, a note that changed since `get` returned that hash is refused. */
+  async put(ref: string, content: string, options: WriteOptions = {}): Promise<WriteResult> {
+    const note = await this.resolve("put", ref);
+    return this.change(note.path, options, () => content);
   }
 
   /** Change an existing note through the shared write guards, then forget the scan so reads see the change. */

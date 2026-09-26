@@ -36,8 +36,10 @@ Reach for the narrowest verb:
 | replace one section's body | `section put <note> --heading H <text>` |
 | set one frontmatter key | `prop set <note> <key> <value>` |
 | create a note from a template | `new <type> <title>` |
+| create a note at a chosen path | `write <path> <text>` |
+| replace a whole note, only when asked to | `put <note> <text>` |
 
-`capture` and `new` only create files, so they need no hash. For every other write:
+`capture`, `new`, and `write` only create files, so they need no hash. For every other write:
 
 1. `get <note> --json` and keep its `hash`.
 2. Run the write with `--dry-run --if-hash <hash>` and check the diff changes only what you meant.

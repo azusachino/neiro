@@ -383,14 +383,11 @@ export const TOOLS: ToolDefinition[] = [
   {
     name: "tsuzuri_put",
     operation: "put",
-    description: "Write a whole note: create it, or replace it only with the hash get returned.",
-    inputSchema: schema({ path: str("A vault path ending in .md"), content: str("The whole note"), ...GUARDS }, [
-      "path",
-      "content",
-    ]),
+    description: "Replace a whole existing note. Pass the hash get returned as ifHash to refuse a note changed since.",
+    inputSchema: schema({ note: NOTE, content: str("The whole new note"), ...GUARDS }, ["note", "content"]),
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     exposure: "cli-only",
-    run: (vault, input) => vault.put(s(input, "path"), s(input, "content"), writeOf(input)),
+    run: (vault, input) => vault.put(s(input, "note"), s(input, "content"), writeOf(input)),
   },
 ];
 
