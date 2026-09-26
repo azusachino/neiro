@@ -17,7 +17,8 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 - **Obsidian's rules:** wikilinks resolve as Obsidian resolves them, including links in frontmatter; tags nest and match case-insensitively; aliases and titles find notes.
 - **Find:** BM25 search with CJK support, `rg`-style `grep`, fzf-style fuzzy `find`, and `list` filtered on any frontmatter property.
 - **Navigate:** a folder's index and notes, a note's outline, its links and backlinks, and the vault's orphans and unresolved links.
-- **Safe writes:** `capture` and `new` only create files; every edit targets one heading or property, shows a diff with `--dry-run`, and refuses a note changed since it was read.
+- **The whole vault:** create, edit a heading or property, replace, and move a note with its links rewritten; every write shows a diff with `--dry-run` and can refuse a note changed since it was read.
+- **Yours to extend and limit:** a vault adds its own operations as [extensions](docs/extensions.md), the journal bundled, and a host limits every operation with a permission mask.
 - **Built for agents:** JSON output and errors, ready-made tool definitions with MCP-style hints, and a skill for coding agents.
 - **Node and Bun:** one npm package, runnable with `npx` or `bunx`.
 
@@ -115,7 +116,7 @@ tsuzuri assumes no folder layout or house style. Each setting is resolved in thi
 
 tsuzuri reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `tsuzuri.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
-An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. tsuzuri has no journal settings: a caller that keeps daily or weekly notes builds their path and reads or appends to it like any other note.
+An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. A vault's own conventions, such as daily and weekly notes, come from [extensions](docs/extensions.md) it lists: `extensions = ["tsuzuri:journal"]` enables the bundled journal and its `[journal.<period>]` tables.
 
 A `tsuzuri.toml` declaring a stricter house style:
 
@@ -186,6 +187,16 @@ const agent = new Vault(root, { allow: ["read", { ops: ["create", "edit"], under
 - A read rule limited to folders hides the notes outside them from every read: lists, search, grep, `find`, `nav`, and links. A link to a hidden note is left out, and an ambiguous link names only the candidates shown. A path outside the folders raises `PermissionError`; a name that only a hidden note has is not found.
 - Reading a template is part of `create`, so read rules do not apply to it.
 
+### Extensions
+
+A vault lists [extensions](docs/extensions.md) in `tsuzuri.toml`, and `Vault.open` loads them: a bundled `tsuzuri:<name>` always, and a module the vault holds only with `trust`. Their operations run through `vault.run(name, input)`, appear in `vault.operations()`, and become agent tools and CLI commands; the mask covers them and every call they make.
+
+```ts
+const vault = await Vault.open(root, { allow: ["read", "capture"] }); // tsuzuri.toml: extensions = ["tsuzuri:journal"]
+const today = await vault.run("journal", { period: "day" });
+console.log(vault.skipped); // the listed extensions not loaded, and why
+```
+
 ### Agent tools
 
 The `tsuzuri/tools` entry turns the SDK's operations into tool definitions for a tool-calling model. It imports only the prelude, so it can do nothing a consumer cannot ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)).
@@ -200,11 +211,11 @@ const tool = tools.find((candidate) => candidate.name === "tsuzuri_search");
 const result = await tool?.run(vault, validateInput(tool, { query: "cognitive load" }));
 ```
 
-`agentTools()` returns each tool with a `tsuzuri_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
+`agentTools(vault)` returns each tool with a `tsuzuri_` name, the `operation` it runs, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
 
-The default exposure: reads and `tsuzuri_capture` are `direct`; `tsuzuri_append`, `tsuzuri_section_put`, `tsuzuri_prop_set`, and `tsuzuri_new` need a human's `confirm`; `tsuzuri_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+tsuzuri offers the tools the vault's [permission mask](#permission-mask) allows, and every tool without a vault; which of them to confirm with a human is the host's choice, which the hints inform ([ADR 0016](docs/decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md)). A bot sharing its owner's vault opens it with `allow: ["read", "capture"]` and offers `agentTools(vault)`. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
 
-The `tsuzuri-tools` command lists each tool with its exposure and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
+The `tsuzuri-tools` command lists each tool with its operation and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
 
 ### Agent skill
 

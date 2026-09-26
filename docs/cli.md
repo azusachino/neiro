@@ -9,10 +9,13 @@ Every `tsuzuri` command, its options, and what `--json` returns. `tsuzuri help <
 | `--vault <dir>` | vault root (default: $TSUZURI_VAULT, then the current directory) |
 | `--json` | machine-readable output and errors, the same as --format json |
 | `--format <text\|json\|paths>` | paths prints one path per line, for xargs and fzf |
+| `--trust` | run the extension modules the vault itself lists (bundled tsuzuri: extensions need no trust) |
 | `-h, --help` | show help, for one command when one is given |
 | `-v, --version` | show the version |
 
 The vault is `--vault`, else `$TSUZURI_VAULT`, else the current directory. A command refuses an option it does not take. A text argument that starts with a dash and a space, or a negative number, is text rather than an option; anything else starting with a dash goes after `--`.
+
+A vault's extensions add commands of their own, such as the bundled journal's `journal` and `journal append`; `tsuzuri help` lists them, and [extensions](extensions.md) describes them. They load when a vault lists them in `tsuzuri.toml`; a module the vault itself holds runs only with `--trust`, or when the vault's root is in `vaults` in `$XDG_CONFIG_HOME/tsuzuri/trust.toml`.
 
 ## output and errors
 

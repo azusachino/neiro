@@ -4,6 +4,7 @@
  */
 import { posix } from "node:path";
 import { ConfigError, TsuzuriError } from "./errors.ts";
+import type { Vault } from "./vault.ts";
 
 export type OperationKind = "read" | "create" | "edit" | "move" | "delete";
 
@@ -39,11 +40,47 @@ export const OPERATIONS = {
 
 export type OperationName = keyof typeof OPERATIONS;
 
+/** One input of an operation an extension defines, in the JSON Schema terms an agent tool takes. */
+export interface InputProperty {
+  type: "string" | "integer" | "boolean" | "array";
+  description: string;
+  enum?: readonly string[];
+  /** Required inputs are the command's arguments, in order; the others are its options, `--kebab-case`. */
+  required?: boolean;
+}
+
+/**
+ * An operation an extension adds (ADR 0019): it becomes a CLI command, an agent tool, and an entry the mask covers
+ * by its name and kind. `run` works through the `Vault` it is given, whose mask applies to every call it makes.
+ */
+export interface OperationDefinition {
+  /** A camelCase name, unique among the core operations and every extension's. */
+  name: string;
+  kind: OperationKind;
+  /** The command's words, such as `journal append`. */
+  command: string;
+  summary: string;
+  input: Record<string, InputProperty>;
+  run(vault: Vault, input: Record<string, unknown>, context: { settings: unknown }): Promise<unknown>;
+  /** The command's text output; JSON when unset. */
+  format?(result: unknown): string;
+}
+
+export interface Extension {
+  name: string;
+  /** The `tsuzuri.toml` table the extension reads, such as `journal`; `settings` checks and parses it. */
+  table?: string;
+  /** Parse the table, raising `ConfigError` for a key or value the extension does not take. */
+  settings?(table: Record<string, unknown> | undefined, source: string): unknown;
+  operations: OperationDefinition[];
+}
+
 /**
  * One rule of a mask: a kind or an operation name, or several with `under`, the folders they are limited to.
- * `"read"`, `"capture"`, and `{ ops: ["edit"], under: ["Inbox"] }` are rules.
+ * `"read"`, `"capture"`, and `{ ops: ["edit"], under: ["Inbox"] }` are rules. An extension's operations are named
+ * the same way.
  */
-export type AllowRule = OperationKind | OperationName | { ops: (OperationKind | OperationName)[]; under?: string[] };
+export type AllowRule = OperationKind | OperationName | (string & {}) | { ops: string[]; under?: string[] };
 
 /** Raised when a `Vault`'s mask does not allow an operation, or a path it would touch. Nothing is touched first. */
 export class PermissionError extends TsuzuriError {}
@@ -69,20 +106,23 @@ function folder(under: string, rule: number): string {
 }
 
 export class Mask {
-  private readonly scopes = new Map<OperationName, Scope>();
+  private readonly kinds: Map<string, OperationKind>;
+  private readonly scopes = new Map<string, Scope>();
 
-  /** Without rules, every operation is allowed everywhere. */
-  constructor(rules?: AllowRule[]) {
-    for (const name of Object.keys(OPERATIONS) as OperationName[]) {
+  /** Over the core operations and any `extra` an extension adds; without rules, everything is allowed everywhere. */
+  constructor(rules?: AllowRule[], extra: { name: string; kind: OperationKind }[] = []) {
+    this.kinds = new Map<string, OperationKind>([
+      ...(Object.entries(OPERATIONS) as [string, OperationKind][]),
+      ...extra.map(({ name, kind }) => [name, kind] as [string, OperationKind]),
+    ]);
+    for (const name of this.kinds.keys()) {
       this.scopes.set(name, rules ? { everywhere: false, folders: [] } : { everywhere: true });
     }
     rules?.forEach((rule, i) => {
       const { ops, under } = typeof rule === "string" ? { ops: [rule], under: undefined } : rule;
       const folders = under?.map((path) => folder(path, i));
       for (const op of ops) {
-        const named = (Object.keys(OPERATIONS) as OperationName[]).filter(
-          (name) => name === op || OPERATIONS[name] === op,
-        );
+        const named = [...this.kinds].filter(([name, kind]) => name === op || kind === op).map(([name]) => name);
         if (named.length === 0) {
           throw new ConfigError(
             `allow rule ${i}: "${op}" is neither a kind (${OPERATION_KINDS.join(", ")}) nor an operation`,
@@ -93,7 +133,7 @@ export class Mask {
     });
   }
 
-  private widen(name: OperationName, folders: string[] | undefined): void {
+  private widen(name: string, folders: string[] | undefined): void {
     const scope = this.scopes.get(name) as Scope;
     if (scope.everywhere) return;
     // A folder of "" is the vault root, which is everywhere.
@@ -101,23 +141,23 @@ export class Mask {
     else scope.folders.push(...folders);
   }
 
-  scope(op: OperationName): Scope {
-    return this.scopes.get(op) as Scope;
+  scope(op: string): Scope {
+    return this.scopes.get(op) ?? { everywhere: false, folders: [] };
   }
 
   /** Whether `op` may run at all, anywhere. */
-  allows(op: OperationName): boolean {
+  allows(op: string): boolean {
     const scope = this.scope(op);
     return scope.everywhere || scope.folders.length > 0;
   }
 
   /** Whether some operation of `kind` may reach this path, as a move's link rewrites need for `edit`. */
   kindReaches(kind: OperationKind, path: string): boolean {
-    return (Object.keys(OPERATIONS) as OperationName[]).some((op) => OPERATIONS[op] === kind && this.reaches(op, path));
+    return [...this.kinds].some(([op, opKind]) => opKind === kind && this.reaches(op, path));
   }
 
   /** Whether `op` may reach this vault-relative path. */
-  reaches(op: OperationName, path: string): boolean {
+  reaches(op: string, path: string): boolean {
     const scope = this.scope(op);
     if (scope.everywhere) return true;
     const normalized = vaultPath(path);
@@ -125,7 +165,7 @@ export class Mask {
   }
 
   /** Refuse `op` unless it may run, and reach every path given, before anything is touched. */
-  check(op: OperationName, paths: string[] = []): void {
+  check(op: string, paths: string[] = []): void {
     if (!this.allows(op)) throw new PermissionError(`this vault's mask does not allow ${op}`);
     const outside = paths.find((path) => !this.reaches(op, path));
     if (outside !== undefined) throw new PermissionError(`this vault's mask does not allow ${op} on ${outside}`);

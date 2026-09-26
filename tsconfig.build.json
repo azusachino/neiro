@@ -8,5 +8,5 @@
     "outDir": "dist/lib"
   },
   "include": [],
-  "files": ["src/index.ts", "src/tools.ts"]
+  "files": ["src/index.ts", "src/tools.ts", "src/extension.ts", "src/extensions/journal.ts"]
 }

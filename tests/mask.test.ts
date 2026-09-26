@@ -23,7 +23,8 @@ describe("the operations table", () => {
   test("names every Vault method that touches files, each with a kind", () => {
     // TypeScript's private methods are still on the prototype, so the internal ones are named here. A new public
     // method that is in neither list fails this test until it is added to the table.
-    const internal = ["constructor", "reload", "change", "recorded", "captureAs", "reachable", "resolve"];
+    const internal = ["constructor", "reload", "allows", "skipped", "operations", "definition", "run", "change"];
+    internal.push("recorded", "captureAs", "reachable", "resolve");
     internal.push("visibleResolution", "load", "graph", "scan", "paths", "fingerprint");
     const methods = Object.getOwnPropertyNames(Vault.prototype).filter((name) => !internal.includes(name));
     expect(methods.sort()).toEqual(Object.keys(OPERATIONS).sort());

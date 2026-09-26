@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { TsuzuriError, Vault } from "tsuzuri";
-import { agentTools, DEFAULT_EXPOSURE, TOOLS, ToolInputError, validateInput } from "tsuzuri/tools";
-import { copyVault } from "./git.ts";
+import { OPERATIONS, TsuzuriError, Vault } from "tsuzuri";
+import { agentTools, TOOLS, ToolInputError, validateInput } from "tsuzuri/tools";
+import { copyVault, FIXTURE } from "./git.ts";
 
 const tool = (name: string) => {
   const found = TOOLS.find((candidate) => candidate.name === name);
@@ -41,28 +41,35 @@ describe("tool definitions", () => {
     }
   });
 
-  test("hint consistently: reads are read-only, and only non-destructive tools are exposed directly", () => {
-    for (const { name, annotations, exposure } of TOOLS) {
+  test("hint consistently: a tool is read-only exactly when its operation reads, and reads are never destructive", () => {
+    for (const { name, annotations, operation } of TOOLS) {
+      expect(annotations.readOnlyHint, name).toBe(OPERATIONS[operation as keyof typeof OPERATIONS] === "read");
       if (annotations.readOnlyHint) expect(annotations.destructiveHint, name).toBe(false);
-      if (annotations.destructiveHint) expect(exposure, name).not.toBe("direct");
     }
   });
 
-  test("default to the roadmap's exposure, and agentTools never offers cli-only tools", () => {
-    expect(DEFAULT_EXPOSURE).toMatchObject({
-      tsuzuri_capture: "direct",
-      tsuzuri_append: "confirm",
-      tsuzuri_section_put: "confirm",
-      tsuzuri_prop_set: "confirm",
-      tsuzuri_put: "cli-only",
-    });
-    const offered = agentTools().map((definition) => definition.name);
-    expect(offered).not.toContain("tsuzuri_put");
-    expect(offered).toContain("tsuzuri_get");
-    const locked = agentTools({ ...DEFAULT_EXPOSURE, tsuzuri_capture: "cli-only" }).map(
-      (definition) => definition.name,
-    );
-    expect(locked).not.toContain("tsuzuri_capture");
+  test("are offered as the vault's mask allows, and all of them without a vault", () => {
+    const names = (tools: { name: string }[]) => tools.map((tool) => tool.name);
+    expect(names(agentTools())).toEqual(names(TOOLS));
+    expect(names(agentTools(new Vault(FIXTURE)))).toEqual(names(TOOLS));
+    const bot = names(agentTools(new Vault(FIXTURE, { allow: ["read", "capture"] })));
+    expect(bot).toContain("tsuzuri_get");
+    expect(bot).toContain("tsuzuri_capture");
+    for (const writer of ["tsuzuri_append", "tsuzuri_put", "tsuzuri_write", "tsuzuri_move", "tsuzuri_new"]) {
+      expect(bot).not.toContain(writer);
+    }
+    expect(names(agentTools(new Vault(FIXTURE, { allow: [] })))).toEqual([]);
+  });
+
+  test("write creates, and move rewrites the links it would break", async () => {
+    const vault = new Vault(copyVault());
+    const run = (name: string, input: Record<string, unknown>) => {
+      const found = tool(name);
+      return found.run(vault, validateInput(found, input));
+    };
+    expect(await run("tsuzuri_write", { path: "Notes/By tool.md", content: "x\n" })).toMatchObject({ created: true });
+    const moved = await run("tsuzuri_move", { note: "Working memory", to: "Topics/Short-term memory.md" });
+    expect(moved).toMatchObject({ written: true, rewritten: [{ path: "Topics/Cognitive load.md" }] });
   });
 });
 
@@ -131,7 +138,7 @@ describe("the tsuzuri-tools command", () => {
     expect(JSON.parse(stdout)).toEqual(
       JSON.parse(JSON.stringify(TOOLS.map(({ run: _, ...definition }) => definition))),
     );
-    expect(run().stdout).toContain("tsuzuri_capture\tdirect\tadds\t");
+    expect(run().stdout).toContain("tsuzuri_capture\tcapture\tadds\t");
     expect(run("--bogus").status).toBe(2);
   });
 });

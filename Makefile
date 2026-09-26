@@ -30,6 +30,8 @@ pack: ## Pack tsuzuri into dist/pack, the tarball npm and each GitHub release ca
 	bun pm pack --destination dist/pack
 	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/index.d.ts
 	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/tools.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/extension.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/extensions/journal.d.ts
 	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/README.md
 	! tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q -e '\.test\.ts$$' -e '^package/tests/'
 
