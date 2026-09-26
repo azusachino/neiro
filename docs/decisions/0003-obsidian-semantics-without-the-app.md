@@ -1,6 +1,6 @@
 # 0003 Obsidian semantics without the Obsidian app
 
-Status: accepted, 2026-09-24 (0.1.0); recorded 2026-09-25. Its settings bullet is superseded by [ADR 0011](0011-settings-from-neiro-toml-only.md).
+Status: accepted, 2026-09-24 (0.1.0); recorded 2026-09-25. Its settings bullet is superseded by [ADR 0011](0011-settings-from-neiro-toml-only.md). Its title rule is amended by [ADR 0015](0015-any-markdown-folder.md).
 
 ## context
 
