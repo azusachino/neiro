@@ -101,7 +101,7 @@ From the 0.8.0 research: tsuzuri run on a 10,248-page MkDocs collection, its con
 6. **Scale and paging:** search statistics kept per scan ([#96](https://github.com/azusachino/tsuzuri/issues/96)), and `--offset` ([#97](https://github.com/azusachino/tsuzuri/issues/97)).
 7. **A product README and wider use cases** ([#98](https://github.com/azusachino/tsuzuri/issues/98)), last, so every example runs.
 
-Later, each only when a use case asks for it: reading a site generator's navigation such as `mkdocs.yml`, and a drafts folder where an agent's notes wait for review. An MCP or language server stays out ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
+Later, each only when a use case asks for it: reading a site generator's navigation such as `mkdocs.yml`, a drafts folder where an agent's notes wait for review, and extensions from npm packages (`extensions = ["npm:<pkg>"]`, run with `npx -p tsuzuri -p <pkg>`) once a published one exists; until then an extension is shared as a file a vault copies into `.tsuzuri/` ([extensions](extensions.md)). An MCP or language server stays out ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
 
 Whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/tsuzuri/issues/24)) still needs a check in the app.
 
