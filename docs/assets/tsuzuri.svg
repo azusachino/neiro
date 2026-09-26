@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="tsuzuri">
+  <title>tsuzuri</title>
+  <defs>
+    <linearGradient id="leaf" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#2F8F5B"/>
+      <stop offset="1" stop-color="#5CC48A"/>
+    </linearGradient>
+  </defs>
+  <!-- stem -->
+  <path d="M30 98 L16 112" stroke="#2A7A4E" stroke-width="7" stroke-linecap="round"/>
+  <!-- leaf: a page -->
+  <path d="M30 98 C20 58 52 20 108 18 C110 74 72 108 30 98 Z" fill="url(#leaf)"/>
+  <!-- side veins -->
+  <g stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M52 76 L44 58"/><path d="M66 62 L60 40"/><path d="M80 48 L78 30"/>
+    <path d="M52 76 L70 82"/><path d="M66 62 L86 66"/><path d="M80 48 L98 50"/>
+  </g>
+  <!-- midrib: a running stitch of binding thread -->
+  <path d="M34 94 L102 24" stroke="#FFF4D6" stroke-width="5" stroke-linecap="round" stroke-dasharray="9 7" fill="none"/>
+</svg>

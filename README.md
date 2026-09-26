@@ -1,6 +1,6 @@
 # tsuzuri
 
-![tsuzuri](https://raw.githubusercontent.com/azusachino/tsuzuri/main/docs/assets/tsuzuri.png)
+![tsuzuri](https://raw.githubusercontent.com/azusachino/tsuzuri/main/docs/assets/tsuzuri.svg)
 
 [![npm](https://img.shields.io/npm/v/tsuzuri)](https://www.npmjs.com/package/tsuzuri)
 [![CI](https://github.com/azusachino/tsuzuri/actions/workflows/ci.yml/badge.svg)](https://github.com/azusachino/tsuzuri/actions/workflows/ci.yml)
