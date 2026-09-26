@@ -1,6 +1,6 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join, posix, resolve } from "node:path";
+import { dirname, join, posix, resolve } from "node:path";
 import ignore from "ignore";
 import { parseDocument, stringify } from "yaml";
 import {
@@ -15,13 +15,22 @@ import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
+import { planMove } from "./move.ts";
 import { type AllowRule, Mask, type OperationName, PermissionError } from "./operations.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 import { renderTemplate, templateFor, templateNames } from "./templates.ts";
-import { contentHash, splice, WriteConflictError, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
+import {
+  contentHash,
+  splice,
+  unifiedDiff,
+  WriteConflictError,
+  type WriteOptions,
+  type WriteResult,
+  writeNote,
+} from "./write.ts";
 
 export interface Note {
   /** Vault-relative POSIX path, e.g. `note/tech/cognitive-load.md`. */
@@ -113,6 +122,18 @@ export interface Heading {
   text: string;
   /** Counted from the top of the file, frontmatter included. */
   line: number;
+}
+
+export interface MoveResult {
+  from: string;
+  to: string;
+  /** A unified diff from the note at its old path to the note at its new one, with any of its own links rewritten. */
+  diff: string;
+  /** The hash of the moved note's content, for a following `ifHash`. */
+  hash: string;
+  written: boolean;
+  /** Every other note whose links the move rewrote, or would. */
+  rewritten: WriteResult[];
 }
 
 export interface SectionWriteOptions extends WriteOptions {
@@ -371,10 +392,7 @@ export class Vault {
 
   /** Create a note at any `.md` path in the vault, with this content; an existing file is refused. */
   async write(path: string, content: string, options: Pick<WriteOptions, "dryRun"> = {}): Promise<WriteResult> {
-    const target = posix.normalize(path.replaceAll("\\", "/").trim()).replace(/^\.\//, "");
-    if (target.startsWith("/") || target === ".." || target.startsWith("../") || !target.endsWith(".md")) {
-      throw new WriteConflictError(`write takes a .md path inside the vault, not "${path}"`);
-    }
+    const target = notePath(path, "write");
     this.mask.check("write", [target]);
     return this.recorded(
       writeNote(
@@ -387,6 +405,64 @@ export class Vault {
         options,
       ),
     );
+  }
+
+  /**
+   * Move or rename a note to a `.md` path, making missing folders; an existing file there is refused. Every link that
+   * resolved to a note before the move is rewritten where it would no longer resolve to that note, so the move leaves
+   * no link broken (see `planMove`). Under a mask, the move needs its rule for both paths, and every note it rewrites
+   * must be editable. `ifHash` guards the moved note; every rewritten note is refused if it changed since the scan.
+   */
+  async move(ref: string, to: string, options: WriteOptions = {}): Promise<MoveResult> {
+    const note = await this.resolve("move", ref);
+    const target = notePath(to, "move");
+    if (target === note.path) throw new WriteConflictError(`${note.path} is already at ${target}`);
+    this.mask.check("move", [note.path, target]);
+    // A change of case alone renames the same file on a case-insensitive disk.
+    if (target.toLowerCase() !== note.path.toLowerCase() && existsSync(join(this.root, target))) {
+      throw new WriteConflictError(`${target} exists; move does not overwrite`);
+    }
+    const { notes } = await this.load();
+    const plan = planMove(notes, note.path, target);
+    const editable = [...plan.keys()].filter((path) => path !== note.path);
+    const locked = editable.find((path) => !this.mask.kindReaches("edit", path));
+    if (locked) {
+      throw new PermissionError(
+        `moving ${note.path} rewrites links in ${locked}, which this vault's mask does not allow editing`,
+      );
+    }
+    const onDisk = (path: string) => contentHash(new TextDecoder().decode(readFileSync(join(this.root, path))));
+    if (options.ifHash !== undefined && onDisk(note.path) !== options.ifHash) {
+      throw new WriteConflictError(`${note.path} changed since it was read: its hash is now ${onDisk(note.path)}`);
+    }
+    // Every file the move rewrites must still be as scanned, since its new text was planned from that.
+    const scanned = new Map(notes.map((scannedNote) => [scannedNote.path, scannedNote.raw]));
+    const stale = [...plan.keys()].find((path) => onDisk(path) !== contentHash(scanned.get(path) as string));
+    if (stale) throw new WriteConflictError(`${stale} changed since tsuzuri read it; reload and move again`);
+
+    const moved = plan.get(note.path) ?? note.raw;
+    const result = {
+      from: note.path,
+      to: target,
+      diff: unifiedDiff(note.path, target, note.raw, moved),
+      hash: contentHash(moved),
+    };
+    const rewrite = (path: string, dryRun: boolean) =>
+      writeNote(this.root, path, () => plan.get(path) as string, {
+        dryRun,
+        ifHash: contentHash(scanned.get(path) as string),
+      });
+    if (options.dryRun) {
+      const rewritten = await Promise.all(editable.map((path) => rewrite(path, true)));
+      return { ...result, written: false, rewritten };
+    }
+    const rewritten: WriteResult[] = [];
+    for (const path of editable) rewritten.push(await rewrite(path, false));
+    mkdirSync(dirname(join(this.root, target)), { recursive: true });
+    renameSync(join(this.root, note.path), join(this.root, target));
+    if (moved !== note.raw) await writeNote(this.root, target, () => moved, {});
+    this.reload();
+    return { ...result, written: true, rewritten };
   }
 
   /** Replace a whole note. With `ifHash`, a note that changed since `get` returned that hash is refused. */
@@ -772,6 +848,15 @@ function summarize(note: Note): NoteSummary {
     ...(created !== undefined ? { created: String(created) } : {}),
     ...(modified !== undefined ? { modified: String(modified) } : {}),
   };
+}
+
+/** A `.md` path inside the vault, normalized, or `WriteConflictError` naming the verb that was given it. */
+function notePath(path: string, verb: string): string {
+  const target = posix.normalize(path.replaceAll("\\", "/").trim()).replace(/^\.\//, "");
+  if (target.startsWith("/") || target === ".." || target.startsWith("../") || !target.endsWith(".md")) {
+    throw new WriteConflictError(`${verb} takes a .md path inside the vault, not "${path}"`);
+  }
+  return target;
 }
 
 function folderPrefix(folder: string): string {

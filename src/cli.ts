@@ -9,6 +9,7 @@ import {
   type Filter,
   formatGrep,
   type GrepHit,
+  type MoveResult,
   type OperationName,
   propertyValue,
   type SectionWriteOptions,
@@ -293,6 +294,15 @@ const COMMANDS: readonly CommandSpec[] = [
     example: 'tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run',
   },
   {
+    name: "move",
+    operation: "move",
+    args: "<note> <path>",
+    summary: "move or rename a note to a .md path, rewriting every link the move would break",
+    writes: true,
+    options: WRITE,
+    example: 'tsuzuri move "Existing idea" "Notes/Existing idea.md" --dry-run',
+  },
+  {
     name: "put",
     operation: "put",
     args: "<note> [text...]",
@@ -437,6 +447,15 @@ function sectionOptions(): SectionWriteOptions {
 }
 
 /** A write's result: the diff on a dry run, else the path and the new hash for a following --if-hash. */
+/** A move: its paths and the notes it rewrote, or, for a dry run, every diff it would apply. */
+function emitMove(result: MoveResult): void {
+  emit(result, () => {
+    if (!result.written) return [result.diff, ...result.rewritten.map((write) => write.diff)].join("").trimEnd();
+    const rewritten = result.rewritten.map((write) => `rewrote\t${write.path}`);
+    return [`${result.from}\t${result.to}\t${result.hash}`, ...rewritten].join("\n");
+  });
+}
+
 function emitWrite(result: WriteResult): void {
   emit(result, () =>
     result.written ? `${result.path}\t${result.hash}` : result.diff.trim() === "" ? "no change" : result.diff.trimEnd(),
@@ -655,6 +674,11 @@ async function main(): Promise<void> {
       }
       const value = await vault.property(ref, key);
       return emit(value, () => (typeof value === "string" ? value : JSON.stringify(value)));
+    }
+    case "move": {
+      const [ref, to, ...rest] = args;
+      if (!ref || !to || rest.length > 0) throw new UsageError("usage: move <note> <path>");
+      return emitMove(await vault.move(ref, to, writeOptions()));
     }
     case "write":
     case "put": {

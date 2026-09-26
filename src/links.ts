@@ -66,8 +66,13 @@ function rawLines(): (line: string) => boolean {
   };
 }
 
-/** A line without its code spans: a run of backticks closes only on a run of the same length, else it is text. */
-function withoutCodeSpans(line: string): string {
+const blank = (text: string) => " ".repeat(text.length);
+
+/**
+ * A line with its code spans blanked out, keeping every other character at its offset: a run of backticks closes
+ * only on a run of the same length, else it is text.
+ */
+function maskCodeSpans(line: string): string {
   let text = "";
   let from = 0;
   const run = /`+/g;
@@ -75,24 +80,44 @@ function withoutCodeSpans(line: string): string {
     const close = new RegExp(`(?<!\`)\`{${open[0].length}}(?!\`)`, "g");
     close.lastIndex = run.lastIndex;
     if (!close.exec(line)) continue;
-    text += line.slice(from, open.index);
+    text += line.slice(from, open.index) + blank(line.slice(open.index, close.lastIndex));
     from = run.lastIndex = close.lastIndex;
   }
   return text + line.slice(from);
 }
 
-/** Every wikilink and local Markdown link in a Markdown body, skipping code and raw HTML. */
-export function extractLinks(body: string): WikiLink[] {
-  const links: WikiLink[] = [];
+/** A link, and where its target is written: `text.slice(start, end)`, without its fragment, display, or `<>`. */
+export interface LinkSpan extends WikiLink {
+  kind: "wiki" | "markdown";
+  start: number;
+  end: number;
+}
+
+/** Every wikilink and local Markdown link in a Markdown body with its place, skipping code and raw HTML. */
+export function linkSpans(body: string): LinkSpan[] {
+  const spans: LinkSpan[] = [];
   const isRaw = rawLines();
+  let offset = 0;
   for (const line of body.split("\n")) {
+    const at = offset;
+    offset += line.length + 1;
     // Every line feeds the block state, but most hold no link; skip the link patterns for those.
     if (isRaw(line) || !line.includes("[")) continue;
-    const text = line.includes("`") ? withoutCodeSpans(line) : line;
-    links.push(...wikilinks(text));
-    if (text.includes("](")) links.push(...markdownLinks(text.replace(LINK, "")));
+    const text = line.includes("`") ? maskCodeSpans(line) : line;
+    spans.push(...wikilinks(text, at));
+    if (text.includes("](")) spans.push(...markdownLinks(text.replace(LINK, blank), at));
   }
-  return links;
+  return spans;
+}
+
+/** Every wikilink and local Markdown link in a Markdown body, skipping code and raw HTML. */
+export function extractLinks(body: string): WikiLink[] {
+  return linkSpans(body).map(({ target, embed, display }) => ({ target, embed, ...(display ? { display } : {}) }));
+}
+
+/** The wikilinks written in a frontmatter block's text, with their places, for rewriting them. */
+export function frontmatterSpans(yaml: string): LinkSpan[] {
+  return wikilinks(yaml, 0);
 }
 
 /** The wikilinks in frontmatter values, such as `related: "[[Note]]"`, which Obsidian counts as links. */
@@ -105,11 +130,13 @@ export function frontmatterLinks(data: Record<string, unknown>): WikiLink[] {
         : typeof value === "object" && value !== null
           ? Object.values(value).flatMap(strings)
           : [];
-  return strings(data).flatMap(wikilinks);
+  return strings(data)
+    .flatMap((text) => wikilinks(text, 0))
+    .map(({ target, embed, display }) => ({ target, embed, ...(display ? { display } : {}) }));
 }
 
-function wikilinks(text: string): WikiLink[] {
-  const links: WikiLink[] = [];
+function wikilinks(text: string, at: number): LinkSpan[] {
+  const links: LinkSpan[] = [];
   for (const match of text.matchAll(LINK)) {
     const inner = match[2] ?? "";
     // Table cells escape the alias pipe as `\|`.
@@ -122,20 +149,25 @@ function wikilinks(text: string): WikiLink[] {
             .slice(pipe)
             .replace(/^\\?\|/, "")
             .trim();
-    const target = rawTarget.replace(/[#^].*$/, "").trim();
+    const written = rawTarget.replace(/[#^].*$/, "");
+    const target = written.trim();
     if (target === "") continue;
-    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}) });
+    const start = at + match.index + (match[1] ?? "").length + 2 + (written.length - written.trimStart().length);
+    const span = { kind: "wiki" as const, start, end: start + target.length };
+    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}), ...span });
   }
   return links;
 }
 
 /** Markdown links to vault files; Obsidian writes their targets URL-encoded, as `My%20Note.md`. */
-function markdownLinks(text: string): WikiLink[] {
-  const links: WikiLink[] = [];
+function markdownLinks(text: string, at: number): LinkSpan[] {
+  const links: LinkSpan[] = [];
   for (const match of text.matchAll(MARKDOWN_LINK)) {
-    const written = (match[3] ?? "").replace(/^<|>$/g, "");
+    const destination = match[3] ?? "";
+    const written = destination.replace(/^<|>$/g, "");
     if (SCHEME.test(written)) continue;
-    let target = written.replace(/#.*$/, "");
+    const encoded = written.replace(/#.*$/, "");
+    let target = encoded;
     try {
       target = decodeURIComponent(target);
     } catch {
@@ -144,7 +176,10 @@ function markdownLinks(text: string): WikiLink[] {
     target = target.trim();
     if (target === "") continue;
     const display = match[2]?.trim();
-    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}) });
+    // The destination follows the first `](`, since the text before it holds no `]`.
+    const start = at + match.index + match[0].indexOf("](") + 2 + (destination.startsWith("<") ? 1 : 0);
+    const span = { kind: "markdown" as const, start, end: start + encoded.length };
+    links.push({ target, embed: match[1] === "!", ...(display ? { display } : {}), ...span });
   }
   return links;
 }
