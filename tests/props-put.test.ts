@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { propertyValue, Vault, WriteConflictError } from "tsuzuri";
+import { NotFoundError, propertyValue, Vault, WriteConflictError } from "tsuzuri";
 import { copyVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
@@ -72,35 +72,63 @@ describe("prop set", () => {
   });
 });
 
-describe("put", () => {
-  test("creates a note, and replaces one only with the hash get returned", async () => {
+describe("write", () => {
+  test("creates a note at any .md path in the vault, and refuses an existing file", async () => {
     const root = copyVault();
     const vault = new Vault(root);
-    const created = await vault.put("Notes/New note.md", "# New\n");
-    expect(created).toMatchObject({ created: true, written: true });
-    await expect(vault.put("Notes/New note.md", "silently replaced\n")).rejects.toThrow("needs --if-hash");
-    const { hash } = await vault.get("Notes/New note.md");
-    const replaced = await vault.put("Notes/New note.md", "# Replaced\n", { ifHash: hash });
-    expect(replaced).toMatchObject({ created: false, written: true });
-    await expect(vault.put("Notes/New note.md", "# Stale\n", { ifHash: hash })).rejects.toThrow(WriteConflictError);
-    expect(readFileSync(join(root, "Notes", "New note.md"), "utf8")).toBe("# Replaced\n");
+    expect(await vault.write("Deep/New/Place.md", "# New\n")).toMatchObject({ created: true, written: true });
+    expect(readFileSync(join(root, "Deep", "New", "Place.md"), "utf8")).toBe("# New\n");
+    expect((await vault.get("Place")).path).toBe("Deep/New/Place.md");
+    await expect(vault.write("Deep/New/Place.md", "again\n")).rejects.toThrow("write only creates");
+    expect(readFileSync(join(root, "Deep", "New", "Place.md"), "utf8")).toBe("# New\n");
   });
 
   test("refuses paths outside the vault or not ending in .md", async () => {
     const vault = new Vault(copyVault());
-    for (const path of ["../escape.md", "/abs.md", "Notes/x.txt", "Notes/../../out.md"]) {
-      await expect(vault.put(path, "x")).rejects.toThrow(WriteConflictError);
+    for (const path of ["../escape.md", "/abs.md", "Notes/x.txt", "Notes/../../out.md", ".."]) {
+      await expect(vault.write(path, "x"), path).rejects.toThrow(WriteConflictError);
     }
+  });
+
+  test("reports a dry run without writing", async () => {
+    const root = copyVault();
+    const result = await new Vault(root).write("Notes/Dry.md", "x\n", { dryRun: true });
+    expect(result).toMatchObject({ path: "Notes/Dry.md", created: true, written: false });
+    expect(existsSync(join(root, "Notes", "Dry.md"))).toBe(false);
+  });
+});
+
+describe("put", () => {
+  test("replaces a whole note by any reference, with no hash needed", async () => {
+    const root = copyVault();
+    const vault = new Vault(root);
+    const replaced = await vault.put("Existing idea", "# Replaced\n");
+    expect(replaced).toMatchObject({ path: "Inbox/Existing idea.md", created: false, written: true });
+    expect(readFileSync(join(root, "Inbox", "Existing idea.md"), "utf8")).toBe("# Replaced\n");
+  });
+
+  test("refuses a stale hash, and a note that does not exist", async () => {
+    const root = copyVault();
+    const vault = new Vault(root);
+    const { hash } = await vault.get("Existing idea");
+    expect((await vault.put("Existing idea", "# First\n", { ifHash: hash })).written).toBe(true);
+    await expect(vault.put("Existing idea", "# Stale\n", { ifHash: hash })).rejects.toThrow(WriteConflictError);
+    expect(readFileSync(join(root, "Inbox", "Existing idea.md"), "utf8")).toBe("# First\n");
+    await expect(vault.put("Notes/Nowhere.md", "x")).rejects.toThrow(NotFoundError);
+    expect(existsSync(join(root, "Notes", "Nowhere.md"))).toBe(false);
   });
 
   test("takes text, --file, or stdin from the CLI, and exits 1 when refused", () => {
     const root = copyVault();
     const run = (args: string[], input?: string) =>
       spawnSync("bun", [CLI, "--vault", root, ...args], { encoding: "utf8", input });
-    expect(run(["put", "Notes/From stdin.md"], "piped\n").status).toBe(0);
+    expect(run(["write", "Notes/From stdin.md"], "piped\n").status).toBe(0);
     expect(readFileSync(join(root, "Notes", "From stdin.md"), "utf8")).toBe("piped\n");
-    expect(run(["put", "Notes/From stdin.md", "again"]).status).toBe(1);
-    expect(run(["put", "Notes/Dry.md", "x", "--dry-run"]).stdout).toContain("+x");
+    expect(run(["write", "Notes/From stdin.md", "again"]).status).toBe(1);
+    expect(run(["put", "From stdin", "replaced"]).status).toBe(0);
+    expect(readFileSync(join(root, "Notes", "From stdin.md"), "utf8")).toBe("replaced");
+    expect(run(["put", "Notes/Nowhere.md", "x"]).status).toBe(1);
+    expect(run(["write", "Notes/Dry.md", "x", "--dry-run"]).stdout).toContain("+x");
     expect(existsSync(join(root, "Notes", "Dry.md"))).toBe(false);
   });
 });

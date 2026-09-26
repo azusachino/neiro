@@ -44,7 +44,7 @@ describe("the operations table", () => {
 
 describe("a mask", () => {
   test("allows everything when unset", async () => {
-    const result = await new Vault(copyVault()).put("Notes/Free.md", "x\n");
+    const result = await new Vault(copyVault()).write("Notes/Free.md", "x\n");
     expect(result.written).toBe(true);
   });
 
@@ -55,7 +55,7 @@ describe("a mask", () => {
     expect((await vault.get("Cognitive load")).path).toBe("Topics/Cognitive load.md");
     await expect(vault.append("Cognitive load", "- more")).rejects.toThrow(PermissionError);
     await expect(vault.setProperty("Cognitive load", "status", "done")).rejects.toThrow(PermissionError);
-    await expect(vault.put("Notes/New.md", "x\n")).rejects.toThrow(PermissionError);
+    await expect(vault.write("Notes/New.md", "x\n")).rejects.toThrow(PermissionError);
     await expect(vault.capture({ text: "an idea" })).rejects.toThrow("does not allow capture");
     expect(snapshot(root)).toEqual(before);
   });
@@ -72,16 +72,18 @@ describe("a mask", () => {
     const before = snapshot(root);
     const vault = new Vault(root, { allow: ["read", { ops: ["create", "edit"], under: ["Inbox"] }] });
     for (const path of ["Notes/Out.md", "Inbox/../Notes/Out.md", "INBOX/../Notes/Out.md", "../Out.md"]) {
-      await expect(vault.put(path, "x\n"), path).rejects.toThrow();
+      await expect(vault.write(path, "x\n"), path).rejects.toThrow();
     }
-    await expect(vault.put("Notes/Out.md", "x\n")).rejects.toThrow(PermissionError);
+    await expect(vault.write("Notes/Out.md", "x\n")).rejects.toThrow(PermissionError);
     await expect(vault.append("Topics/Cognitive load.md", "- more")).rejects.toThrow(PermissionError);
+    await expect(vault.put("Topics/Cognitive load.md", "gone\n")).rejects.toThrow(PermissionError);
     // By name, a note outside the folders is simply not there for the operation.
     await expect(vault.append("Cognitive load", "- more")).rejects.toThrow(NotFoundError);
     expect(snapshot(root)).toEqual(before);
 
     expect((await vault.append("Existing idea", "- more")).path).toBe("Inbox/Existing idea.md");
-    expect((await vault.put("Inbox/New.md", "x\n")).written).toBe(true);
+    expect((await vault.write("Inbox/New.md", "x\n")).written).toBe(true);
+    expect((await vault.put("Inbox/New.md", "y\n")).written).toBe(true);
     expect((await vault.capture({ text: "an idea" })).path).toBe("Inbox/an idea.md");
     expect(existsSync(join(root, "Notes", "Out.md"))).toBe(false);
   });
