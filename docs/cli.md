@@ -96,7 +96,7 @@ tsuzuri grep -F "working memory" -C 2
 
 `tsuzuri find <query...>`
 
-Fuzzy match over paths, titles, and aliases, ranked as fzf ranks.
+Fuzzy match over paths, titles, and aliases, ranked as fzf ranks. Each word of the query must match; a CJK phrase written without spaces is split into its words, so `分布式事务` finds the same notes as `分布式 事务`.
 
 | Option | Meaning |
 | --- | --- |
