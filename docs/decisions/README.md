@@ -19,5 +19,6 @@ tsuzuri's architecture decision records. Each one says what was decided, what it
 | [0013](0013-node-first-toolchain.md) | Node first, Bun as a fast path | accepted |
 | [0014](0014-note-types-from-templates.md) | Note types from templates, and a smaller tsuzuri.toml | accepted |
 | [0015](0015-any-markdown-folder.md) | Any Markdown folder, Obsidian first | accepted |
-| [0016](0016-the-sdk-reads-and-writes-the-whole-vault.md) | The SDK reads and writes the whole vault; policy belongs to the host | accepted |
+| [0016](0016-the-sdk-reads-and-writes-the-whole-vault.md) | The SDK reads and writes the whole vault; policy belongs to the host | accepted; permission layer amended by 0018 |
 | [0017](0017-no-journal-in-the-sdk.md) | No journal in the SDK | accepted |
+| [0018](0018-operations-and-a-permission-mask.md) | Operations, and a permission mask the host sets | accepted |
