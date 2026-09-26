@@ -89,7 +89,20 @@ Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ## next
 
-No milestone is planned. Work beyond 0.5 waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/tsuzuri/issues/24)), which needs a check in the app.
+### 0.8.0: a product for any Markdown folder
+
+From the 0.8.0 research: tsuzuri run on a 10,248-page MkDocs collection, its config and commands compared with zk, notesmd-cli, basic-memory, markdown-oxide, and Foam, and its toolchain measured on Node. Three decisions set the direction: Node first, with Bun as a fast path ([ADR 0013](decisions/0013-node-first-toolchain.md)); note types from templates and a smaller `tsuzuri.toml` ([ADR 0014](decisions/0014-note-types-from-templates.md)); and any Markdown folder, Obsidian first ([ADR 0015](decisions/0015-any-markdown-folder.md)). In order:
+
+1. **Fixes found by the research:** a template's own `title` dropped ([#87](https://github.com/azusachino/tsuzuri/issues/87)), unawaited `.rejects` assertions ([#88](https://github.com/azusachino/tsuzuri/issues/88)), CJK phrases in `find` ([#89](https://github.com/azusachino/tsuzuri/issues/89)), and code and HTML read as links ([#90](https://github.com/azusachino/tsuzuri/issues/90)).
+2. **Node first:** vitest, Node 22 and 24 in CI, `npm pack` ([#91](https://github.com/azusachino/tsuzuri/issues/91)).
+3. **Note types from templates**, and `[tags]` and `[titles]` as the only rule blocks ([#92](https://github.com/azusachino/tsuzuri/issues/92)), then `init`, `types`, `check`, and `config` ([#93](https://github.com/azusachino/tsuzuri/issues/93)).
+4. **Any Markdown folder:** the vault root found by walking up ([#94](https://github.com/azusachino/tsuzuri/issues/94)), and titles from a first-line heading with `README.md` as a folder index ([#95](https://github.com/azusachino/tsuzuri/issues/95)).
+5. **Scale and paging:** search statistics kept per scan ([#96](https://github.com/azusachino/tsuzuri/issues/96)), and `--offset` ([#97](https://github.com/azusachino/tsuzuri/issues/97)).
+6. **A product README and wider use cases** ([#98](https://github.com/azusachino/tsuzuri/issues/98)), last, so every example runs.
+
+Later, each only when a use case asks for it: moving or renaming a note with its links rewritten, reading a site generator's navigation such as `mkdocs.yml`, and a drafts folder where an agent's notes wait for review. An MCP or language server stays out ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
+
+Whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/tsuzuri/issues/24)) still needs a check in the app.
 
 ## capabilities and fallback chains
 
