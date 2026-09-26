@@ -36,7 +36,7 @@ describe("the vault's .gitignore", () => {
     expect((await vault.tags()).map((entry) => entry.tag)).not.toContain("secret");
     expect((await vault.backlinks("Home")).map((note) => note.path)).not.toContain("Drafts/Secret plan.md");
     expect((await vault.nav()).folders.map((folder) => folder.path)).not.toContain("Drafts");
-    expect(vault.get("Drafts/Secret plan.md")).rejects.toThrow(NotFoundError);
+    await expect(vault.get("Drafts/Secret plan.md")).rejects.toThrow(NotFoundError);
   });
 
   test("hides ignored notes from the CLI", () => {

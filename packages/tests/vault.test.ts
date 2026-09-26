@@ -47,11 +47,11 @@ describe("get by line", () => {
   });
 
   test("refuses a range the note cannot serve, naming its length", async () => {
-    expect(vault.get(ref, { lines: { start: 28 } })).rejects.toThrow("has 27 lines");
-    expect(vault.get(ref, { lines: { start: 9, end: 3 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { lines: { start: 0 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { around: { line: 40 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { lines: { start: 1 }, around: { line: 2 } })).rejects.toThrow("not both");
+    await expect(vault.get(ref, { lines: { start: 28 } })).rejects.toThrow("has 27 lines");
+    await expect(vault.get(ref, { lines: { start: 9, end: 3 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { lines: { start: 0 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { around: { line: 40 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { lines: { start: 1 }, around: { line: 2 } })).rejects.toThrow("not both");
   });
 
   test("leaves a plain get without line fields", async () => {
@@ -69,7 +69,7 @@ describe("find and get", () => {
   });
 
   test("refuses an ambiguous stem and names the candidates", async () => {
-    expect(vault.find("Plato")).rejects.toThrow("People/Greek/Plato.md, People/Plato.md");
+    await expect(vault.find("Plato")).rejects.toThrow("People/Greek/Plato.md, People/Plato.md");
   });
 
   test("returns a content hash and marks truncation", async () => {
@@ -158,6 +158,48 @@ describe("links", () => {
     expect((await fenced.nav()).index?.headings).toEqual(["real"]);
   });
 
+  test("skips links in code spans and raw HTML blocks, as Obsidian does not render them there", async () => {
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-raw-"));
+    const note = [
+      "Spans: `[[single]]`, ``a `[[double]]` b``, and ` `` [[unmatched]] ` stay code.",
+      "",
+      '<div class="comment">',
+      "[[div]] is raw HTML until a blank line",
+      "</div>",
+      "",
+      "<pre>",
+      "",
+      "[[pre]] is raw across a blank line",
+      "</pre>",
+      "<!-- [[comment]]",
+      "-->",
+      "",
+      "<span>",
+      "[[span]] follows a lone tag after a blank line",
+      "",
+      "A paragraph goes on",
+      "<span>",
+      "[[Paragraph]], since a lone tag cannot interrupt it.",
+      "",
+      "    <div>",
+      "[[Indented]] after a tag indented four spaces, which is no HTML block.",
+      "",
+      "```",
+      "<div>",
+      "```",
+      "[[Fence]] after a tag in a fence.",
+      "",
+      "<div>",
+      "```",
+      "</div>",
+      "",
+      "[[Unfenced]] after a fence marker inside HTML.",
+    ].join("\n");
+    writeFileSync(join(root, "index.md"), note);
+    const targets = (await new Vault(root).links("index")).map((link) => link.target);
+    expect(targets).toEqual(["Paragraph", "Indented", "Fence", "Unfenced"]);
+  });
+
   test("sees a new link after a write, since the link graph goes with the scan", async () => {
     const root = mkdtempSync(join(tmpdir(), "tsuzuri-graph-"));
     writeFileSync(join(root, "A.md"), "a\n");
@@ -244,8 +286,8 @@ describe("journal", () => {
   });
 
   test("raises UnsupportedError for a period no setting covers", async () => {
-    expect(vault.journalFor("month", parseDate("2026-09-16"))).rejects.toThrow(UnsupportedError);
-    expect(new Vault(join(FIXTURE, "People")).journalFor("day")).rejects.toThrow("no day journal settings");
+    await expect(vault.journalFor("month", parseDate("2026-09-16"))).rejects.toThrow(UnsupportedError);
+    await expect(new Vault(join(FIXTURE, "People")).journalFor("day")).rejects.toThrow("no day journal settings");
   });
 
   test("lets code options override the vault's settings", async () => {

@@ -20,6 +20,12 @@ describe("find", () => {
     expect((await vault.suggest("茶"))[0]?.path).toBe("Notes/乌龙茶.md");
   });
 
+  test("matches the words of a CJK phrase written without spaces in any order, as spaced words are", async () => {
+    expect((await vault.suggest("茶乌龙"))[0]?.path).toBe("Notes/乌龙茶.md");
+    expect((await vault.suggest("乌龙Notes"))[0]?.path).toBe("Notes/乌龙茶.md");
+    expect(await vault.suggest("红茶乌龙")).toEqual([]);
+  });
+
   test("returns summaries narrowed by the filters and the limit", async () => {
     const hits = await vault.suggest("plato", { under: "People/Greek" });
     expect(hits.map((hit) => hit.path)).toEqual(["People/Greek/Plato.md"]);

@@ -100,6 +100,28 @@ export function fuzzyScore(term: string, text: string): number | null {
   return Number.isFinite(best) ? best : null;
 }
 
+const CJK_RUN = /([\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]+)/u;
+// A fixed locale, so the words do not depend on the machine's; ICU's CJK dictionary serves every locale alike.
+const WORDS = new Intl.Segmenter("und", { granularity: "word" });
+
+/**
+ * The terms of a query: its space-separated words, with each CJK run, which has no spaces, split into dictionary
+ * words, so `分布式事务` is read as `分布 式 事务`. Other text stays as written.
+ */
+function queryTerms(query: string): string[] {
+  return query
+    .trim()
+    .split(/\s+/u)
+    .flatMap((word) =>
+      word
+        .split(CJK_RUN)
+        .flatMap((part, i) =>
+          i % 2 === 1 ? [...WORDS.segment(part)].filter((s) => s.isWordLike).map((s) => s.segment) : [part],
+        ),
+    )
+    .filter(Boolean);
+}
+
 export interface FuzzyCandidate<T> {
   item: T;
   /** Texts to match, such as a path, a title, and aliases; the best one counts. */
@@ -114,8 +136,8 @@ export interface FuzzyHit<T> {
 }
 
 /**
- * Rank candidates by a query of space-separated terms, each of which must match one of a candidate's texts, as in
- * fzf's extended search; with `anyTerm`, a candidate needs only one matching term and scores the ones that match.
+ * Rank candidates by a query's terms, each of which must match one of a candidate's texts, as in fzf's extended
+ * search; with `anyTerm`, a candidate needs only one matching term and scores the ones that match.
  * Ties go to the shorter matched text.
  */
 export function fuzzyRank<T>(
@@ -124,7 +146,7 @@ export function fuzzyRank<T>(
   limit: number,
   options: { anyTerm?: boolean } = {},
 ): FuzzyHit<T>[] {
-  const terms = query.trim().split(/\s+/u).filter(Boolean);
+  const terms = queryTerms(query);
   if (terms.length === 0) return [];
   const hits: FuzzyHit<T>[] = [];
   for (const { item, texts } of candidates) {

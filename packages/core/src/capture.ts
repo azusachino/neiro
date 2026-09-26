@@ -14,7 +14,10 @@ export interface CaptureInput {
   title?: string;
   tags?: string[];
   source?: string;
-  /** Other frontmatter to keep, written after the vault's declared properties. Declared keys are always filled by capture. */
+  /**
+   * Other frontmatter to keep, written after the vault's declared properties. Declared keys are always filled by capture,
+   * and a `title`, `tags`, or `source` key here is written from the capture's own title, tags, or source.
+   */
   properties?: Record<string, unknown>;
   now?: Date;
 }
@@ -118,19 +121,25 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
   const source = input.source?.trim();
 
   const lines: string[] = [];
-  for (const key of settings.properties) {
+  // Capture fills these from its own inputs wherever the key comes from: the settings or the note's own properties.
+  const own = (key: string): boolean => {
     if (key === "title") lines.push(`title: ${yamlScalar(title)}`);
-    else if (key === "created" || key === "modified")
-      lines.push(`${key}: ${yamlScalar(formatDate(now, settings.timestampFormat))}`);
     else if (key === "tags") {
       if (tags.length > 0) lines.push("tags:", ...tags.map((tag) => `  - ${yamlScalar(tag)}`));
     } else if (key === "source") {
       if (source) lines.push(`source: ${yamlScalar(source)}`);
-    } else if (settings.values[key] !== undefined) lines.push(`${key}: ${yamlScalar(settings.values[key] as string)}`);
+    } else return false;
+    return true;
+  };
+  for (const key of settings.properties) {
+    if (own(key)) continue;
+    if (key === "created" || key === "modified")
+      lines.push(`${key}: ${yamlScalar(formatDate(now, settings.timestampFormat))}`);
+    else if (settings.values[key] !== undefined) lines.push(`${key}: ${yamlScalar(settings.values[key] as string)}`);
   }
-  const filled = new Set([...settings.properties, "title", "tags", "source"]);
+  const declared = new Set(settings.properties);
   for (const [key, value] of Object.entries(input.properties ?? {})) {
-    if (filled.has(key) || value === undefined) continue;
+    if (declared.has(key) || value === undefined || own(key)) continue;
     // An empty property is kept as Obsidian writes it, `key:`, such as a template's blank to fill in later.
     lines.push(value === null ? `${key}:` : stringify({ [key]: value }, { lineWidth: 0 }).trimEnd());
   }
@@ -139,8 +148,11 @@ export function renderCapture(input: CaptureInput, settings: CaptureSettings): {
   const content = text === "" ? block : `${block}${block ? "\n" : ""}${text}\n`;
 
   const { data } = splitFrontmatter(content);
-  const wroteTitle = settings.properties.includes("title");
-  if ((wroteTitle && data.title !== title) || stringList(data.tags).join("\n") !== tags.join("\n")) {
+  const wroteTags = declared.has("tags") || "tags" in (input.properties ?? {});
+  if (
+    ("title" in data && data.title !== title) ||
+    stringList(data.tags).join("\n") !== (wroteTags ? tags : []).join("\n")
+  ) {
     throw new CaptureError("rendered frontmatter did not round-trip");
   }
   return { title, content };
@@ -174,12 +186,12 @@ export async function capture(
 
 /**
  * Capture input from a whole Markdown document, such as a draft file. Its `title`, `tags`, and `source` properties
- * become capture inputs and its other properties are kept. Without a `title` property, the title is the first
+ * become capture inputs and every property is kept. Without a `title` property, the title is the first
  * heading, then the file name. The body is unchanged. This parses text only; reading files is the caller's choice.
  */
 export function captureInputFromMarkdown(raw: string, fileName?: string): CaptureInput {
   const { data, body } = splitFrontmatter(raw);
-  const { title, tags, source, ...properties } = data;
+  const { title, tags, source } = data;
   const firstLine = body.split("\n").find((line) => line.trim() !== "");
   const heading = firstLine?.match(/^#{1,6}\s+(.+?)\s*#*\s*$/)?.[1];
   const named = fileName ? posix.basename(fileName.replaceAll("\\", "/")).replace(/\.md$/i, "") : undefined;
@@ -188,6 +200,7 @@ export function captureInputFromMarkdown(raw: string, fileName?: string): Captur
     title: (typeof title === "string" && title.trim()) || heading || named,
     tags: stringList(tags),
     source: typeof source === "string" ? source : undefined,
-    properties,
+    // Kept whole, so a `title`, `tags`, or `source` the file declares is written even when the settings leave it out.
+    properties: data,
   };
 }

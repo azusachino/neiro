@@ -19,16 +19,76 @@ const LINK = /(!?)\[\[([^\]\n]+?)\]\]/g;
 const MARKDOWN_LINK = /(!?)\[([^\]\n]*)\]\((<[^>\n]+>|[^)\s]+)(?:\s+"[^"\n]*")?\)/g;
 // A URL scheme such as `https:` or `obsidian:` marks a link that leaves the vault.
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
-const INLINE_CODE = /`[^`\n]*`/g;
+const BLOCK_TAGS =
+  "address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|" +
+  "fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|" +
+  "menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul";
+// CommonMark's HTML block starts, each with the line that ends it; null ends the block at a blank line.
+const HTML_BLOCKS: [RegExp, RegExp | null][] = [
+  [/^ {0,3}<(?:script|pre|style|textarea)(?:[\s>]|$)/i, /<\/(?:script|pre|style|textarea)>/i],
+  [/^ {0,3}<!--/, /-->/],
+  [/^ {0,3}<\?/, /\?>/],
+  [/^ {0,3}<![A-Za-z]/, />/],
+  [/^ {0,3}<!\[CDATA\[/, /\]\]>/],
+  [new RegExp(`^ {0,3}</?(?:${BLOCK_TAGS})(?:\\s|/?>|$)`, "i"), null],
+];
+// Any other complete tag alone on a line starts a block too, but cannot interrupt a paragraph.
+const LONE_TAG =
+  /^ {0,3}(?:<[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][\w.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*\/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>)\s*$/;
 
-/** Every wikilink and local Markdown link in a Markdown body, skipping fenced and inline code. */
+/** A line-by-line tracker of the lines Obsidian renders no links in: fenced code and raw HTML blocks. */
+function rawLines(): (line: string) => boolean {
+  const inFence = codeFences();
+  let end: RegExp | null | undefined;
+  let paragraph = false;
+  return (line) => {
+    const blank = line.trim() === "";
+    if (end !== undefined) {
+      if (end === null ? blank : end.test(line)) end = undefined;
+      paragraph = false;
+      return true;
+    }
+    if (inFence(line)) {
+      paragraph = false;
+      return true;
+    }
+    const start =
+      HTML_BLOCKS.find(([open]) => open.test(line)) ??
+      (!paragraph && LONE_TAG.test(line) ? [LONE_TAG, null] : undefined);
+    if (start) {
+      const close = start[1];
+      end = close?.test(line) ? undefined : close;
+      paragraph = false;
+      return true;
+    }
+    paragraph = !blank;
+    return false;
+  };
+}
+
+/** A line without its code spans: a run of backticks closes only on a run of the same length, else it is text. */
+function withoutCodeSpans(line: string): string {
+  let text = "";
+  let from = 0;
+  const run = /`+/g;
+  for (let open = run.exec(line); open; open = run.exec(line)) {
+    const close = new RegExp(`(?<!\`)\`{${open[0].length}}(?!\`)`, "g");
+    close.lastIndex = run.lastIndex;
+    if (!close.exec(line)) continue;
+    text += line.slice(from, open.index);
+    from = run.lastIndex = close.lastIndex;
+  }
+  return text + line.slice(from);
+}
+
+/** Every wikilink and local Markdown link in a Markdown body, skipping code and raw HTML. */
 export function extractLinks(body: string): WikiLink[] {
   const links: WikiLink[] = [];
-  const inCode = codeFences();
+  const isRaw = rawLines();
   for (const line of body.split("\n")) {
-    // Every line feeds the fence state, but most hold no link; skip the link patterns for those.
-    if (inCode(line) || !line.includes("[")) continue;
-    const text = line.includes("`") ? line.replace(INLINE_CODE, "") : line;
+    // Every line feeds the block state, but most hold no link; skip the link patterns for those.
+    if (isRaw(line) || !line.includes("[")) continue;
+    const text = line.includes("`") ? withoutCodeSpans(line) : line;
     links.push(...wikilinks(text));
     if (text.includes("](")) links.push(...markdownLinks(text.replace(LINK, "")));
   }

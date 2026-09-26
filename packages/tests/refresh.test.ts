@@ -22,7 +22,7 @@ describe("the watch policy", () => {
     const vault = new Vault(root);
     await vault.notes();
     writeFileSync(join(root, "Notes", "Unseen.md"), "not yet\n");
-    expect(vault.find("Unseen")).rejects.toThrow();
+    await expect(vault.find("Unseen")).rejects.toThrow();
     vault.reload();
     expect((await vault.find("Unseen")).path).toBe("Notes/Unseen.md");
   });

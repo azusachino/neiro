@@ -1,7 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { NotFoundError, propertyValue, type TsuzuriConfig, UnsupportedError, Vault } from "tsuzuri";
+import {
+  captureInputFromMarkdown,
+  NotFoundError,
+  propertyValue,
+  type TsuzuriConfig,
+  UnsupportedError,
+  Vault,
+} from "tsuzuri";
 import { copyVault, FIXTURE } from "./git.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
@@ -62,11 +69,36 @@ describe("new", () => {
   });
 
   test("names the templates that exist when the type has none, and needs a template folder", async () => {
-    expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
-    expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
+    await expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
+    await expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
     const bare = copyVault();
     writeFileSync(join(bare, "tsuzuri.toml"), '[capture]\nfolder = "Inbox"\n');
     await expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);
+  });
+
+  test("keeps a template's own title, tags, and source even when the capture settings do not declare them", async () => {
+    const root = copyVault();
+    writeFileSync(
+      join(root, "Templates", "Note.md"),
+      '---\ntitle: "{{title}}"\ntags:\n  - idea\nsource: "{{date}}"\nkind: note\n---\n\nbody\n',
+    );
+    const vault = new Vault(root, { config: { capture: { folder: "Inbox", properties: ["created"] } } });
+    const { content } = await vault.create("note", "Dune", { now: NOW, dryRun: true });
+    expect(splitFrontmatter(content).data).toEqual({
+      created: "2026-09-24",
+      title: "Dune",
+      tags: ["idea"],
+      source: "2026-09-24",
+      kind: "note",
+    });
+  });
+});
+
+describe("capture from a Markdown file", () => {
+  test("keeps the file's title property, which the default capture settings do not declare", async () => {
+    const input = captureInputFromMarkdown("---\ntitle: A drafted idea\nkind: draft\n---\n\nbody\n", "draft.md");
+    const { content } = await new Vault(copyVault()).capture({ ...input, now: NOW }, { dryRun: true });
+    expect(splitFrontmatter(content).data).toEqual({ title: "A drafted idea", kind: "draft" });
   });
 });
 
