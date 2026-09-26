@@ -62,8 +62,8 @@ describe("new", () => {
   });
 
   test("names the templates that exist when the type has none, and needs a template folder", async () => {
-    expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
-    expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
+    await expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
+    await expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
     const bare = copyVault();
     writeFileSync(join(bare, "tsuzuri.toml"), '[capture]\nfolder = "Inbox"\n');
     await expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);

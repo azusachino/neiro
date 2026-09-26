@@ -71,7 +71,7 @@ describe("append", () => {
 
   test("refuses a missing heading unless told to create it", async () => {
     const { vault, read } = planVault();
-    expect(vault.append("Plan", "x", { heading: "Ideas" })).rejects.toThrow(SectionError);
+    await expect(vault.append("Plan", "x", { heading: "Ideas" })).rejects.toThrow(SectionError);
     expect(read()).toBe(PLAN);
     await vault.append("Plan", "- an idea", { heading: "Ideas", createHeading: true, level: 3 });
     expect(read().endsWith("- tail item\n\n### Ideas\n\n- an idea\n")).toBe(true);
@@ -82,7 +82,7 @@ describe("append", () => {
     const vault = new Vault(root, { config: { journal: { week: { folder: "Weekly", format: "GGGG-[W]WW" } } } });
     await vault.appendJournal("week", "- from the journal", { heading: "plan", date: new Date(2026, 8, 16) });
     expect(readFileSync(join(root, "Weekly", "2026-W38.md"), "utf8")).toContain("- from the journal");
-    expect(vault.appendJournal("week", "x", { date: new Date(2026, 0, 5) })).rejects.toThrow(NotFoundError);
+    await expect(vault.appendJournal("week", "x", { date: new Date(2026, 0, 5) })).rejects.toThrow(NotFoundError);
   });
 });
 
@@ -123,7 +123,7 @@ describe("guards", () => {
     expect(read()).toBe(PLAN);
     const { hash } = await vault.get("Plan");
     await vault.append("Plan", "- once", { ifHash: hash });
-    expect(vault.append("Plan", "- twice", { ifHash: hash })).rejects.toThrow(WriteConflictError);
+    await expect(vault.append("Plan", "- twice", { ifHash: hash })).rejects.toThrow(WriteConflictError);
   });
 
   test("the CLI takes bullets, stdin, and --if-hash, and refuses what it cannot do", async () => {

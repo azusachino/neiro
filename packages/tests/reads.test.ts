@@ -92,7 +92,7 @@ describe("prop get", () => {
   test("returns one frontmatter value as parsed", async () => {
     expect(await vault.property("People/Plato.md", "born")).toBe(-428);
     expect(await vault.property("clt", "aliases")).toEqual(["CLT"]);
-    expect(vault.property("clt", "nope")).rejects.toThrow(NotFoundError);
+    await expect(vault.property("clt", "nope")).rejects.toThrow(NotFoundError);
   });
 
   test("prints text or JSON, and exits 1 for a missing property and 2 for bad usage", () => {

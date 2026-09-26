@@ -47,11 +47,11 @@ describe("get by line", () => {
   });
 
   test("refuses a range the note cannot serve, naming its length", async () => {
-    expect(vault.get(ref, { lines: { start: 28 } })).rejects.toThrow("has 27 lines");
-    expect(vault.get(ref, { lines: { start: 9, end: 3 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { lines: { start: 0 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { around: { line: 40 } })).rejects.toThrow(LineRangeError);
-    expect(vault.get(ref, { lines: { start: 1 }, around: { line: 2 } })).rejects.toThrow("not both");
+    await expect(vault.get(ref, { lines: { start: 28 } })).rejects.toThrow("has 27 lines");
+    await expect(vault.get(ref, { lines: { start: 9, end: 3 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { lines: { start: 0 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { around: { line: 40 } })).rejects.toThrow(LineRangeError);
+    await expect(vault.get(ref, { lines: { start: 1 }, around: { line: 2 } })).rejects.toThrow("not both");
   });
 
   test("leaves a plain get without line fields", async () => {
@@ -69,7 +69,7 @@ describe("find and get", () => {
   });
 
   test("refuses an ambiguous stem and names the candidates", async () => {
-    expect(vault.find("Plato")).rejects.toThrow("People/Greek/Plato.md, People/Plato.md");
+    await expect(vault.find("Plato")).rejects.toThrow("People/Greek/Plato.md, People/Plato.md");
   });
 
   test("returns a content hash and marks truncation", async () => {
@@ -244,8 +244,8 @@ describe("journal", () => {
   });
 
   test("raises UnsupportedError for a period no setting covers", async () => {
-    expect(vault.journalFor("month", parseDate("2026-09-16"))).rejects.toThrow(UnsupportedError);
-    expect(new Vault(join(FIXTURE, "People")).journalFor("day")).rejects.toThrow("no day journal settings");
+    await expect(vault.journalFor("month", parseDate("2026-09-16"))).rejects.toThrow(UnsupportedError);
+    await expect(new Vault(join(FIXTURE, "People")).journalFor("day")).rejects.toThrow("no day journal settings");
   });
 
   test("lets code options override the vault's settings", async () => {

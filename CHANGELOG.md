@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- The tests await every `.rejects` assertion; 20 were not awaited, so `bun test` passed them without checking. ([#88](https://github.com/azusachino/tsuzuri/issues/88))
+
 ## 0.7.0
 
 neiro is renamed tsuzuri and published to npm as one package ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)). Every rename below is breaking, and no old name is read as a fallback.

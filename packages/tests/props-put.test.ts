@@ -54,7 +54,7 @@ describe("prop set", () => {
 
   test("refuses frontmatter YAML cannot parse, and reads CLI values as YAML", async () => {
     const { vault } = vaultWith("Broken.md", "---\nkey: [unclosed\n---\nbody\n");
-    expect(vault.setProperty("Broken", "x", 1)).rejects.toThrow(WriteConflictError);
+    await expect(vault.setProperty("Broken", "x", 1)).rejects.toThrow(WriteConflictError);
     expect(propertyValue("4")).toBe(4);
     expect(propertyValue("[a, b]")).toEqual(["a", "b"]);
     expect(propertyValue("true")).toBe(true);
@@ -78,18 +78,18 @@ describe("put", () => {
     const vault = new Vault(root);
     const created = await vault.put("Notes/New note.md", "# New\n");
     expect(created).toMatchObject({ created: true, written: true });
-    expect(vault.put("Notes/New note.md", "silently replaced\n")).rejects.toThrow("needs --if-hash");
+    await expect(vault.put("Notes/New note.md", "silently replaced\n")).rejects.toThrow("needs --if-hash");
     const { hash } = await vault.get("Notes/New note.md");
     const replaced = await vault.put("Notes/New note.md", "# Replaced\n", { ifHash: hash });
     expect(replaced).toMatchObject({ created: false, written: true });
-    expect(vault.put("Notes/New note.md", "# Stale\n", { ifHash: hash })).rejects.toThrow(WriteConflictError);
+    await expect(vault.put("Notes/New note.md", "# Stale\n", { ifHash: hash })).rejects.toThrow(WriteConflictError);
     expect(readFileSync(join(root, "Notes", "New note.md"), "utf8")).toBe("# Replaced\n");
   });
 
   test("refuses paths outside the vault or not ending in .md", async () => {
     const vault = new Vault(copyVault());
     for (const path of ["../escape.md", "/abs.md", "Notes/x.txt", "Notes/../../out.md"]) {
-      expect(vault.put(path, "x")).rejects.toThrow(WriteConflictError);
+      await expect(vault.put(path, "x")).rejects.toThrow(WriteConflictError);
     }
   });
 
