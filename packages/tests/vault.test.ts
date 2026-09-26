@@ -158,6 +158,48 @@ describe("links", () => {
     expect((await fenced.nav()).index?.headings).toEqual(["real"]);
   });
 
+  test("skips links in code spans and raw HTML blocks, as Obsidian does not render them there", async () => {
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-raw-"));
+    const note = [
+      "Spans: `[[single]]`, ``a `[[double]]` b``, and ` `` [[unmatched]] ` stay code.",
+      "",
+      '<div class="comment">',
+      "[[div]] is raw HTML until a blank line",
+      "</div>",
+      "",
+      "<pre>",
+      "",
+      "[[pre]] is raw across a blank line",
+      "</pre>",
+      "<!-- [[comment]]",
+      "-->",
+      "",
+      "<span>",
+      "[[span]] follows a lone tag after a blank line",
+      "",
+      "A paragraph goes on",
+      "<span>",
+      "[[Paragraph]], since a lone tag cannot interrupt it.",
+      "",
+      "    <div>",
+      "[[Indented]] after a tag indented four spaces, which is no HTML block.",
+      "",
+      "```",
+      "<div>",
+      "```",
+      "[[Fence]] after a tag in a fence.",
+      "",
+      "<div>",
+      "```",
+      "</div>",
+      "",
+      "[[Unfenced]] after a fence marker inside HTML.",
+    ].join("\n");
+    writeFileSync(join(root, "index.md"), note);
+    const targets = (await new Vault(root).links("index")).map((link) => link.target);
+    expect(targets).toEqual(["Paragraph", "Indented", "Fence", "Unfenced"]);
+  });
+
   test("sees a new link after a write, since the link graph goes with the scan", async () => {
     const root = mkdtempSync(join(tmpdir(), "tsuzuri-graph-"));
     writeFileSync(join(root, "A.md"), "a\n");
