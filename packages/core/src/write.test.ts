@@ -19,7 +19,7 @@ const TEXT = "---\ntags:\n  - psychology\n---\n\nCognitive load theory explains 
 
 /** A folder holding one note, as writeNote sees a vault: a root and a relative path. */
 function folder(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-write-"));
+  const root = mkdtempSync(join(tmpdir(), "tsuzuri-write-"));
   mkdirSync(join(root, "Topics"));
   writeFileSync(join(root, NOTE), TEXT);
   return root;

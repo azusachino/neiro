@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NotFoundError, Vault } from "neiro";
+import { NotFoundError, Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
@@ -38,7 +38,7 @@ const OUTLINED = [
 ].join("\n");
 
 function outlinedVault(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-outline-"));
+  const root = mkdtempSync(join(tmpdir(), "tsuzuri-outline-"));
   cpSync(FIXTURE, root, { recursive: true });
   writeFileSync(join(root, "Notes", "Outlined.md"), OUTLINED);
   writeFileSync(join(root, "Notes", "Self.md"), "Only [[Self]] links here.\n");

@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { NotFoundError, Vault } from "neiro";
+import { NotFoundError, Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
@@ -13,7 +13,7 @@ const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
  * fixture would also apply to this repository and keep the ignored notes out of it.
  */
 function ignoringVault(): string {
-  const root = mkdtempSync(join(tmpdir(), "neiro-ignore-"));
+  const root = mkdtempSync(join(tmpdir(), "tsuzuri-ignore-"));
   cpSync(FIXTURE, root, { recursive: true });
   writeFileSync(join(root, ".gitignore"), "Drafts/\n*.private.md\n!Notes/keep.private.md\n");
   mkdirSync(join(root, "Drafts"));

@@ -1,18 +1,18 @@
 # cli reference
 
-Every `neiro` command, its options, and what `--json` returns. `neiro help <command>` prints the same for one command, and `neiro help --json` prints all of it as JSON. A test fails when this page misses a command or option the CLI declares.
+Every `tsuzuri` command, its options, and what `--json` returns. `tsuzuri help <command>` prints the same for one command, and `tsuzuri help --json` prints all of it as JSON. A test fails when this page misses a command or option the CLI declares.
 
 ## global options
 
 | Option | Meaning |
 | --- | --- |
-| `--vault <dir>` | vault root (default: $NEIRO_VAULT, then the current directory) |
+| `--vault <dir>` | vault root (default: $TSUZURI_VAULT, then the current directory) |
 | `--json` | machine-readable output and errors, the same as --format json |
 | `--format <text\|json\|paths>` | paths prints one path per line, for xargs and fzf |
 | `-h, --help` | show help, for one command when one is given |
 | `-v, --version` | show the version |
 
-The vault is `--vault`, else `$NEIRO_VAULT`, else the current directory. A command refuses an option it does not take. A text argument that starts with a dash and a space, or a negative number, is text rather than an option; anything else starting with a dash goes after `--`.
+The vault is `--vault`, else `$TSUZURI_VAULT`, else the current directory. A command refuses an option it does not take. A text argument that starts with a dash and a space, or a negative number, is text rather than an option; anything else starting with a dash goes after `--`.
 
 ## output and errors
 
@@ -23,14 +23,14 @@ With `--json`, a failure prints one line on stderr, `{"error": {"name", "message
 | Exit | Meaning |
 | --- | --- |
 | 0 | done |
-| 1 | a request neiro refused or could not serve: `NotFoundError`, `WriteConflictError`, `UnsupportedError`, `ConfigError`, and the other `NeiroError`s |
+| 1 | a request tsuzuri refused or could not serve: `NotFoundError`, `WriteConflictError`, `UnsupportedError`, `ConfigError`, and the other `TsuzuriError`s |
 | 2 | bad usage: `UsageError` |
 
 ## reads
 
 ### get
 
-`neiro get <note>`
+`tsuzuri get <note>`
 
 Print one note by path, file name, title, or alias; the JSON carries its hash for --if-hash.
 
@@ -45,12 +45,12 @@ Print one note by path, file name, title, or alias; the JSON carries its hash fo
 With `--json`: a note: the summary fields, `frontmatter`, `body`, `hash`, `truncated`, and with `--lines` or `--around` its `start`, `end`, and `total` lines.
 
 ```sh
-neiro get "Working memory" --lines 1:20 --json
+tsuzuri get "Working memory" --lines 1:20 --json
 ```
 
 ### search
 
-`neiro search <query...>`
+`tsuzuri search <query...>`
 
 Rank notes by relevance (BM25; CJK matches as substrings).
 
@@ -67,12 +67,12 @@ Rank notes by relevance (BM25; CJK matches as substrings).
 With `--json`: hits: the summary fields plus `score` and `snippet`.
 
 ```sh
-neiro search cognitive load --limit 5 --json
+tsuzuri search cognitive load --limit 5 --json
 ```
 
 ### grep
 
-`neiro grep <pattern>`
+`tsuzuri grep <pattern>`
 
 Matching lines as path:line:text, like rg -n (smart case).
 
@@ -89,12 +89,12 @@ Matching lines as path:line:text, like rg -n (smart case).
 With `--json`: hits: `path`, `line`, `text`, and with `-C` the `before` and `after` lines.
 
 ```sh
-neiro grep -F "working memory" -C 2
+tsuzuri grep -F "working memory" -C 2
 ```
 
 ### find
 
-`neiro find <query...>`
+`tsuzuri find <query...>`
 
 Fuzzy match over paths, titles, and aliases, ranked as fzf ranks.
 
@@ -111,12 +111,12 @@ Fuzzy match over paths, titles, and aliases, ranked as fzf ranks.
 With `--json`: suggestions: the summary fields plus `score` and the `matched` path, title, or alias.
 
 ```sh
-neiro find cogload --json
+tsuzuri find cogload --json
 ```
 
 ### list
 
-`neiro list`
+`tsuzuri list`
 
 Notes matching the filters, optionally sorted.
 
@@ -135,12 +135,12 @@ Notes matching the filters, optionally sorted.
 With `--json`: summaries.
 
 ```sh
-neiro list --tag psychology --sort modified --desc --limit 10
+tsuzuri list --tag psychology --sort modified --desc --limit 10
 ```
 
 ### tags
 
-`neiro tags`
+`tsuzuri tags`
 
 Every tag with its note count, parents of nested tags included.
 
@@ -155,12 +155,12 @@ Every tag with its note count, parents of nested tags included.
 With `--json`: `tag` and `notes`, the count, most used first.
 
 ```sh
-neiro tags --json
+tsuzuri tags --json
 ```
 
 ### nav
 
-`neiro nav [folder]`
+`tsuzuri nav [folder]`
 
 A folder's index note and headings, subfolders, and notes.
 
@@ -171,24 +171,24 @@ A folder's index note and headings, subfolders, and notes.
 With `--json`: `folder`, its `index` note with `headings`, `folders` with note counts, and `notes`.
 
 ```sh
-neiro nav Topics
+tsuzuri nav Topics
 ```
 
 ### links
 
-`neiro links <note>`
+`tsuzuri links <note>`
 
 A note's outgoing links and how each resolves.
 
 With `--json`: links: `target`, `display`, `embed`, and `resolution`, whose `status` is `resolved` (with `path`), `missing`, `ambiguous` (with `candidates`), or `asset`.
 
 ```sh
-neiro links "Cognitive load" --json
+tsuzuri links "Cognitive load" --json
 ```
 
 ### backlinks
 
-`neiro backlinks <note>`
+`tsuzuri backlinks <note>`
 
 Notes that link to a note.
 
@@ -199,24 +199,24 @@ Notes that link to a note.
 With `--json`: summaries.
 
 ```sh
-neiro backlinks "Cognitive load"
+tsuzuri backlinks "Cognitive load"
 ```
 
 ### unresolved
 
-`neiro unresolved`
+`tsuzuri unresolved`
 
 Links pointing at no note, or at several.
 
 With `--json`: `from`, `target`, and `resolution`.
 
 ```sh
-neiro unresolved --json
+tsuzuri unresolved --json
 ```
 
 ### orphans
 
-`neiro orphans`
+`tsuzuri orphans`
 
 Notes no other note links to or embeds.
 
@@ -232,36 +232,36 @@ Notes no other note links to or embeds.
 With `--json`: summaries.
 
 ```sh
-neiro orphans --under Topics
+tsuzuri orphans --under Topics
 ```
 
 ### outline
 
-`neiro outline <note>`
+`tsuzuri outline <note>`
 
 A note's headings with their line numbers.
 
 With `--json`: headings: `level`, `text`, and `line`.
 
 ```sh
-neiro outline "Cognitive load"
+tsuzuri outline "Cognitive load"
 ```
 
 ### prop get
 
-`neiro prop get <note> <key>`
+`tsuzuri prop get <note> <key>`
 
 One frontmatter value.
 
 With `--json`: the value as YAML parsed it.
 
 ```sh
-neiro prop get "Cognitive load" tags --json
+tsuzuri prop get "Cognitive load" tags --json
 ```
 
 ### journal
 
-`neiro journal <day|week|month|quarter|year>`
+`tsuzuri journal <day|week|month|quarter|year>`
 
 The periodic note for a date, from the vault's journal settings.
 
@@ -272,19 +272,19 @@ The periodic note for a date, from the vault's journal settings.
 With `--json`: `path`, and `note` as `get` returns it, or `null` when not written yet.
 
 ```sh
-neiro journal day --date 2026-09-16
+tsuzuri journal day --date 2026-09-16
 ```
 
 ### help
 
-`neiro help [command]`
+`tsuzuri help [command]`
 
 This usage, one command's help, or every command as JSON with --json.
 
 With `--json`: `version`, the `global` options, and `commands` with their `options` and `example`.
 
 ```sh
-neiro help get
+tsuzuri help get
 ```
 
 ## writes
@@ -293,7 +293,7 @@ Every edit takes `--dry-run` for a unified diff, `--if-hash` to refuse a note ch
 
 ### capture
 
-`neiro capture [text...]`
+`tsuzuri capture [text...]`
 
 Create a new note in the capture folder from text, --file, or stdin; never edits a note.
 
@@ -308,12 +308,12 @@ Create a new note in the capture folder from text, --file, or stdin; never edits
 With `--json`: `path`, `content`, and `written`.
 
 ```sh
-neiro capture --tag reading --source https://example.com "Read: how agents plan" --dry-run
+tsuzuri capture --tag reading --source https://example.com "Read: how agents plan" --dry-run
 ```
 
 ### new
 
-`neiro new <type> <title...>`
+`tsuzuri new <type> <title...>`
 
 Create a note from the vault's template for type, placed as capture places it.
 
@@ -325,12 +325,12 @@ Create a note from the vault's template for type, placed as capture places it.
 With `--json`: as `capture`.
 
 ```sh
-neiro new Book The Pragmatic Programmer --dry-run
+tsuzuri new Book The Pragmatic Programmer --dry-run
 ```
 
 ### append
 
-`neiro append <note> [text...]`
+`tsuzuri append <note> [text...]`
 
 Add text at the end of a note, or at the end of section --heading.
 
@@ -345,12 +345,12 @@ Add text at the end of a note, or at the end of section --heading.
 With `--json`: a write result: `path`, the unified `diff`, `written`, `created`, and the new `hash`.
 
 ```sh
-neiro append Home "- a new line" --heading "start here" --dry-run
+tsuzuri append Home "- a new line" --heading "start here" --dry-run
 ```
 
 ### section put
 
-`neiro section put <note> [text...]`
+`tsuzuri section put <note> [text...]`
 
 Replace the body of section --heading, or add the section.
 
@@ -364,12 +364,12 @@ Replace the body of section --heading, or add the section.
 With `--json`: a write result, as `append`.
 
 ```sh
-neiro section put Home "Fresh text." --heading reading --dry-run
+tsuzuri section put Home "Fresh text." --heading reading --dry-run
 ```
 
 ### prop set
 
-`neiro prop set <note> <key> <value>`
+`tsuzuri prop set <note> <key> <value>`
 
 Set one frontmatter key, the value read as YAML, keeping comments and order.
 
@@ -381,12 +381,12 @@ Set one frontmatter key, the value read as YAML, keeping comments and order.
 With `--json`: a write result, as `append`.
 
 ```sh
-neiro prop set "Cognitive load" rating 4 --dry-run
+tsuzuri prop set "Cognitive load" rating 4 --dry-run
 ```
 
 ### put
 
-`neiro put <path> [text...]`
+`tsuzuri put <path> [text...]`
 
 Create a note, or replace one only with --if-hash (text, --file, or stdin).
 
@@ -399,12 +399,12 @@ Create a note, or replace one only with --if-hash (text, --file, or stdin).
 With `--json`: a write result, as `append`.
 
 ```sh
-neiro put "Inbox/Fresh.md" "A whole new note." --dry-run
+tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run
 ```
 
 ### journal append
 
-`neiro journal append <day|week|month|quarter|year> [text...]`
+`tsuzuri journal append <day|week|month|quarter|year> [text...]`
 
 Append to the periodic note for --date, which must exist.
 
@@ -420,5 +420,5 @@ Append to the periodic note for --date, which must exist.
 With `--json`: a write result, as `append`.
 
 ```sh
-neiro journal append day "- a line for the day" --date 2026-09-16 --dry-run
+tsuzuri journal append day "- a line for the day" --date 2026-09-16 --dry-run
 ```

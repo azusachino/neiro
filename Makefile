@@ -1,4 +1,4 @@
-.PHONY: install check validate build node-smoke pack format corpus
+.PHONY: install check validate build node-smoke pack publish format corpus
 
 install: ## Install dependencies from the lockfile and check out the CI corpus
 	bun install --frozen-lockfile
@@ -12,28 +12,30 @@ check: ## Pre-commit gate: Biome lint and format, types, Markdown, spelling, tes
 	bun test
 
 validate: check build ## Pre-PR gate: check, then run the compiled binary against the fixture vault
-	packages/core/dist/neiro --vault packages/tests/fixtures/vault nav --json > /dev/null
-	packages/core/dist/neiro --vault packages/tests/fixtures/vault search "cognitive load" --json > /dev/null
+	packages/core/dist/tsuzuri --vault packages/tests/fixtures/vault nav --json > /dev/null
+	packages/core/dist/tsuzuri --vault packages/tests/fixtures/vault search "cognitive load" --json > /dev/null
 
-node-smoke: ## Run the read commands on Node, then run both packages from a node_modules install, requiring Bun's output
+node-smoke: ## Run the read commands on Node, then run the package and its two commands from a node_modules install, requiring Bun's output
 	bun run --cwd packages/core build:lib
-	bun run --cwd packages/tools build:lib
 	bun packages/tests/node-smoke.ts
 
-build: ## Compile neiro into one binary at packages/core/dist/neiro, and both packages into JavaScript at dist/lib
+build: ## Compile tsuzuri into one binary at packages/core/dist/tsuzuri, and the package into JavaScript at dist/lib
 	bun run --cwd packages/core build
 	bun run --cwd packages/core build:lib
-	bun run --cwd packages/tools build:lib
 
-pack: ## Pack neiro and neiro-tools into dist/pack, the tarballs each GitHub release carries
+pack: ## Pack tsuzuri into dist/pack, the tarball npm and each GitHub release carry
 	rm -rf dist/pack
 	# bun pm pack does not run prepack, so build the JavaScript and declarations Node and tsc need first
 	bun run --cwd packages/core build:lib
-	bun run --cwd packages/tools build:lib
+	cp README.md LICENSE packages/core/
 	cd packages/core && bun pm pack --destination ../../dist/pack
-	cd packages/tools && bun pm pack --destination ../../dist/pack
-	tar -tzf dist/pack/neiro-[0-9]*.tgz | grep -q package/dist/lib/index.d.ts
-	tar -tzf dist/pack/neiro-tools-*.tgz | grep -q package/dist/lib/index.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/index.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/dist/lib/tools.d.ts
+	tar -tzf dist/pack/tsuzuri-[0-9]*.tgz | grep -q package/README.md
+
+# Needs `npm login` as the package owner; npm asks for a one-time password when 2FA is on.
+publish: pack ## Publish the packed tarball to npm, after the release is tagged
+	npm publish dist/pack/tsuzuri-[0-9]*.tgz
 
 format: ## Apply Biome and rumdl formatting
 	bun run format

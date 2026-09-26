@@ -22,15 +22,15 @@ describe("cli", () => {
     ]);
   });
 
-  test("reports a bad date or a malformed neiro.toml in one line", () => {
+  test("reports a bad date or a malformed tsuzuri.toml in one line", () => {
     const date = run("journal", "day", "--date", "2026-13-01");
     expect(date.code).toBe(1);
-    expect(date.stderr.trim()).toBe('neiro: not a calendar date: "2026-13-01"');
-    const root = mkdtempSync(join(tmpdir(), "neiro-badtoml-"));
-    writeFileSync(join(root, "neiro.toml"), "capture = [\n");
+    expect(date.stderr.trim()).toBe('tsuzuri: not a calendar date: "2026-13-01"');
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-badtoml-"));
+    writeFileSync(join(root, "tsuzuri.toml"), "capture = [\n");
     const result = Bun.spawnSync(["bun", CLI, "--vault", root, "list"], { stderr: "pipe" });
     expect(result.exitCode).toBe(1);
-    expect(result.stderr.toString()).toStartWith("neiro: neiro.toml: ");
+    expect(result.stderr.toString()).toStartWith("tsuzuri: tsuzuri.toml: ");
     expect(result.stderr.toString().trim().split("\n")).toHaveLength(1);
   });
 
@@ -111,7 +111,7 @@ describe("cli output shapes", () => {
 });
 
 describe("cli capture --file", () => {
-  const draft = join(mkdtempSync(join(tmpdir(), "neiro-draft-")), "Weekend plan.md");
+  const draft = join(mkdtempSync(join(tmpdir(), "tsuzuri-draft-")), "Weekend plan.md");
   writeFileSync(draft, "---\ntags:\n  - planning\n---\n\n- buy tea\n- read a book\n");
 
   test("imports a Markdown file, merging --tag", () => {
@@ -168,10 +168,10 @@ describe("help", () => {
     const direct = run("get", "--help");
     expect(direct.code).toBe(0);
     expect(direct.stdout).toBe(run("help", "get").stdout);
-    expect(direct.stdout).toStartWith("usage: neiro get <note>");
+    expect(direct.stdout).toStartWith("usage: tsuzuri get <note>");
     expect(direct.stdout).toContain("--lines <a:b>");
     expect(direct.stdout).not.toContain("--limit");
-    expect(run("help", "journal").stdout).toContain("usage: neiro journal append");
+    expect(run("help", "journal").stdout).toContain("usage: tsuzuri journal append");
   });
 
   test("lists every command with its options as JSON", () => {
@@ -198,7 +198,7 @@ describe("help", () => {
   });
 
   test("the skill names only commands and options the CLI takes", () => {
-    const skill = readFileSync(join(import.meta.dir, "..", "..", "skills", "neiro", "SKILL.md"), "utf8");
+    const skill = readFileSync(join(import.meta.dir, "..", "..", "skills", "tsuzuri", "SKILL.md"), "utf8");
     const commands = new Map(help().commands.map((command) => [command.name, command] as const));
     const global = ["--json", "--vault", "--format", "--help", "--version"];
     // A code span naming a command: its first two words when they are one, such as `prop set`, else its first.
@@ -219,6 +219,6 @@ describe("help", () => {
   test("refuses an option the command does not take", () => {
     const { code, stderr } = run("get", "Home", "--limit", "3");
     expect(code).toBe(2);
-    expect(stderr).toStartWith("neiro: get does not take --limit; run neiro help get");
+    expect(stderr).toStartWith("tsuzuri: get does not take --limit; run tsuzuri help get");
   });
 });

@@ -1,12 +1,19 @@
 # roadmap
 
-What neiro does, what comes next, and what it will not do. Each planned item links to its GitHub issue, which holds its status and acceptance criteria; this page holds the order and the reasons. Update this page in the same PR that ships or reorders an item. The design rules in [AGENTS.md](../AGENTS.md) bound everything here, and [use cases](use-cases.md) records what each item is for and which tests hold it.
+What tsuzuri does, what comes next, and what it will not do. Each planned item links to its GitHub issue, which holds its status and acceptance criteria; this page holds the order and the reasons. Update this page in the same PR that ships or reorders an item. The design rules in [AGENTS.md](../AGENTS.md) bound everything here, and [use cases](use-cases.md) records what each item is for and which tests hold it.
 
 ## principles
 
 The rules that bound this roadmap are [decision records](decisions/README.md): files are the only truth ([0002](decisions/0002-files-are-the-only-truth.md)), Obsidian semantics without the app ([0003](decisions/0003-obsidian-semantics-without-the-app.md)), no assumed layout ([0004](decisions/0004-assume-no-layout-or-house-style.md)), earned and guarded writes ([0005](decisions/0005-the-write-model.md)), a portable core ([0006](decisions/0006-portable-core-and-fallback-chains.md)), maintained dependencies or own code ([0007](decisions/0007-maintained-dependencies-or-own-code.md)), files only with no Git or server ([0008](decisions/0008-files-only-no-git-no-server.md)), one note model and a public contract ([0009](decisions/0009-the-core-contract-and-prelude.md)), and agent tools as an extension ([0010](decisions/0010-agent-tools-as-an-extension-package.md)).
 
 ## shipped
+
+### 0.7.0: tsuzuri on npm
+
+neiro is renamed tsuzuri and published to npm as one package, with the agent tools at `tsuzuri/tools` ([ADR 0012](decisions/0012-one-npm-package-named-tsuzuri.md)); the [changelog](../CHANGELOG.md) lists each rename.
+
+- **Install:** `npm install tsuzuri`, or run it with `npx tsuzuri` or `bunx tsuzuri`.
+- **Agents:** the skill installs with `npx skills add azusachino/tsuzuri`.
 
 ### 0.6.0: files only, a prelude, and neiro-tools
 
@@ -27,7 +34,7 @@ The fixes from a best-practice review, and a CLI made for agents, in [#63](https
 - **A bot's writes:** Git runs without blocking and with a timeout, agent writes pull first, a conflicting rebase is aborted, a write saved but not pushed is reported, and writes are atomic. ([#55](https://github.com/azusachino/neiro/issues/55)–[#58](https://github.com/azusachino/neiro/issues/58))
 - **An agent's reach:** `neiro_grep` is literal by default, with a pattern cap. ([#59](https://github.com/azusachino/neiro/issues/59))
 - **Speed, measured on a 1,837-note vault:** reads during a scan share it, and links resolve once per scan. ([#60](https://github.com/azusachino/neiro/issues/60), [#64](https://github.com/azusachino/neiro/issues/64))
-- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/neiro/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
+- **Agent-facing CLI:** per-command help from one command table, JSON errors under `--json`, `neiro tools`, a [CLI reference](cli.md), and a [SKILL.md](../skills/tsuzuri/SKILL.md), each checked against the CLI by a test. ([#67](https://github.com/azusachino/neiro/issues/67)–[#71](https://github.com/azusachino/neiro/issues/71))
 - **Consumers:** a compiled build for Node, tests for a vault in a submodule shared with its owner, and use cases A12 and A13. ([#61](https://github.com/azusachino/neiro/issues/61), [#65](https://github.com/azusachino/neiro/issues/65), [#66](https://github.com/azusachino/neiro/issues/66))
 
 ### 0.4.0: agent integration
@@ -82,26 +89,26 @@ Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ## next
 
-No milestone is planned. Work beyond 0.5 waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/neiro/issues/24)), which needs a check in the app.
+No milestone is planned. Work beyond 0.5 waits for a need: the items under [later, only if a measurement asks for it](#later-only-if-a-measurement-asks-for-it), and whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/tsuzuri/issues/24)), which needs a check in the app.
 
 ## capabilities and fallback chains
 
-Each capability has a chain of providers, and the first one available in the current environment serves the call. A provider declares whether it is available (a runtime API exists, a binary is on `PATH`, the vault is a Git repository), and it must return exactly what the portable provider returns. A speed-up that changes results is a bug, not a trade-off. Where no provider is available, neiro raises an `UnsupportedError` naming the capability and what is missing, rather than degrading silently.
+Each capability has a chain of providers, and the first one available in the current environment serves the call. A provider declares whether it is available (a runtime API exists, a binary is on `PATH`, the vault is a Git repository), and it must return exactly what the portable provider returns. A speed-up that changes results is a bug, not a trade-off. Where no provider is available, tsuzuri raises an `UnsupportedError` naming the capability and what is missing, rather than degrading silently.
 
 | Capability | Chain, first available wins | Notes |
 | --- | --- | --- |
 | parse YAML | `Bun.YAML` → [`yaml`](https://www.npmjs.com/package/yaml) | `Bun.YAML` takes a block only without flow mappings, merge keys, tags, explicit keys, directives, or a repeated key, where the two parsers disagree; identical on 8,049 blocks from the corpora and a real vault |
-| parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `neiro.toml` and the allowlist it names |
-| settings | code options → `neiro.toml` → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
-| templates | `neiro.toml` → none | for `new` ([#18](https://github.com/azusachino/neiro/issues/18)) |
+| parse TOML | `Bun.TOML` → [`smol-toml`](https://www.npmjs.com/package/smol-toml) | only for `tsuzuri.toml` and the allowlist it names |
+| settings | code options → `tsuzuri.toml` → neutral default | shipped in 0.1.0; a journal period with no source raises `UnsupportedError` |
+| templates | `tsuzuri.toml` → none | for `new` ([#18](https://github.com/azusachino/tsuzuri/issues/18)) |
 
-Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover listing, reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Listing was planned as a `Bun.Glob` chain, but a `node:fs` walk returned the same 6,386 paths from obsidian-help in 11–17 ms against `Bun.Glob`'s 31–36 ms, on Bun itself. Content search was planned with an `rg -l` prefilter, but on a real 1,837-note vault the in-process scan of already-loaded notes takes 12 ms against 34 ms for `rg -l`, which would save about 20 ms only on a one-shot CLI call; ripgrep's regex dialect and ignore rules would also let it drop files neiro matches. `grep` scans in process only. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
+Plain `node:fs/promises`, `node:crypto`, and `node:child_process` cover listing, reading, writing, hashing, and spawning in every supported runtime, so they need no chain. Listing was planned as a `Bun.Glob` chain, but a `node:fs` walk returned the same 6,386 paths from obsidian-help in 11–17 ms against `Bun.Glob`'s 31–36 ms, on Bun itself. Content search was planned with an `rg -l` prefilter, but on a real 1,837-note vault the in-process scan of already-loaded notes takes 12 ms against 34 ms for `rg -l`, which would save about 20 ms only on a one-shot CLI call; ripgrep's regex dialect and ignore rules would also let it drop files tsuzuri matches. `grep` scans in process only. Tests run each chain with every provider forced in turn against the fixture vault and require identical output.
 
 ## own code and libraries
 
-neiro borrows the ideas of the owner's daily terminal tools and depends on none of them. ripgrep is an optional provider above; `sd` and `fzf` remain tools for working on the vault by hand.
+tsuzuri borrows the ideas of the owner's daily terminal tools and depends on none of them. ripgrep is an optional provider above; `sd` and `fzf` remain tools for working on the vault by hand.
 
-| Idea | Taken from | How neiro gets it |
+| Idea | Taken from | How tsuzuri gets it |
 | --- | --- | --- |
 | `path:line:text`, smart case, `-F` literal | ripgrep | own code; a few lines each |
 | honor `.gitignore` | ripgrep | [`ignore`](https://www.npmjs.com/package/ignore): MIT, no dependencies, released 2026-09 |
@@ -113,7 +120,7 @@ Libraries measured against this policy and rejected are listed in [ADR 0007](dec
 
 ## later, only if a measurement asks for it
 
-- **Objects inside notes**, as SilverBullet indexes them: headers, list items, and tasks with their own tags and attributes. `neiro tasks` would be the first consumer.
+- **Objects inside notes**, as SilverBullet indexes them: headers, list items, and tasks with their own tags and attributes. `tsuzuri tasks` would be the first consumer.
 - **A derived cache.** One SQLite file keyed by path, size, and modification time, used only when a cold load becomes too slow. It must be deletable at any time with no loss.
 - **Local embeddings for Chinese recall.** A composed Chinese phrase that is not a literal substring still finds nothing. If that becomes a daily failure, add a local multilingual embedding model in the Basic Memory style, rebuilt from the files.
 

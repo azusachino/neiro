@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs } from "node:util";
 import pkg from "../package.json" with { type: "json" };
-import { TOOLS } from "./index.ts";
+import { TOOLS } from "./tools.ts";
 
-const USAGE = `neiro-tools ${pkg.version}: neiro's agent tool definitions
+const USAGE = `tsuzuri-tools ${pkg.version}: tsuzuri's agent tool definitions
 
-usage: neiro-tools [--json]
+usage: tsuzuri-tools [--json]
 
 Lists each tool with its exposure and whether it reads, adds, or changes notes.
 --json prints the definitions a tool-calling model takes: name, description, inputSchema, annotations, and exposure.`;
@@ -17,7 +17,7 @@ function parse() {
       options: { json: { type: "boolean" }, help: { type: "boolean", short: "h" } },
     }).values;
   } catch (error) {
-    console.error(`neiro-tools: ${(error as Error).message}\n\n${USAGE}`);
+    console.error(`tsuzuri-tools: ${(error as Error).message}\n\n${USAGE}`);
     process.exit(2);
   }
 }

@@ -6,7 +6,7 @@ import { type Period, type PeriodicSetting, UnsupportedError } from "./settings.
 export function journalPath(period: Period, date: Date, setting: PeriodicSetting | undefined): string {
   if (!setting) {
     throw new UnsupportedError(
-      `no ${period} journal settings: set [journal.${period}] folder and format in neiro.toml`,
+      `no ${period} journal settings: set [journal.${period}] folder and format in tsuzuri.toml`,
     );
   }
   const relative = posix.normalize(posix.join(setting.folder, `${formatDate(date, setting.format)}.md`));

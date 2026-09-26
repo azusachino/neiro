@@ -16,12 +16,12 @@ import {
 } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { createTwoFilesPatch } from "diff";
-import { NeiroError } from "./errors.ts";
+import { TsuzuriError } from "./errors.ts";
 
 const BOM = "\uFEFF";
 
 /** Raised when a write would overwrite a change made since the caller read the note. */
-export class WriteConflictError extends NeiroError {}
+export class WriteConflictError extends TsuzuriError {}
 
 export interface WriteOptions {
   /** Report the diff without writing. */

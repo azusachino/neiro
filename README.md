@@ -1,4 +1,4 @@
-# neiro
+# tsuzuri
 
 An SDK and CLI for reading and writing an Obsidian-compatible Markdown vault. It works on the files directly: Obsidian does not need to be installed or running. It is built for a personal vault that is used from the terminal and by a Telegram bot, which imports the SDK in-process.
 
@@ -7,16 +7,16 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 ## Quick start
 
 ```sh
-make install && make build          # the CLI at packages/core/dist/neiro
-export NEIRO_VAULT=~/notes          # or pass --vault <dir>; the default is the current directory
+npx tsuzuri --version                 # or bunx tsuzuri; or npm install -g tsuzuri for a `tsuzuri` command
+export TSUZURI_VAULT=~/notes          # or pass --vault <dir>; the default is the current directory
 
-neiro nav                           # the vault's top folders and notes
-neiro search cognitive load --limit 5
-neiro get "Cognitive load" --json   # one note, with the hash a later write needs
-neiro capture --tag reading "Read: how agents plan"
+tsuzuri nav                           # the vault's top folders and notes
+tsuzuri search cognitive load --limit 5
+tsuzuri get "Cognitive load" --json   # one note, with the hash a later write needs
+tsuzuri capture --tag reading "Read: how agents plan"
 ```
 
-`neiro help` lists every command, `neiro help <command>` gives one command's options and an example, and the [CLI reference](docs/cli.md) has every option and JSON output shape.
+`tsuzuri help` lists every command, `tsuzuri help <command>` gives one command's options and an example, and the [CLI reference](docs/cli.md) has every option and JSON output shape.
 
 ## Commands
 
@@ -56,16 +56,16 @@ neiro capture --tag reading "Read: how agents plan"
 | `journal append <period> [text...]` | appends to the periodic note for `--date`, which must exist |
 | `put <path> [text...]` | creates a note, or replaces one only with `--if-hash` |
 
-`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. neiro only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
+`capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 
-The [`neiro-tools`](packages/tools/README.md) package offers the same operations as agent tools, and `neiro-tools --json` prints their definitions.
+The `tsuzuri/tools` entry offers the same operations as agent tools, and `tsuzuri-tools --json` prints their definitions.
 
 ## Output and errors
 
 - `--json` makes stdout one JSON value. Commands that return notes share one summary: `path`, `title`, `type`, `status`, `tags`, `created`, and `modified`.
 - `--fields a,b` keeps only the named fields, a summary field or any frontmatter key, and `--format paths` prints one path per line for `xargs` or `fzf`.
 - With `--json`, a failure prints one line on stderr, `{"error": {"name", "message", ...}}`, such as `NotFoundError` with the closest notes in `suggestions`.
-- The exit code is 1 for a request neiro refused or could not serve, and 2 for bad usage. A command refuses an option it does not take.
+- The exit code is 1 for a request tsuzuri refused or could not serve, and 2 for bad usage. A command refuses an option it does not take.
 
 ## Links
 
@@ -75,23 +75,23 @@ Tags match the way Obsidian matches them: case-insensitively, with `area` matchi
 
 ## Settings
 
-neiro assumes no folder layout or house style. Each setting is resolved in this order, and the first source that has it wins:
+tsuzuri assumes no folder layout or house style. Each setting is resolved in this order, and the first source that has it wins:
 
-1. options passed in code (`new Vault(root, { config })`), in the shape of `neiro.toml`
-2. `neiro.toml` at the vault root
+1. options passed in code (`new Vault(root, { config })`), in the shape of `tsuzuri.toml`
+2. `tsuzuri.toml` at the vault root
 3. a neutral default, or an `UnsupportedError` naming what to set
 
-| Setting | `neiro.toml` | Default |
+| Setting | `tsuzuri.toml` | Default |
 | --- | --- | --- |
 | capture folder | `[capture] folder` | the vault root |
 | journals, day to year | `[journal.<period>] folder` and `format` | `UnsupportedError` |
 | template folder | `[templates] folder` | `UnsupportedError` for `new` |
 
-neiro reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `neiro.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
+tsuzuri reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `tsuzuri.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
-An unknown key, or a value of the wrong type or choice, in `neiro.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
+An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
 
-A `neiro.toml` declaring a stricter house style:
+A `tsuzuri.toml` declaring a stricter house style:
 
 ```toml
 [capture]
@@ -121,14 +121,14 @@ Paths listed in the vault's `.gitmodules`, dot folders such as `.obsidian` and `
 ## Capture
 
 ```sh
-neiro capture --tag llm --source https://example.com/post "Read: how agents plan"
-printf -- '- white miso\n- red miso\n' | neiro capture --tag cooking --title "Miso to try"
-neiro capture -- "- text starting with a dash goes after --"
-neiro capture --file tmp/draft.md --tag reading     # a whole Markdown file, frontmatter included
+tsuzuri capture --tag llm --source https://example.com/post "Read: how agents plan"
+printf -- '- white miso\n- red miso\n' | tsuzuri capture --tag cooking --title "Miso to try"
+tsuzuri capture -- "- text starting with a dash goes after --"
+tsuzuri capture --file tmp/draft.md --tag reading     # a whole Markdown file, frontmatter included
 ```
 
 - The title is the first line of the text unless `--title` is given, with Markdown markers removed. With `--file`, the file's `title` property comes first, then its first heading, then its file name, and its `tags`, `source`, and other properties carry over; `--tag` adds to its tags.
-- By default the frontmatter holds only the tags and source, when given, and a note without either has no frontmatter. `properties` and `[capture.values]` in `neiro.toml` declare more, and capture always fills the properties the vault declares.
+- By default the frontmatter holds only the tags and source, when given, and a note without either has no frontmatter. `properties` and `[capture.values]` in `tsuzuri.toml` declare more, and capture always fills the properties the vault declares.
 - By default the file is named after the title, without the characters Obsidian refuses in file names, and a taken name gets a number, as in `Idea 2.md`. The `slug` style uses an ASCII kebab-case stem with a `-2` suffix, falling back to `capture-YYYYMMDD-HHmm` for a title with no ASCII letters.
 - Tags use Obsidian's tag syntax: letters, numbers, `_`, `-`, and `/` for nesting, with at least one non-digit.
 - `--dry-run` prints the note without writing.
@@ -136,44 +136,52 @@ neiro capture --file tmp/draft.md --tag reading     # a whole Markdown file, fro
 ## SDK
 
 ```ts
-import { Vault } from "neiro";
+import { Vault } from "tsuzuri";
 
-const vault = new Vault(process.env.NEIRO_VAULT ?? ".");
+const vault = new Vault(process.env.TSUZURI_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
-const today = await vault.journalFor("day"); // from [journal.day] in neiro.toml
+const today = await vault.journalFor("day"); // from [journal.day] in tsuzuri.toml
 await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 
-- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too. The installed `neiro` command runs on Node as well as Bun.
-- Every error neiro raises on purpose extends `NeiroError`, so one `instanceof` check separates them from bugs.
+- Bun imports the TypeScript source; Node and bundlers import the JavaScript and declarations that `make build` writes to `dist/lib`, which packing the package builds too. The installed `tsuzuri` command runs on Node as well as Bun.
+- Every error tsuzuri raises on purpose extends `TsuzuriError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
 
 ### Installing
 
-neiro is not on npm. Each [release](https://github.com/azusachino/neiro/releases) carries `neiro-<version>.tgz` and `neiro-tools-<version>.tgz`; depend on their URLs, and pin `neiro` in `overrides` to the same tarball, so `neiro-tools`' dependency on `neiro` resolves to it rather than to npm:
-
-```json
-{
-  "dependencies": {
-    "neiro": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-0.6.0.tgz",
-    "neiro-tools": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-tools-0.6.0.tgz"
-  },
-  "overrides": {
-    "neiro": "https://github.com/azusachino/neiro/releases/download/v0.6.0/neiro-0.6.0.tgz"
-  }
-}
-```
-
-A Git dependency on this repository does not work: it installs the workspace root, not the packages.
+tsuzuri is one package on npm: `npm install tsuzuri`, or `bun add tsuzuri`. It holds the SDK, the agent tools at `tsuzuri/tools`, and the `tsuzuri` and `tsuzuri-tools` commands. `npx tsuzuri` and `bunx tsuzuri` run the CLI without installing it; `npx -p tsuzuri tsuzuri-tools --json` prints the tool definitions.
 
 ### Agent tools
 
-The [`neiro-tools`](packages/tools/README.md) package, released with neiro at the same version, turns the SDK's operations into tool definitions for a tool-calling model. Install it beside `neiro` when a model should call the vault; neiro itself carries no tool code ([ADR 0010](docs/decisions/0010-agent-tools-as-an-extension-package.md)).
+The `tsuzuri/tools` entry turns the SDK's operations into tool definitions for a tool-calling model. It imports only the prelude, so it can do nothing a consumer cannot ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)).
+
+```ts
+import { Vault } from "tsuzuri";
+import { agentTools, validateInput } from "tsuzuri/tools";
+
+const vault = new Vault(process.env.TSUZURI_VAULT ?? ".");
+const tools = agentTools(); // register each tool's name, description, and inputSchema with the model
+const tool = tools.find((candidate) => candidate.name === "tsuzuri_search");
+const result = await tool?.run(vault, validateInput(tool, { query: "cognitive load" }));
+```
+
+`agentTools()` returns each tool with a `tsuzuri_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
+
+The default exposure: reads, `tsuzuri_capture`, and `tsuzuri_journal_append` are `direct`; `tsuzuri_append`, `tsuzuri_section_put`, `tsuzuri_prop_set`, and `tsuzuri_new` need a human's `confirm`; `tsuzuri_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+
+The `tsuzuri-tools` command lists each tool with its exposure and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
 
 ### Agent skill
 
-[`SKILL.md`](skills/neiro/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+[`SKILL.md`](skills/tsuzuri/SKILL.md) tells a coding agent which command to reach for, how to write without overwriting the owner (read the `hash`, `--dry-run`, then `--if-hash`), and what to do about each JSON error. It is self-contained, so an installer that copies only the skill's folder can use it, and a test fails when it names a command or option the CLI does not take.
+
+Install it into Claude Code, Codex, Cursor, and other coding agents with the [skills](https://skills.sh) installer:
+
+```sh
+npx skills add azusachino/tsuzuri
+```
 
 ## Development
 

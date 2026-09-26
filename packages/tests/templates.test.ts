@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { type NeiroConfig, NotFoundError, propertyValue, UnsupportedError, Vault } from "neiro";
+import { NotFoundError, propertyValue, type TsuzuriConfig, UnsupportedError, Vault } from "tsuzuri";
 import { copyVault, FIXTURE } from "./git.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
@@ -17,19 +17,19 @@ function splitFrontmatter(text: string): { data: Record<string, unknown>; body: 
   };
 }
 
-const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "neiro.toml" };
+const SETTINGS = { folder: "Templates", dateFormat: "YYYY-MM-DD", timeFormat: "HH:mm", source: "tsuzuri.toml" };
 
 describe("template settings", () => {
-  test("come from neiro.toml or code options, and nothing is assumed", () => {
+  test("come from tsuzuri.toml or code options, and nothing is assumed", () => {
     expect(new Vault(FIXTURE).settings.templates).toEqual(SETTINGS);
-    const config: NeiroConfig = { templates: { folder: "Notes", date_format: "DD.MM.YYYY" } };
+    const config: TsuzuriConfig = { templates: { folder: "Notes", date_format: "DD.MM.YYYY" } };
     expect(new Vault(FIXTURE, { config }).settings.templates).toMatchObject({
       folder: "Notes",
       dateFormat: "DD.MM.YYYY",
       source: "options",
     });
     const bare = copyVault();
-    writeFileSync(join(bare, "neiro.toml"), '[capture]\nfolder = "Inbox"\n');
+    writeFileSync(join(bare, "tsuzuri.toml"), '[capture]\nfolder = "Inbox"\n');
     mkdirSync(join(bare, ".obsidian"), { recursive: true });
     writeFileSync(join(bare, ".obsidian", "templates.json"), '{ "folder": "Templates" }');
     expect(new Vault(bare).settings.templates).toBeUndefined();
@@ -65,12 +65,12 @@ describe("new", () => {
     expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow("there are: Book");
     expect(new Vault(copyVault()).create("song", "x")).rejects.toThrow(NotFoundError);
     const bare = copyVault();
-    writeFileSync(join(bare, "neiro.toml"), '[capture]\nfolder = "Inbox"\n');
+    writeFileSync(join(bare, "tsuzuri.toml"), '[capture]\nfolder = "Inbox"\n');
     await expect(new Vault(bare).create("book", "x")).rejects.toThrow(UnsupportedError);
   });
 });
 
-// kepano-obsidian names its templates folder only in .obsidian, which neiro does not read (ADR 0011).
+// kepano-obsidian names its templates folder only in .obsidian, which tsuzuri does not read (ADR 0011).
 const KEPANO_TEMPLATES = { config: { templates: { folder: "Templates" } } };
 
 describe.skipIf(!kepanoPresent)("kepano-obsidian templates", () => {

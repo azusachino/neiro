@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { Vault } from "neiro";
+import { Vault } from "tsuzuri";
 import { copyVault } from "./git.ts";
 
 const NOTE = "Topics/Working memory.md";

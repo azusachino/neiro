@@ -4,12 +4,12 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { CaptureError, captureInputFromMarkdown, renderCapture } from "./capture.ts";
 import { splitFrontmatter } from "./frontmatter.ts";
-import { type NeiroConfig, resolveSettings } from "./settings.ts";
+import { resolveSettings, type TsuzuriConfig } from "./settings.ts";
 
 const NOW = new Date(2026, 8, 24, 19, 5);
 
-/** A vault that declares a strict house style, the way a vault's own neiro.toml would. */
-const STRICT: NeiroConfig = {
+/** A vault that declares a strict house style, the way a vault's own tsuzuri.toml would. */
+const STRICT: TsuzuriConfig = {
   capture: {
     folder: "queue",
     filename: "slug",
@@ -23,7 +23,7 @@ const STRICT: NeiroConfig = {
 };
 
 /** An empty folder, so settings resolve from code options and neutral defaults alone. */
-const empty = () => mkdtempSync(join(tmpdir(), "neiro-settings-"));
+const empty = () => mkdtempSync(join(tmpdir(), "tsuzuri-settings-"));
 const defaults = resolveSettings(empty()).capture;
 const strict = resolveSettings(empty(), STRICT).capture;
 

@@ -9,13 +9,13 @@ import {
   type Filter,
   formatGrep,
   type GrepHit,
-  NeiroError,
   PERIODS,
   type Period,
   parseDate,
   propertyValue,
   type SectionWriteOptions,
   SORT_KEYS,
+  TsuzuriError,
   Vault,
   type WriteOptions,
   type WriteResult,
@@ -44,7 +44,7 @@ function fail(error: Error, code: 1 | 2): never {
     const { name: _, ...fields } = Object.fromEntries(Object.entries(error));
     console.error(JSON.stringify({ error: { name: error.name, message: error.message, ...fields } }));
   } else {
-    console.error(`neiro: ${error.message}${code === 2 ? `\n\n${usage()}` : ""}`);
+    console.error(`tsuzuri: ${error.message}${code === 2 ? `\n\n${usage()}` : ""}`);
   }
   process.exit(code);
 }
@@ -60,7 +60,11 @@ interface OptionSpec {
 }
 
 const OPTIONS = {
-  vault: { type: "string", value: "<dir>", summary: "vault root (default: $NEIRO_VAULT, then the current directory)" },
+  vault: {
+    type: "string",
+    value: "<dir>",
+    summary: "vault root (default: $TSUZURI_VAULT, then the current directory)",
+  },
   json: { type: "boolean", summary: "machine-readable output and errors, the same as --format json" },
   format: { type: "string", value: "<text|json|paths>", summary: "paths prints one path per line, for xargs and fzf" },
   fields: {
@@ -136,98 +140,98 @@ const COMMANDS: readonly CommandSpec[] = [
     args: "<note>",
     summary: "print one note by path, file name, title, or alias; the JSON carries its hash for --if-hash",
     options: ["lines", "around", "context", "max-chars", "fields"],
-    example: 'neiro get "Working memory" --lines 1:20 --json',
+    example: 'tsuzuri get "Working memory" --lines 1:20 --json',
   },
   {
     name: "search",
     args: "<query...>",
     summary: "rank notes by relevance (BM25; CJK matches as substrings)",
     options: [...FILTERS, "limit", "fields"],
-    example: "neiro search cognitive load --limit 5 --json",
+    example: "tsuzuri search cognitive load --limit 5 --json",
   },
   {
     name: "grep",
     args: "<pattern>",
     summary: "matching lines as path:line:text, like rg -n (smart case)",
     options: [...FILTERS, "fixed-strings", "context"],
-    example: 'neiro grep -F "working memory" -C 2',
+    example: 'tsuzuri grep -F "working memory" -C 2',
   },
   {
     name: "find",
     args: "<query...>",
     summary: "fuzzy match over paths, titles, and aliases, ranked as fzf ranks",
     options: [...FILTERS, "limit", "fields"],
-    example: "neiro find cogload --json",
+    example: "tsuzuri find cogload --json",
   },
   {
     name: "list",
     args: "",
     summary: "notes matching the filters, optionally sorted",
     options: [...FILTERS, "sort", "desc", "limit", "fields"],
-    example: "neiro list --tag psychology --sort modified --desc --limit 10",
+    example: "tsuzuri list --tag psychology --sort modified --desc --limit 10",
   },
   {
     name: "tags",
     args: "",
     summary: "every tag with its note count, parents of nested tags included",
     options: FILTERS,
-    example: "neiro tags --json",
+    example: "tsuzuri tags --json",
   },
   {
     name: "nav",
     args: "[folder]",
     summary: "a folder's index note and headings, subfolders, and notes",
     options: ["fields"],
-    example: "neiro nav Topics",
+    example: "tsuzuri nav Topics",
   },
   {
     name: "links",
     args: "<note>",
     summary: "a note's outgoing links and how each resolves",
     options: [],
-    example: 'neiro links "Cognitive load" --json',
+    example: 'tsuzuri links "Cognitive load" --json',
   },
   {
     name: "backlinks",
     args: "<note>",
     summary: "notes that link to a note",
     options: ["fields"],
-    example: 'neiro backlinks "Cognitive load"',
+    example: 'tsuzuri backlinks "Cognitive load"',
   },
   {
     name: "unresolved",
     args: "",
     summary: "links pointing at no note, or at several",
     options: [],
-    example: "neiro unresolved --json",
+    example: "tsuzuri unresolved --json",
   },
   {
     name: "orphans",
     args: "",
     summary: "notes no other note links to or embeds",
     options: [...FILTERS, "fields"],
-    example: "neiro orphans --under Topics",
+    example: "tsuzuri orphans --under Topics",
   },
   {
     name: "outline",
     args: "<note>",
     summary: "a note's headings with their line numbers",
     options: [],
-    example: 'neiro outline "Cognitive load"',
+    example: 'tsuzuri outline "Cognitive load"',
   },
   {
     name: "prop get",
     args: "<note> <key>",
     summary: "one frontmatter value",
     options: [],
-    example: 'neiro prop get "Cognitive load" tags --json',
+    example: 'tsuzuri prop get "Cognitive load" tags --json',
   },
   {
     name: "journal",
     args: "<day|week|month|quarter|year>",
     summary: "the periodic note for a date, from the vault's journal settings",
     options: ["date"],
-    example: "neiro journal day --date 2026-09-16",
+    example: "tsuzuri journal day --date 2026-09-16",
   },
   {
     name: "capture",
@@ -235,7 +239,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "create a new note in the capture folder from text, --file, or stdin; never edits a note",
     writes: true,
     options: ["title", "source", "tag", "file", "dry-run"],
-    example: 'neiro capture --tag reading --source https://example.com "Read: how agents plan" --dry-run',
+    example: 'tsuzuri capture --tag reading --source https://example.com "Read: how agents plan" --dry-run',
   },
   {
     name: "new",
@@ -243,7 +247,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "create a note from the vault's template for type, placed as capture places it",
     writes: true,
     options: ["tag", "dry-run"],
-    example: "neiro new Book The Pragmatic Programmer --dry-run",
+    example: "tsuzuri new Book The Pragmatic Programmer --dry-run",
   },
   {
     name: "append",
@@ -251,7 +255,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "add text at the end of a note, or at the end of section --heading",
     writes: true,
     options: [...SECTION, ...WRITE],
-    example: 'neiro append Home "- a new line" --heading "start here" --dry-run',
+    example: 'tsuzuri append Home "- a new line" --heading "start here" --dry-run',
   },
   {
     name: "section put",
@@ -259,7 +263,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "replace the body of section --heading, or add the section",
     writes: true,
     options: ["heading", "level", ...WRITE],
-    example: 'neiro section put Home "Fresh text." --heading reading --dry-run',
+    example: 'tsuzuri section put Home "Fresh text." --heading reading --dry-run',
   },
   {
     name: "prop set",
@@ -267,7 +271,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "set one frontmatter key, the value read as YAML, keeping comments and order",
     writes: true,
     options: WRITE,
-    example: 'neiro prop set "Cognitive load" rating 4 --dry-run',
+    example: 'tsuzuri prop set "Cognitive load" rating 4 --dry-run',
   },
   {
     name: "put",
@@ -275,7 +279,7 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "create a note, or replace one only with --if-hash (text, --file, or stdin)",
     writes: true,
     options: ["file", ...WRITE],
-    example: 'neiro put "Inbox/Fresh.md" "A whole new note." --dry-run',
+    example: 'tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run',
   },
   {
     name: "journal append",
@@ -283,14 +287,14 @@ const COMMANDS: readonly CommandSpec[] = [
     summary: "append to the periodic note for --date, which must exist",
     writes: true,
     options: ["date", ...SECTION, ...WRITE],
-    example: 'neiro journal append day "- a line for the day" --date 2026-09-16 --dry-run',
+    example: 'tsuzuri journal append day "- a line for the day" --date 2026-09-16 --dry-run',
   },
   {
     name: "help",
     args: "[command]",
     summary: "this usage, one command's help, or every command as JSON with --json",
     options: [],
-    example: "neiro help get",
+    example: "tsuzuri help get",
   },
 ];
 
@@ -312,18 +316,18 @@ function usage(): string {
   const reads = COMMANDS.filter((spec) => !spec.writes).map(commandLine);
   const writes = COMMANDS.filter((spec) => spec.writes).map(commandLine);
   return [
-    `neiro ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault`,
-    "usage: neiro <command> [options]",
+    `tsuzuri ${pkg.version}: read and capture into an Obsidian-compatible Markdown vault`,
+    "usage: tsuzuri <command> [options]",
     `commands:\n${reads.join("\n")}`,
     `writes:\n${writes.join("\n")}`,
     `options:\n${optionLines(Object.keys(OPTIONS) as OptionName[])}`,
-    "Run neiro help <command> for one command's options and an example, or neiro help --json for every command.",
+    "Run tsuzuri help <command> for one command's options and an example, or tsuzuri help --json for every command.",
   ].join("\n\n");
 }
 
 function commandHelp(spec: CommandSpec): string {
   return [
-    `usage: neiro ${spec.name} ${spec.args}`.trimEnd(),
+    `usage: tsuzuri ${spec.name} ${spec.args}`.trimEnd(),
     spec.summary,
     spec.options.length > 0 ? `options:\n${optionLines(spec.options)}` : "options: none beyond the global ones",
     `global options: ${GLOBAL.map((name) => `--${name}`).join(", ")}`,
@@ -370,7 +374,7 @@ function commandsNamed(words: string[]): CommandSpec[] {
     const found = COMMANDS.filter((spec) => spec.name === key || spec.name.startsWith(`${key} `));
     if (found.length > 0) return found;
   }
-  throw new UsageError(`no command "${words.join(" ")}"; run neiro help for the list`);
+  throw new UsageError(`no command "${words.join(" ")}"; run tsuzuri help for the list`);
 }
 
 // A Markdown bullet such as "- read the paper", or a negative number such as -428, is text to write, not an option;
@@ -508,13 +512,13 @@ async function main(): Promise<void> {
     const allowed = new Set<string>([...GLOBAL, ...spec.options]);
     for (const [name, value] of Object.entries(opts)) {
       if (value !== undefined && !allowed.has(name)) {
-        throw new UsageError(`${spec.name} does not take --${name}; run neiro help ${spec.name}`);
+        throw new UsageError(`${spec.name} does not take --${name}; run tsuzuri help ${spec.name}`);
       }
     }
   }
 
   if (!FORMATS.includes(format)) throw new UsageError(`--format takes ${FORMATS.join(", ")}`);
-  const vault = new Vault(opts.vault ?? process.env.NEIRO_VAULT ?? process.cwd());
+  const vault = new Vault(opts.vault ?? process.env.TSUZURI_VAULT ?? process.cwd());
   // capture reads --tag itself, as tags to write; everywhere else every --tag must match.
   const filter: Filter = {
     type: opts.type,
@@ -716,6 +720,6 @@ try {
   await main();
 } catch (error) {
   if (error instanceof UsageError) fail(error, 2);
-  if (error instanceof NeiroError) fail(error, 1);
+  if (error instanceof TsuzuriError) fail(error, 1);
   throw error;
 }

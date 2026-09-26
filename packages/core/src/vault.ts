@@ -10,7 +10,7 @@ import {
   capture,
   captureInputFromMarkdown,
 } from "./capture.ts";
-import { NeiroError } from "./errors.ts";
+import { TsuzuriError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
@@ -18,7 +18,7 @@ import { journalPath } from "./journal.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
-import { type NeiroConfig, type Period, resolveSettings, UnsupportedError, type VaultSettings } from "./settings.ts";
+import { type Period, resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 import { renderTemplate, templateFor, templateNames } from "./templates.ts";
 import { contentHash, splice, WriteConflictError, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
@@ -137,8 +137,8 @@ export interface NavView {
 }
 
 export interface VaultOptions {
-  /** Settings in the shape of `neiro.toml`, taking precedence over the vault's own `neiro.toml`. */
-  config?: NeiroConfig;
+  /** Settings in the shape of `tsuzuri.toml`, taking precedence over the vault's own `tsuzuri.toml`. */
+  config?: TsuzuriConfig;
   /** Folder prefixes never scanned. Paths from the vault's `.gitmodules` are always excluded. */
   exclude?: string[];
   /**
@@ -165,7 +165,7 @@ interface LinkGraph {
   incoming: Map<string, Set<string>>;
 }
 
-export class NotFoundError extends NeiroError {
+export class NotFoundError extends TsuzuriError {
   /** The closest notes by fuzzy match, when a reference resolved to none. */
   readonly suggestions: string[];
 
@@ -182,11 +182,11 @@ export interface Suggestion extends NoteSummary {
 }
 
 /** A line range that does not fit the note; the message gives the note's line count. */
-export class LineRangeError extends NeiroError {}
+export class LineRangeError extends TsuzuriError {}
 
 export class Vault {
   readonly root: string;
-  /** Resolved from code options, then `neiro.toml`, then neutral defaults. */
+  /** Resolved from code options, then `tsuzuri.toml`, then neutral defaults. */
   readonly settings: VaultSettings;
   private readonly exclude: string[];
   private cache?: Scan;
@@ -474,7 +474,7 @@ export class Vault {
   ): Promise<CaptureResult> {
     const settings = this.settings.templates;
     if (!settings) {
-      throw new UnsupportedError("no template folder: set [templates] folder in neiro.toml");
+      throw new UnsupportedError("no template folder: set [templates] folder in tsuzuri.toml");
     }
     const paths = (await this.notes()).map((note) => note.path);
     const path = templateFor(paths, settings.folder, type);

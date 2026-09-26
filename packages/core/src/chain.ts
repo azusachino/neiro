@@ -1,7 +1,7 @@
-import { NeiroError } from "./errors.ts";
+import { TsuzuriError } from "./errors.ts";
 
 /** Raised when no provider, setting, or source can serve a request; the message names what is missing. */
-export class UnsupportedError extends NeiroError {}
+export class UnsupportedError extends TsuzuriError {}
 
 export interface Provider<T> {
   name: string;

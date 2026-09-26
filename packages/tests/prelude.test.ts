@@ -11,7 +11,7 @@ const RUNTIME = [
   "ConfigError",
   "InputError",
   "LineRangeError",
-  "NeiroError",
+  "TsuzuriError",
   "NotFoundError",
   "PERIODS",
   "SORT_KEYS",
@@ -40,7 +40,7 @@ const TYPES = [
   "ListOptions",
   "NavEntry",
   "NavView",
-  "NeiroConfig",
+  "TsuzuriConfig",
   "Note",
   "NoteContent",
   "NoteSummary",
@@ -60,7 +60,7 @@ const TYPES = [
 ];
 
 test("exports exactly the prelude's runtime names", async () => {
-  expect(Object.keys(await import("neiro")).sort()).toEqual([...RUNTIME].sort());
+  expect(Object.keys(await import("tsuzuri")).sort()).toEqual([...RUNTIME].sort());
 });
 
 test("exports exactly the prelude's types", () => {
@@ -75,8 +75,8 @@ test("exports exactly the prelude's types", () => {
 });
 
 test("refuses a deep import past the prelude", async () => {
-  expect(typeof (await import("neiro")).Vault).toBe("function");
+  expect(typeof (await import("tsuzuri")).Vault).toBe("function");
   // A variable, so the type checker leaves the refusal to the runtime this test is about.
-  const deep = "neiro/src/write.ts";
+  const deep = "tsuzuri/src/write.ts";
   await expect(import(deep)).rejects.toThrow();
 });

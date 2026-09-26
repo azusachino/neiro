@@ -1,5 +1,5 @@
 /**
- * Fuzzy matching with fzf's scoring rules (its v2 algorithm), in neiro's own code. A query matches a text when its
+ * Fuzzy matching with fzf's scoring rules (its v2 algorithm), in tsuzuri's own code. A query matches a text when its
  * characters appear in order; the best alignment wins, rewarding word starts, path separators, camelCase humps, and
  * runs of consecutive characters, and penalizing gaps.
  */
