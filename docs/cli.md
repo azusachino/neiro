@@ -385,6 +385,23 @@ With `--json`: a write result, as `append`, with `created: true`.
 tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run
 ```
 
+### move
+
+`tsuzuri move <note> <path>`
+
+Move or rename a note to a .md path, rewriting every link the move would break. Missing folders are created, and an existing file at the path is refused. A link is rewritten when it resolved to a note before the move and would not resolve to that note after it: links to the moved note, the moved note's own relative links, and links to another note whose name the move makes ambiguous. Each keeps its heading, block, and display text, and takes the shortest form that resolves: the name, else the path; a relative Markdown link stays relative. Links in code and raw HTML are untouched.
+
+| Option | Meaning |
+| --- | --- |
+| `--dry-run` | show the result, a diff for edits, without writing |
+| `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
+
+With `--json`: `from`, `to`, the moved note's `diff` and `hash`, `written`, and `rewritten`, a write result for each other note whose links changed. Without `--json`, a dry run prints every diff; a move prints the paths and each rewritten note.
+
+```sh
+tsuzuri move "Existing idea" "Notes/Existing idea.md" --dry-run
+```
+
 ### put
 
 `tsuzuri put <note> [text...]`

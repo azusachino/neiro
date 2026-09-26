@@ -51,6 +51,13 @@ export function splice(text: string, start: number, end: number, replacement: st
   return text.slice(0, start) + replacement + text.slice(end);
 }
 
+/** A unified diff from one file to another, as `git diff` prints it; the paths differ for a move. */
+export function unifiedDiff(from: string, to: string, before: string, after: string): string {
+  const patch = createTwoFilesPatch(`a/${from}`, `b/${to}`, before, after, "", "", { context: 3 });
+  // Drop the package's `====` separator so the patch reads as `git diff` prints one.
+  return patch.replace(/^=+\n/, "");
+}
+
 /**
  * Change one note. `next` turns the current text (undefined when the note does not exist) into the new text; the
  * write is refused when `ifHash` is stale.
@@ -71,9 +78,7 @@ export async function writeNote(
     throw new WriteConflictError(`${path} changed since it was read: ${now}`);
   }
   const content = next(current);
-  const patch = createTwoFilesPatch(`a/${path}`, `b/${path}`, current ?? "", content, "", "", { context: 3 });
-  // Drop the package's `====` separator so the patch reads as `git diff` prints one.
-  const diff = patch.replace(/^=+\n/, "");
+  const diff = unifiedDiff(path, path, current ?? "", content);
   const result = { path, diff, created: current === undefined, hash: contentHash(content) };
   if (options.dryRun || content === current) return { ...result, written: false };
 

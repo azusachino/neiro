@@ -40,6 +40,7 @@ const TYPES = [
   "GrepOptions",
   "Heading",
   "ListOptions",
+  "MoveResult",
   "NavEntry",
   "NavView",
   "TsuzuriConfig",

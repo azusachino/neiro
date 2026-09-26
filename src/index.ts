@@ -28,6 +28,7 @@ export type {
   GetOptions,
   Heading,
   ListOptions,
+  MoveResult,
   NavEntry,
   NavView,
   Note,

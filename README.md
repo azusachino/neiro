@@ -81,6 +81,7 @@ tsuzuri capture --tag reading "Read: how agents plan"
 | `prop set <note> <key> <value>` | sets one frontmatter key, keeping comments and key order |
 | `write <path> [text...]` | creates a note at any `.md` path; an existing file is refused |
 | `put <note> [text...]` | replaces a whole note; `--if-hash` refuses one changed since `get` |
+| `move <note> <path>` | moves or renames a note, rewriting every link the move would break |
 
 `capture`, `new`, and `write` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 

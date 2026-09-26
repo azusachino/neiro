@@ -29,6 +29,7 @@ export const OPERATIONS = {
   select: "read",
   capture: "create",
   write: "create",
+  move: "move",
   create: "create",
   append: "edit",
   putSection: "edit",
@@ -108,6 +109,11 @@ export class Mask {
   allows(op: OperationName): boolean {
     const scope = this.scope(op);
     return scope.everywhere || scope.folders.length > 0;
+  }
+
+  /** Whether some operation of `kind` may reach this path, as a move's link rewrites need for `edit`. */
+  kindReaches(kind: OperationKind, path: string): boolean {
+    return (Object.keys(OPERATIONS) as OperationName[]).some((op) => OPERATIONS[op] === kind && this.reaches(op, path));
   }
 
   /** Whether `op` may reach this vault-relative path. */
