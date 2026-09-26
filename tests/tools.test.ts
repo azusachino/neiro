@@ -51,7 +51,6 @@ describe("tool definitions", () => {
   test("default to the roadmap's exposure, and agentTools never offers cli-only tools", () => {
     expect(DEFAULT_EXPOSURE).toMatchObject({
       tsuzuri_capture: "direct",
-      tsuzuri_journal_append: "direct",
       tsuzuri_append: "confirm",
       tsuzuri_section_put: "confirm",
       tsuzuri_prop_set: "confirm",

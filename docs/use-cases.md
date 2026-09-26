@@ -43,10 +43,7 @@ What people and agents do with tsuzuri, the commands each case walks through, an
 
 ### T5. Open today's or this week's journal
 
-`journal day|week|month|quarter|year [--date]`, with paths from `tsuzuri.toml`'s `[journal.<period>]`. Shipped.
-
-- `vault.test › finds the periodic notes tsuzuri.toml declares`
-- `cli.test › prints a journal note for a date`
+Removed in 0.8.0 ([ADR 0017](decisions/0017-no-journal-in-the-sdk.md)): tsuzuri has no journal. `get` opens a periodic note by the path the vault uses for it, as T2 does.
 
 ### T6. Capture a thought, or file a draft
 
@@ -125,14 +122,13 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A7. Summarize the week, then record the summary
 
-`journal week` to read, then `journal append week <text> --heading <h>` to add to the note. Shipped; which writes an agent may call without a human is decided in [#19](https://github.com/azusachino/tsuzuri/issues/19).
+The host builds the week note's path, since tsuzuri has no journal ([ADR 0017](decisions/0017-no-journal-in-the-sdk.md)); then `get <path>` to read, and `append <path> <text> --heading <h>` to add to the note. Shipped.
 
-- `vault.test › finds the periodic notes tsuzuri.toml declares`
-- `sections.test › appends to the journal note for a date, which must exist`
+- `sections.test › adds to the end of a section with nested headings and fenced # lines, touching nothing else`
 
 ### A8. Edit a note without overwriting the owner's change
 
-`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append`, `section put`, and `journal append` take both. A write replaces the file whole through a rename, so nobody reads half a note. Shipped.
+`get` returns the note's `hash`; a write passes it back with `--if-hash` and is refused when the file changed in between, with `--dry-run` showing the diff first. `append` and `section put` take both. A write replaces the file whole through a rename, so nobody reads half a note. Shipped.
 
 - `vault.test › returns a content hash and marks truncation`
 - `write.test › refuses a stale hash and accepts the one get returned`
@@ -143,9 +139,9 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 When the vault does not say where something lives, tsuzuri raises `UnsupportedError` rather than inventing a path, and the CLI exits 1 for a missing or unsupported request and 2 for bad usage, so an agent can tell its own mistake from the vault's. A misspelled `tsuzuri.toml` key or value raises `ConfigError` instead of being ignored, and every such error is a `TsuzuriError`. Shipped.
 
-- `vault.test › raises UnsupportedError for a period no setting covers`
+- `templates.test › names the templates that exist when the type has none, and needs a template folder`
 - `capture.test › rejects a misspelled key, naming the keys the table takes`
-- `cli.test › reports a bad date or a malformed tsuzuri.toml in one line`
+- `cli.test › reports a malformed or retired tsuzuri.toml in one line`
 - `errors.test › every error tsuzuri raises is a TsuzuriError named after its class`
 - `cli.test › exits 1 for a missing note and 2 for bad usage`
 - `chain.test › names the capability and what each provider needs when none is available`

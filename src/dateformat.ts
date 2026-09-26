@@ -1,11 +1,9 @@
 /**
- * The subset of moment.js format tokens that Obsidian's Daily Notes and the Periodic Notes plugin use for note
- * paths. Week-based tokens follow moment's defaults: `gggg`/`ww` use the English locale (weeks start on Sunday and
- * week 1 contains January 1), and `GGGG`/`WW` use ISO-8601 (weeks start on Monday and week 1 contains the year's
- * first Thursday). Text in square brackets is literal, as in moment.
+ * The subset of moment.js format tokens that Obsidian's templates use, as in `{{date:YYYY-MM-DD}}`. Week-based
+ * tokens follow moment's defaults: `gggg`/`ww` use the English locale (weeks start on Sunday and week 1 contains
+ * January 1), and `GGGG`/`WW` use ISO-8601 (weeks start on Monday and week 1 contains the year's first Thursday).
+ * Text in square brackets is literal, as in moment.
  */
-
-import { InputError } from "./errors.ts";
 
 const MONTHS = [
   "January",
@@ -97,13 +95,4 @@ export function formatDate(date: Date, format: string): string {
     a: () => (date.getHours() < 12 ? "am" : "pm"),
   };
   return format.replace(TOKEN, (token) => (token.startsWith("[") ? token.slice(1, -1) : (tokens[token]?.() ?? token)));
-}
-
-/** Parse `YYYY-MM-DD` as a local calendar date. */
-export function parseDate(text: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text);
-  if (!match) throw new InputError(`expected a date as YYYY-MM-DD, got "${text}"`);
-  const date = new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
-  if (date.getMonth() !== Number(match[2]) - 1) throw new InputError(`not a calendar date: "${text}"`);
-  return date;
 }

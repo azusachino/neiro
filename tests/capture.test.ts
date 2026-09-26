@@ -51,14 +51,18 @@ describe("settings shape", () => {
       /unknown key capture\.tag-style; capture takes folder/,
     );
     expect(withToml('[journals.day]\nformat = "YYYY"\n')).toThrow(/unknown key journals/);
-    expect(withToml('[journal.days]\nformat = "YYYY"\n')).toThrow(/unknown key journal\.days/);
+  });
+
+  test("refuses journal settings, which tsuzuri no longer has, from the file or code", () => {
+    expect(withToml('[journal.day]\nformat = "YYYY-MM-DD"\n')).toThrow(/no journal settings \(ADR 0017\)/);
+    const config = { journal: { day: { format: "YYYY" } } } as unknown as TsuzuriConfig;
+    expect(() => new Vault(FIXTURE, { config })).toThrow(ConfigError);
   });
 
   test("rejects a value outside a setting's choices or type", () => {
     expect(withToml('[capture]\nfilename = "Slug"\n')).toThrow("capture.filename must be one of title, slug");
     expect(withToml("[capture]\nrequire_tags = 1\n")).toThrow("capture.require_tags must be a boolean");
     expect(withToml('[capture]\nreject_tags = "todo"\n')).toThrow("reject_tags must be a list of strings");
-    expect(withToml("[journal.week]\nformat = 3\n")).toThrow(ConfigError);
     expect(
       () => new Vault(FIXTURE, { config: { capture: { tag_style: "Kebab" } } as unknown as TsuzuriConfig }),
     ).toThrow("options: capture.tag_style must be one of as-written, kebab");

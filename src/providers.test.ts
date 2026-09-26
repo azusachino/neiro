@@ -75,9 +75,9 @@ describe("every provider returns the same result", () => {
         'values = { kind = "capture" }',
         'title_allowlist = "casing.toml"',
         "require_tags = true",
-        "[journal.week]",
-        'folder = "Weekly"',
-        'format = "GGGG-[W]WW"',
+        "[templates]",
+        'folder = "Templates"',
+        'date_format = "GGGG-[W]WW"',
       ].join("\n"),
     );
     const outputs = await eachProvider(parseToml, () => new Vault(root).settings);

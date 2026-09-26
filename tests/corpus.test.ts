@@ -60,7 +60,6 @@ describe.skipIf(!present(KEPANO))("kepano-obsidian", () => {
 
   test("reads nothing from the vault's own .obsidian settings", () => {
     expect(existsSync(join(KEPANO, ".obsidian", "daily-notes.json"))).toBe(true);
-    expect(vault.settings.journal).toEqual({});
     expect(vault.settings.templates).toBeUndefined();
     expect(vault.settings.capture.folder).toBe("");
   });

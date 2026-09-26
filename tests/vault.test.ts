@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { LineRangeError, NotFoundError, parseDate, UnsupportedError, Vault } from "tsuzuri";
+import { LineRangeError, NotFoundError, Vault } from "tsuzuri";
 
 export const FIXTURE = join(import.meta.dir, "fixtures", "vault");
 const vault = new Vault(FIXTURE);
@@ -275,26 +275,5 @@ describe("search", () => {
     expect(await vault.search("cogn")).toEqual([]);
     expect((await vault.search("load", { under: "People" })).map((hit) => hit.path)).toEqual([]);
     expect(await vault.search("   ")).toEqual([]);
-  });
-});
-
-describe("journal", () => {
-  test("finds the periodic notes tsuzuri.toml declares", async () => {
-    expect((await vault.journalFor("day", parseDate("2026-09-16"))).note?.path).toBe("Daily/2026-09-16.md");
-    expect((await vault.journalFor("week", parseDate("2026-09-16"))).note?.path).toBe("Weekly/2026-W38.md");
-    expect(await vault.journalFor("day", parseDate("2026-09-17"))).toEqual({ path: "Daily/2026-09-17.md", note: null });
-  });
-
-  test("raises UnsupportedError for a period no setting covers", async () => {
-    await expect(vault.journalFor("month", parseDate("2026-09-16"))).rejects.toThrow(UnsupportedError);
-    await expect(new Vault(join(FIXTURE, "People")).journalFor("day")).rejects.toThrow("no day journal settings");
-  });
-
-  test("lets code options override the vault's settings", async () => {
-    const configured = new Vault(FIXTURE, {
-      config: { journal: { week: { folder: "log", format: "GGGG/[weekly]/GGGG-[w]WW" } } },
-    });
-    expect((await configured.journalFor("week", parseDate("2021-01-01"))).path).toBe("log/2020/weekly/2020-w53.md");
-    expect((await configured.journalFor("day", parseDate("2021-01-01"))).path).toBe("Daily/2021-01-01.md");
   });
 });

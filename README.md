@@ -17,7 +17,6 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 - **Obsidian's rules:** wikilinks resolve as Obsidian resolves them, including links in frontmatter; tags nest and match case-insensitively; aliases and titles find notes.
 - **Find:** BM25 search with CJK support, `rg`-style `grep`, fzf-style fuzzy `find`, and `list` filtered on any frontmatter property.
 - **Navigate:** a folder's index and notes, a note's outline, its links and backlinks, and the vault's orphans and unresolved links.
-- **Journals:** the day, week, month, quarter, or year note for any date.
 - **Safe writes:** `capture` and `new` only create files; every edit targets one heading or property, shows a diff with `--dry-run`, and refuses a note changed since it was read.
 - **Built for agents:** JSON output and errors, ready-made tool definitions with MCP-style hints, and a skill for coding agents.
 - **Node and Bun:** one npm package, runnable with `npx` or `bunx`.
@@ -59,7 +58,6 @@ tsuzuri capture --tag reading "Read: how agents plan"
 | `list` | notes filtered by `--type`, `--tag`, `--status`, `--under`, or `--where key=value`, and sorted |
 | `tags` | every tag with its note count |
 | `prop get <note> <key>` | one frontmatter value |
-| `journal <period>` | the day, week, month, quarter, or year note for `--date` (default: today) |
 
 ### Navigate and link
 
@@ -81,7 +79,6 @@ tsuzuri capture --tag reading "Read: how agents plan"
 | `append <note> [text...]` | adds text at the end of a note, or of section `--heading` |
 | `section put <note> [text...]` | replaces the body of section `--heading`, or adds the section |
 | `prop set <note> <key> <value>` | sets one frontmatter key, keeping comments and key order |
-| `journal append <period> [text...]` | appends to the periodic note for `--date`, which must exist |
 | `put <path> [text...]` | creates a note, or replaces one only with `--if-hash` |
 
 `capture` and `new` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
@@ -112,12 +109,11 @@ tsuzuri assumes no folder layout or house style. Each setting is resolved in thi
 | Setting | `tsuzuri.toml` | Default |
 | --- | --- | --- |
 | capture folder | `[capture] folder` | the vault root |
-| journals, day to year | `[journal.<period>] folder` and `format` | `UnsupportedError` |
 | template folder | `[templates] folder` | `UnsupportedError` for `new` |
 
 tsuzuri reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `tsuzuri.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
-An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. Journal paths use Obsidian's moment-style formats, such as `YYYY-MM-DD` or `gggg-[W]ww`, and a format may contain `/` for subfolders.
+An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. tsuzuri has no journal settings: a caller that keeps daily or weekly notes builds their path and reads or appends to it like any other note.
 
 A `tsuzuri.toml` declaring a stricter house style:
 
@@ -135,10 +131,6 @@ reject_tags = ["todo"]
 
 [capture.values]
 status = "inbox"
-
-[journal.week]
-folder = "journal"
-format = "GGGG/[weekly]/GGGG-[W]WW"
 
 [templates]
 folder = "templates"               # without it, `new` raises UnsupportedError
@@ -169,7 +161,7 @@ import { Vault } from "tsuzuri";
 const vault = new Vault(process.env.TSUZURI_VAULT ?? ".");
 const hits = await vault.search("distributed consensus", { limit: 5 });
 const note = await vault.get(hits[0].path, { maxChars: 8000 });
-const today = await vault.journalFor("day"); // from [journal.day] in tsuzuri.toml
+const day = await vault.get("Daily/2026-09-26.md"); // a daily note, by the path your vault uses
 await vault.capture({ text: "An idea", tags: ["learning"] });
 ```
 
@@ -193,7 +185,7 @@ const result = await tool?.run(vault, validateInput(tool, { query: "cognitive lo
 
 `agentTools()` returns each tool with a `tsuzuri_` name, a JSON Schema for the input, MCP-style `readOnlyHint`, `destructiveHint`, and `idempotentHint`, an `exposure`, and a `run` bound to the SDK. Validate a model's input with `validateInput`, then call `run(vault, input)`.
 
-The default exposure: reads, `tsuzuri_capture`, and `tsuzuri_journal_append` are `direct`; `tsuzuri_append`, `tsuzuri_section_put`, `tsuzuri_prop_set`, and `tsuzuri_new` need a human's `confirm`; `tsuzuri_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
+The default exposure: reads and `tsuzuri_capture` are `direct`; `tsuzuri_append`, `tsuzuri_section_put`, `tsuzuri_prop_set`, and `tsuzuri_new` need a human's `confirm`; `tsuzuri_put` is never offered. Pass a changed copy of `DEFAULT_EXPOSURE` to `agentTools` to change it. `tsuzuri_grep` reads a model's pattern as literal text unless it sets `regex`, and caps it at 200 characters, since a regular expression runs in the host's process.
 
 The `tsuzuri-tools` command lists each tool with its exposure and whether it reads, adds, or changes notes, and `tsuzuri-tools --json` prints the definitions.
 

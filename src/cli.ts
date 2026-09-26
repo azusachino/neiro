@@ -9,9 +9,6 @@ import {
   type Filter,
   formatGrep,
   type GrepHit,
-  PERIODS,
-  type Period,
-  parseDate,
   propertyValue,
   type SectionWriteOptions,
   SORT_KEYS,
@@ -104,7 +101,6 @@ const OPTIONS = {
   },
   context: { type: "string", short: "C", value: "<n>", summary: "lines either side (get --around: 5 by default)" },
   "fixed-strings": { type: "boolean", short: "F", summary: "match the pattern as literal text" },
-  date: { type: "string", value: "<YYYY-MM-DD>", summary: "the date whose note to use (default: today)" },
   title: { type: "string", value: "<title>", summary: "the note's title (default: the first line of text)" },
   source: { type: "string", value: "<url>", summary: "where the note came from" },
   file: { type: "string", value: "<path>", summary: "read the note from a Markdown file" },
@@ -227,13 +223,6 @@ const COMMANDS: readonly CommandSpec[] = [
     example: 'tsuzuri prop get "Cognitive load" tags --json',
   },
   {
-    name: "journal",
-    args: "<day|week|month|quarter|year>",
-    summary: "the periodic note for a date, from the vault's journal settings",
-    options: ["date"],
-    example: "tsuzuri journal day --date 2026-09-16",
-  },
-  {
     name: "capture",
     args: "[text...]",
     summary: "create a new note in the capture folder from text, --file, or stdin; never edits a note",
@@ -280,14 +269,6 @@ const COMMANDS: readonly CommandSpec[] = [
     writes: true,
     options: ["file", ...WRITE],
     example: 'tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run',
-  },
-  {
-    name: "journal append",
-    args: "<day|week|month|quarter|year> [text...]",
-    summary: "append to the periodic note for --date, which must exist",
-    writes: true,
-    options: ["date", ...SECTION, ...WRITE],
-    example: 'tsuzuri journal append day "- a line for the day" --date 2026-09-16 --dry-run',
   },
   {
     name: "help",
@@ -367,7 +348,7 @@ function commandFor(words: string[]): CommandSpec | undefined {
   return COMMANDS.find((spec) => spec.name === `${first} ${second}`) ?? COMMANDS.find((spec) => spec.name === first);
 }
 
-/** The commands `help` names: `help journal` gives `journal` and `journal append`. */
+/** The commands `help` names: `help prop` gives `prop get` and `prop set`. */
 function commandsNamed(words: string[]): CommandSpec[] {
   for (let length = words.length; length > 0; length--) {
     const key = words.slice(0, length).join(" ");
@@ -670,21 +651,6 @@ async function main(): Promise<void> {
       if (action !== "put" || !ref || !opts.heading)
         throw new UsageError("usage: section put <note> --heading H [text]");
       return emitWrite(await vault.putSection(ref, opts.heading, await inputText(words), sectionOptions()));
-    }
-    case "journal": {
-      if (args[0] === "append") {
-        const [, period = "", ...words] = args;
-        if (!(PERIODS as readonly string[]).includes(period))
-          throw new UsageError(`journal append takes ${PERIODS.join(", ")}`);
-        const date = opts.date ? parseDate(opts.date) : new Date();
-        return emitWrite(
-          await vault.appendJournal(period as Period, await inputText(words), { ...sectionOptions(), date }),
-        );
-      }
-      const period = one(args, `period (${PERIODS.join(", ")})`);
-      if (!(PERIODS as readonly string[]).includes(period)) throw new UsageError(`journal takes ${PERIODS.join(", ")}`);
-      const found = await vault.journalFor(period as Period, opts.date ? parseDate(opts.date) : new Date());
-      return emit(found, () => (found.note ? `${found.path}\n\n${found.note.body}` : `${found.path}\tnot written yet`));
     }
     case "new": {
       const [type, ...words] = args;
