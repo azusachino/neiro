@@ -1,5 +1,7 @@
 # tsuzuri
 
+![tsuzuri](https://raw.githubusercontent.com/azusachino/tsuzuri/main/docs/assets/tsuzuri.png)
+
 An SDK and CLI for reading and writing an Obsidian-compatible Markdown vault. It works on the files directly: Obsidian does not need to be installed or running. It is built for a personal vault that is used from the terminal and by a Telegram bot, which imports the SDK in-process.
 
 The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli), but the model follows [notesmd-cli](https://github.com/Yakitrak/notesmd-cli): files are the only source of truth, and there is no index to build or keep fresh. A full scan of a 1,837-note vault answers a search in about 200 ms, including process start-up.
