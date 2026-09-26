@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- `new` and `capture --file` keep a `title`, `tags`, or `source` the template or file declares, filled from the capture, even when `[capture] properties` leaves it out. Before, `title` was dropped and `tags` failed with "rendered frontmatter did not round-trip". ([#87](https://github.com/azusachino/tsuzuri/issues/87))
 - The tests await every `.rejects` assertion; 20 were not awaited, so `bun test` passed them without checking. ([#88](https://github.com/azusachino/tsuzuri/issues/88))
 
 ## 0.7.0
