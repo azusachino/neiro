@@ -78,8 +78,8 @@ export interface Extension {
 
 /**
  * One rule of a mask: a kind or an operation name, or several with `under`, the folders they are limited to.
- * `"read"`, `"capture"`, and `{ ops: ["edit"], under: ["Inbox"] }` are rules. An extension's operations are named
- * the same way.
+ * `"read"`, `"capture"`, and `{ ops: ["edit"], under: ["Inbox"] }` are rules. Extension operations accept only
+ * unscoped rules; their inner Vault calls may be scoped.
  */
 export type AllowRule = OperationKind | OperationName | (string & {}) | { ops: string[]; under?: string[] };
 
@@ -112,6 +112,7 @@ export class Mask {
 
   /** Over the core operations and any `extra` an extension adds; without rules, everything is allowed everywhere. */
   constructor(rules?: AllowRule[], extra: { name: string; kind: OperationKind }[] = []) {
+    const extensionNames = new Set(extra.map(({ name }) => name));
     this.kinds = new Map<string, OperationKind>([
       ...(Object.entries(OPERATIONS) as [string, OperationKind][]),
       ...extra.map(({ name, kind }) => [name, kind] as [string, OperationKind]),
@@ -127,6 +128,12 @@ export class Mask {
         if (named.length === 0) {
           throw new ConfigError(
             `allow rule ${i}: "${op}" is neither a kind (${OPERATION_KINDS.join(", ")}) nor an operation`,
+          );
+        }
+        const extension = folders && named.find((name) => extensionNames.has(name));
+        if (extension) {
+          throw new ConfigError(
+            `allow rule ${i}: extension operation ${extension} cannot have under; scope the Vault methods it calls`,
           );
         }
         for (const name of named) this.widen(name, folders);

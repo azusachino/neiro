@@ -1,4 +1,6 @@
 import { posix } from "node:path";
+import { parseDocument, visit } from "yaml";
+import { frontmatterRange } from "./frontmatter.ts";
 import { codeFences } from "./sections.ts";
 
 export interface WikiLink {
@@ -115,9 +117,25 @@ export function extractLinks(body: string): WikiLink[] {
   return linkSpans(body).map(({ target, embed, display }) => ({ target, embed, ...(display ? { display } : {}) }));
 }
 
-/** The wikilinks written in a frontmatter block's text, with their places, for rewriting them. */
-export function frontmatterSpans(yaml: string): LinkSpan[] {
-  return wikilinks(yaml, 0);
+/** Parsed YAML values' wikilinks, paired with their places in the original frontmatter text. */
+export function frontmatterSpans(raw: string): LinkSpan[] {
+  const range = frontmatterRange(raw);
+  if (!range) return [];
+  const yaml = raw.slice(range.start, range.end);
+  const document = parseDocument(yaml);
+  if (document.errors.length > 0) return [];
+  const spans: LinkSpan[] = [];
+  visit(document, {
+    Scalar(key, node) {
+      if (key === "key" || typeof node.value !== "string" || !node.range) return;
+      const written = wikilinks(yaml.slice(node.range[0], node.range[1]), range.start + node.range[0]);
+      const parsed = wikilinks(node.value, 0);
+      // Escaped brackets can hide an entire link in the raw text; the move planner refuses that move.
+      if (written.length !== parsed.length) return;
+      for (const [i, link] of written.entries()) spans.push({ ...link, target: parsed[i]?.target as string });
+    },
+  });
+  return spans.sort((a, b) => a.start - b.start);
 }
 
 /** The wikilinks in frontmatter values, such as `related: "[[Note]]"`, which Obsidian counts as links. */

@@ -1,6 +1,6 @@
 # use cases
 
-What people and agents do with tsuzuri, the commands each case walks through, and the tests that hold it in place. A case is **shipped** when every step works today, **partial** when it works with a gap a planned issue closes, and **planned** when it waits on an issue. Update this page with the [roadmap](roadmap.md) when a change ships, and name a covering test for every shipped step. Tests are cited as `file › test name` under `test/`.
+What people and agents do with tsuzuri, the commands each case walks through, and the tests that hold it in place. A case is **shipped** when every step works today, **partial** when it works with a gap a planned issue closes, and **planned** when it waits on an issue. Update this page with the [roadmap](roadmap.md) when a change ships, and name a covering test for every shipped step. Tests are cited as `file › test name` under `tests/`.
 
 ## from the terminal
 
@@ -65,6 +65,34 @@ What people and agents do with tsuzuri, the commands each case walks through, an
 - `cli.test › --format paths prints one path per line`
 - `list.test › give the ten most recently modified books in one call`
 - `list.test › matches any frontmatter property as text, and list properties by any item`
+
+### T8. Rename a note without breaking its links
+
+`move <note> <path> --dry-run` shows every note whose links would change; the write moves the note and keeps its wikilinks, Markdown links, and parsed frontmatter links pointing at it. Code and YAML comments stay untouched. A target occupied by another file is refused, including when the names differ only by case on a case-sensitive disk. A link that cannot be rewritten safely makes the move fail before changing files. Shipped.
+
+- `move.test › renames a note, rewriting every link to it and keeping headings and display text`
+- `move.test › rewrites parsed frontmatter links while leaving comments and other YAML intact`
+- `move.test › refuses a move when YAML escapes hide a link's delimiters`
+- `move.test › a case-only move cannot overwrite a different note`
+- `move.test › keeps a real frontmatter link and the surrounding note intact`
+
+### T9. Delete a note into recoverable trash
+
+`delete <note> --dry-run` shows where the note would go. A write keeps its bytes in `.trash/<path>.<timestamp>` and removes it from reads; a stale `--if-hash` refuses it. A folder-scoped delete checks the source note and uses that fixed trash destination ([ADR 0021](decisions/0021-scope-derived-paths-and-extension-operations.md)). Shipped.
+
+- `delete.test › moves a note into .trash under its path with a timestamp, keeping every byte`
+- `delete.test › hides the note from reads, and leaves links to it unresolved`
+- `delete.test › a dry run and a stale hash change nothing`
+- `delete.test › under a mask, needs delete for the note's folder`
+
+### T10. Create a note at a chosen path, or replace one after reading it
+
+`write <path>` creates a Markdown note and refuses an occupied path; `put <note>` replaces an existing note found by reference. Either can show a dry-run diff, and `put --if-hash` refuses a note changed since `get`. Shipped.
+
+- `props-put.test › creates a note at any .md path in the vault, and refuses an existing file`
+- `props-put.test › reports a dry run without writing`
+- `props-put.test › replaces a whole note by any reference, with no hash needed`
+- `props-put.test › refuses a stale hash, and a note that does not exist`
 
 ## from an agent
 
@@ -181,3 +209,12 @@ The owner edits one checkout every day, and a bot on the same machine answers fr
 A consumer installs tsuzuri and imports it on Node, which strips no types under `node_modules`; `exports` serves Node the built JavaScript and declarations, and Bun the TypeScript source. Shipped.
 
 - `make node-smoke`, which imports the built package from a `node_modules` folder on Node and requires Bun's output
+
+### A14. Limit an agent to named operations and folders
+
+A host opens one vault with an `allow` mask. Reads outside its visible folders disappear; a write outside its allowed folder fails before changing a file. An extension operation is allowed by name or kind, while its inner `Vault` calls carry the folder scopes. A scoped rule on the extension operation itself is refused instead of appearing to protect files it cannot check. Shipped.
+
+- `mask.test › limits a rule to folders, refusing every path outside them`
+- `mask.test › hides the notes outside a read rule's folders from every read`
+- `extensions.test › the mask covers its operations, and every call they make`
+- `extensions.test › refuses a folder scope on an extension operation it cannot enforce`

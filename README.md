@@ -184,13 +184,15 @@ const bot = new Vault(root, { allow: ["read", "capture"] });
 const agent = new Vault(root, { allow: ["read", { ops: ["create", "edit"], under: ["Inbox"] }] });
 ```
 
-- A disallowed operation raises `PermissionError` before touching any file. Every path an operation would touch is checked first, compared without case after normalizing, so `Inbox/../Notes` or `INBOX/..` cannot leave a folder.
+- A disallowed operation raises `PermissionError` before touching any file. Paths are checked after normalization and without case, so `Inbox/../Notes` or `INBOX/..` cannot leave a folder. A scoped delete checks the source note; its fixed `.trash/<path>.<timestamp>` destination is part of that deletion ([ADR 0021](docs/decisions/0021-scope-derived-paths-and-extension-operations.md)).
 - A read rule limited to folders hides the notes outside them from every read: lists, search, grep, `find`, `nav`, and links. A link to a hidden note is left out, and an ambiguous link names only the candidates shown. A path outside the folders raises `PermissionError`; a name that only a hidden note has is not found.
 - Reading a template is part of `create`, so read rules do not apply to it.
 
 ### Extensions
 
 A vault lists [extensions](docs/extensions.md) in `tsuzuri.toml`, and `Vault.open` loads them: a bundled `tsuzuri:<name>` always, and a module the vault holds only with `trust`. Their operations run through `vault.run(name, input)`, appear in `vault.operations()`, and become agent tools and CLI commands; the mask covers them and every call they make.
+
+An extension operation cannot itself take a folder-scoped `allow` rule. Scope the core `Vault` methods it calls instead; a scoped extension rule raises `ConfigError` ([ADR 0021](docs/decisions/0021-scope-derived-paths-and-extension-operations.md)).
 
 ```ts
 const vault = await Vault.open(root, { allow: ["read", "capture"] }); // tsuzuri.toml: extensions = ["tsuzuri:journal"]

@@ -3,7 +3,8 @@
  * the note it resolved to before (ADR 0016). This is text only; the `Vault` checks the mask and writes the files.
  */
 import { posix } from "node:path";
-import { frontmatterSpans, LinkIndex, type LinkSpan, linkSpans } from "./links.ts";
+import { splitFrontmatter } from "./frontmatter.ts";
+import { frontmatterLinks, frontmatterSpans, LinkIndex, type LinkSpan, linkSpans } from "./links.ts";
 import { WriteConflictError } from "./write.ts";
 
 export interface MovingNote {
@@ -80,12 +81,24 @@ export function planMove(notes: MovingNote[], from: string, to: string): Map<str
         edits.push({ start: span.start, end: span.end, text });
       }
     }
-    if (edits.length === 0) continue;
     let text = note.raw;
     for (const edit of edits.sort((a, b) => b.start - a.start)) {
       text = text.slice(0, edit.start) + edit.text + text.slice(edit.end);
     }
-    changed.set(note.path, text);
+    const originalLinks = frontmatterLinks(splitFrontmatter(note.raw).data);
+    const movedLinks = frontmatterLinks(splitFrontmatter(text).data);
+    if (
+      originalLinks.length !== movedLinks.length ||
+      originalLinks.some((link, i) => {
+        const old = before.resolve(note.path, link.target);
+        if (old.status !== "resolved") return false;
+        const current = after.resolve(source, movedLinks[i]?.target ?? "");
+        return current.status !== "resolved" || current.path !== place(old.path);
+      })
+    ) {
+      throw new WriteConflictError(`cannot preserve frontmatter links in ${note.path} while moving ${from} to ${to}`);
+    }
+    if (text !== note.raw) changed.set(note.path, text);
   }
   return changed;
 }

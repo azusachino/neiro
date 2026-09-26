@@ -1,6 +1,6 @@
 # 0019 a small core, and extensions a vault defines
 
-Status: accepted, 2026-09-26 (0.8.0). Extends [ADR 0009](0009-the-core-contract-and-prelude.md)'s layers and [ADR 0018](0018-operations-and-a-permission-mask.md)'s operations table; refines where [ADR 0017](0017-no-journal-in-the-sdk.md) sends journals. Its journal-as-example is amended by [ADR 0020](0020-bundled-extensions-journal-first.md): tsuzuri bundles opt-in extensions, the journal first.
+Status: accepted, 2026-09-26 (0.8.0). Extends [ADR 0009](0009-the-core-contract-and-prelude.md)'s layers and [ADR 0018](0018-operations-and-a-permission-mask.md)'s operations table; refines where [ADR 0017](0017-no-journal-in-the-sdk.md) sends journals. Its journal-as-example is amended by [ADR 0020](0020-bundled-extensions-journal-first.md): tsuzuri bundles opt-in extensions, the journal first. Scoped extension operations are amended by [ADR 0021](0021-scope-derived-paths-and-extension-operations.md).
 
 ## context
 

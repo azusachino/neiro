@@ -17,7 +17,9 @@ extensions = ["tsuzuri:journal", ".tsuzuri/reading.js"]
 
 ## the mask
 
-An extension's operations have names and kinds, so a mask names them as it names tsuzuri's: `allow: ["read", "journalAppend"]` or `allow: ["read", "edit"]`. Every call an operation makes through the vault it is given is checked by the same mask, so an extension never does more than the host allowed: allowing `journalAppend` by name does not allow the `append` it makes, while allowing the `edit` kind allows both.
+An extension's operations have names and kinds, so a mask names them as it names tsuzuri's: `allow: ["read", "journalAppend"]` or `allow: ["read", "edit"]`. Every call an operation makes through the vault it is given is checked by the same mask: allowing `journalAppend` by name does not allow the `append` it makes, while allowing the `edit` kind allows both.
+
+An `under` rule cannot include an extension operation, by name or kind: `Vault.run` cannot know that operation's paths in advance. Such a rule raises `ConfigError`. Allow the extension operation without a folder and scope its core calls instead, for example `allow: ["journal", { ops: ["get"], under: ["Inbox"] }]`. A vault module loaded with `trust` is executable code; the mask checks its calls through `Vault`, not direct filesystem calls ([ADR 0021](decisions/0021-scope-derived-paths-and-extension-operations.md)).
 
 ## writing one
 
