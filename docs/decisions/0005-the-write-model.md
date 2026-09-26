@@ -1,6 +1,6 @@
 # 0005 capture creates; edits target one part, guarded
 
-Status: accepted, 2026-09-24 (0.1.0 capture, 0.3.0 edits); recorded 2026-09-25. Its commit steps are superseded by [ADR 0008](0008-files-only-no-git-no-server.md).
+Status: accepted, 2026-09-24 (0.1.0 capture, 0.3.0 edits); recorded 2026-09-25. Its commit steps are superseded by [ADR 0008](0008-files-only-no-git-no-server.md), and the rest, except its guards, by [ADR 0016](0016-the-sdk-reads-and-writes-the-whole-vault.md).
 
 ## context
 

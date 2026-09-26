@@ -1,6 +1,6 @@
 # 0010 agent tools as an extension package
 
-Status: accepted, 2026-09-25 (0.6.0); the separate package superseded by [ADR 0012](0012-one-npm-package-named-tsuzuri.md).
+Status: accepted, 2026-09-25 (0.6.0); the separate package superseded by [ADR 0012](0012-one-npm-package-named-tsuzuri.md), and the exposure by [ADR 0016](0016-the-sdk-reads-and-writes-the-whole-vault.md).
 
 ## context
 

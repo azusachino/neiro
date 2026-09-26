@@ -1,6 +1,6 @@
 # 0011 settings from neiro.toml only
 
-Status: accepted, 2026-09-25 (0.6.0). Supersedes the Obsidian settings source of [ADR 0004](0004-assume-no-layout-or-house-style.md). Its capture keys are superseded by [ADR 0014](0014-note-types-from-templates.md).
+Status: accepted, 2026-09-25 (0.6.0). Supersedes the Obsidian settings source of [ADR 0004](0004-assume-no-layout-or-house-style.md). Its capture keys are superseded by [ADR 0014](0014-note-types-from-templates.md), and its journal paths by [ADR 0017](0017-no-journal-in-the-sdk.md).
 
 ## context
 

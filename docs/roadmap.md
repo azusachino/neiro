@@ -91,16 +91,17 @@ Which of these an agent may call is decided in 0.4, not by this milestone.
 
 ### 0.8.0: a product for any Markdown folder
 
-From the 0.8.0 research: tsuzuri run on a 10,248-page MkDocs collection, its config and commands compared with zk, notesmd-cli, basic-memory, markdown-oxide, and Foam, and its toolchain measured on Node. Three decisions set the direction: Node first, with Bun as a fast path ([ADR 0013](decisions/0013-node-first-toolchain.md)); note types from templates and a smaller `tsuzuri.toml` ([ADR 0014](decisions/0014-note-types-from-templates.md)); and any Markdown folder, Obsidian first ([ADR 0015](decisions/0015-any-markdown-folder.md)). In order:
+From the 0.8.0 research: tsuzuri run on a 10,248-page MkDocs collection, its config and commands compared with zk, notesmd-cli, basic-memory, markdown-oxide, and Foam, and its toolchain measured on Node. Three decisions set the direction: Node first, with Bun as a fast path ([ADR 0013](decisions/0013-node-first-toolchain.md)); note types from templates and a smaller `tsuzuri.toml` ([ADR 0014](decisions/0014-note-types-from-templates.md)); any Markdown folder, Obsidian first ([ADR 0015](decisions/0015-any-markdown-folder.md)); an SDK that reads and writes the whole vault, leaving policy to the host ([ADR 0016](decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md)); and no journal ([ADR 0017](decisions/0017-no-journal-in-the-sdk.md)). In order:
 
 1. **Fixes found by the research:** a template's own `title` dropped ([#87](https://github.com/azusachino/tsuzuri/issues/87)), unawaited `.rejects` assertions ([#88](https://github.com/azusachino/tsuzuri/issues/88)), CJK phrases in `find` ([#89](https://github.com/azusachino/tsuzuri/issues/89)), and code and HTML read as links ([#90](https://github.com/azusachino/tsuzuri/issues/90)).
-2. **Node first:** vitest, Node 22 and 24 in CI, `npm pack` ([#91](https://github.com/azusachino/tsuzuri/issues/91)).
-3. **Note types from templates**, and `[tags]` and `[titles]` as the only rule blocks ([#92](https://github.com/azusachino/tsuzuri/issues/92)), then `init`, `types`, `check`, and `config` ([#93](https://github.com/azusachino/tsuzuri/issues/93)).
-4. **Any Markdown folder:** the vault root found by walking up ([#94](https://github.com/azusachino/tsuzuri/issues/94)), and titles from a first-line heading with `README.md` as a folder index ([#95](https://github.com/azusachino/tsuzuri/issues/95)).
-5. **Scale and paging:** search statistics kept per scan ([#96](https://github.com/azusachino/tsuzuri/issues/96)), and `--offset` ([#97](https://github.com/azusachino/tsuzuri/issues/97)).
-6. **A product README and wider use cases** ([#98](https://github.com/azusachino/tsuzuri/issues/98)), last, so every example runs.
+2. **One package, the whole vault, no policy:** the repository flattened into one package ([#101](https://github.com/azusachino/tsuzuri/issues/101)), journals removed ([#102](https://github.com/azusachino/tsuzuri/issues/102)), a note created at any path and replaced without a hash ([#103](https://github.com/azusachino/tsuzuri/issues/103)), move with links rewritten ([#104](https://github.com/azusachino/tsuzuri/issues/104)), delete into `.trash` ([#105](https://github.com/azusachino/tsuzuri/issues/105)), then agent tools without exposure ([#106](https://github.com/azusachino/tsuzuri/issues/106)).
+3. **Node first:** vitest, Node 22 and 24 in CI, `npm pack` ([#91](https://github.com/azusachino/tsuzuri/issues/91)).
+4. **Note types from templates**, and `[tags]` and `[titles]` as the only rule blocks ([#92](https://github.com/azusachino/tsuzuri/issues/92)), then `init`, `types`, `check`, and `config` ([#93](https://github.com/azusachino/tsuzuri/issues/93)).
+5. **Any Markdown folder:** the vault root found by walking up ([#94](https://github.com/azusachino/tsuzuri/issues/94)), and titles from a first-line heading with `README.md` as a folder index ([#95](https://github.com/azusachino/tsuzuri/issues/95)).
+6. **Scale and paging:** search statistics kept per scan ([#96](https://github.com/azusachino/tsuzuri/issues/96)), and `--offset` ([#97](https://github.com/azusachino/tsuzuri/issues/97)).
+7. **A product README and wider use cases** ([#98](https://github.com/azusachino/tsuzuri/issues/98)), last, so every example runs.
 
-Later, each only when a use case asks for it: moving or renaming a note with its links rewritten, reading a site generator's navigation such as `mkdocs.yml`, and a drafts folder where an agent's notes wait for review. An MCP or language server stays out ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
+Later, each only when a use case asks for it: reading a site generator's navigation such as `mkdocs.yml`, and a drafts folder where an agent's notes wait for review. An MCP or language server stays out ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
 
 Whether Obsidian resolves a bare alias link ([#24](https://github.com/azusachino/tsuzuri/issues/24)) still needs a check in the app.
 
@@ -140,7 +141,6 @@ Libraries measured against this policy and rejected are listed in [ADR 0007](dec
 ## not planned
 
 - Anything that needs the Obsidian app, a plugin, or Obsidian Sync.
-- `delete`. Archiving is a move, and even that waits for rename support that rewrites links.
 - A query language such as SilverBullet's Lua queries. Flags cover the filters and sorts people use; a language would give a model an arbitrary-code surface.
 - Git: committing, pushing, pulling, or reading revisions ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).
 - A server over HTTP or MCP ([ADR 0008](decisions/0008-files-only-no-git-no-server.md)).

@@ -1,6 +1,6 @@
 # 0004 assume no layout or house style
 
-Status: accepted, 2026-09-24 (0.1.0); recorded 2026-09-25. Its Obsidian settings source is superseded by [ADR 0011](0011-settings-from-neiro-toml-only.md). Its capture keys are superseded by [ADR 0014](0014-note-types-from-templates.md).
+Status: accepted, 2026-09-24 (0.1.0); recorded 2026-09-25. Its Obsidian settings source is superseded by [ADR 0011](0011-settings-from-neiro-toml-only.md). Its capture keys are superseded by [ADR 0014](0014-note-types-from-templates.md), and its journal paths by [ADR 0017](0017-no-journal-in-the-sdk.md).
 
 ## context
 
