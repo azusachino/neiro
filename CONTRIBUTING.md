@@ -35,11 +35,11 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 ## Releasing
 
 1. Update `CHANGELOG.md` and the `version` in `packages/core/package.json`, and merge.
-2. Tag the merge commit `v<version>` and push the tag.
-3. `make publish`, which packs `tsuzuri-<version>.tgz` into `dist/pack` and publishes it to npm; it needs `npm login` as the package owner.
-4. `gh release create v<version> dist/pack/*.tgz --notes-file <the version's changelog section>`.
+2. Tag the merge commit `v<version>` and push the tag. The [release workflow](.github/workflows/release.yml) checks the tag against the version, runs `make validate`, publishes the package to npm with provenance, and creates the GitHub release with the tarball and the version's changelog section.
 
-Consumers install from npm, as the [README](README.md#installing) shows. A Git dependency on the repository does not work: it installs the workspace root, not the package.
+npm trusts that workflow by OIDC, so no npm token is stored: on npmjs.com, the package's settings name `azusachino/tsuzuri` and `release.yml` as its trusted publisher. `make publish` remains for a manual release from a maintainer's machine, after `npm login`.
+
+Consumers install from npm, as the [README](README.md#install) shows. A Git dependency on the repository does not work: it installs the workspace root, not the package.
 
 ## Reporting a security issue
 

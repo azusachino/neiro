@@ -1,0 +1,69 @@
+name: Release
+
+# Pushing a tag v<version> publishes that version to npm and creates its GitHub
+# release. npm authenticates this workflow by OIDC (trusted publishing), so no
+# npm token is stored anywhere: the package's settings on npmjs.com name this
+# repository and this file, release.yml, as its trusted publisher.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: publish ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # create the GitHub release
+      id-token: write # npm trusted publishing
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - uses: jdx/mise-action@v4
+        with:
+          install: true
+          cache: false
+
+      # Writes the registry to .npmrc; trusted publishing needs npm 11.5.1 or
+      # later, which the Node that .mise.toml pins already bundles.
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24.19.0"
+          registry-url: "https://registry.npmjs.org"
+          package-manager-cache: false
+
+      - name: Check the tag matches the package version
+        run: |
+          version=$(jq -r .version packages/core/package.json)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "tag $GITHUB_REF_NAME does not match packages/core/package.json version $version" >&2
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: make install
+
+      - name: Run the pre-PR gate
+        run: make validate
+
+      - name: Pack
+        run: make pack
+
+      - name: Publish to npm
+        run: npm publish dist/pack/tsuzuri-*.tgz
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=${GITHUB_REF_NAME#v}
+          awk -v v="## $version" '$0 == v {f = 1; next} /^## / {if (f) exit} f' CHANGELOG.md > release-notes.md
+          gh release create "$GITHUB_REF_NAME" dist/pack/tsuzuri-*.tgz --title "$GITHUB_REF_NAME" --notes-file release-notes.md
