@@ -4,18 +4,8 @@ import { ConfigError } from "./errors.ts";
 import { parseToml } from "./providers.ts";
 
 export const CONFIG_FILE = "tsuzuri.toml";
-export const PERIODS = ["day", "week", "month", "quarter", "year"] as const;
-export type Period = (typeof PERIODS)[number];
 
 export { UnsupportedError } from "./chain.ts";
-
-/** Where the notes of one period live: `folder` plus a moment-style `format`, which may contain `/`. */
-export interface PeriodicSetting {
-  folder: string;
-  format: string;
-  /** Which settings source supplied this, for error messages and debugging. */
-  source: string;
-}
 
 export interface CaptureSettings {
   /** Folder for new notes, relative to the vault root; `""` is the root. */
@@ -47,7 +37,6 @@ export interface TemplateSettings {
 
 export interface VaultSettings {
   capture: CaptureSettings;
-  journal: Partial<Record<Period, PeriodicSetting>>;
   /** Unset when no source names a template folder; `new` then raises `UnsupportedError`. */
   templates?: TemplateSettings;
 }
@@ -67,7 +56,6 @@ export interface TsuzuriConfig {
     require_tags?: boolean;
     reject_tags?: string[];
   };
-  journal?: Partial<Record<Period, { folder?: string; format?: string }>>;
   templates?: { folder?: string; date_format?: string; time_format?: string };
 }
 
@@ -116,7 +104,6 @@ const RULES: Record<string, Record<string, Rule>> = {
   },
   templates: { folder: "string", date_format: "string", time_format: "string" },
 };
-const JOURNAL_RULES: Record<string, Rule> = { folder: "string", format: "string" };
 
 const isTable = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -149,38 +136,25 @@ function checkConfig(config: unknown, source: string): TsuzuriConfig {
   if (!isTable(config)) throw new ConfigError(`${source}: settings must be a table`);
   for (const [section, value] of Object.entries(config)) {
     if (section === "journal") {
-      if (!isTable(value)) throw new ConfigError(`${source}: journal must be a table`);
-      for (const [period, entry] of Object.entries(value)) {
-        if (!(PERIODS as readonly string[]).includes(period)) {
-          throw new ConfigError(`${source}: unknown key journal.${period}; journal takes ${PERIODS.join(", ")}`);
-        }
-        checkTable(entry, JOURNAL_RULES, `journal.${period}`, source);
-      }
-      continue;
+      throw new ConfigError(
+        `${source}: tsuzuri has no journal settings (ADR 0017); remove [journal] and build a periodic note's path in the caller`,
+      );
     }
     const rules = RULES[section];
-    if (!rules) throw new ConfigError(`${source}: unknown key ${section}; settings take capture, journal, templates`);
+    if (!rules) throw new ConfigError(`${source}: unknown key ${section}; settings take capture, templates`);
     checkTable(value, rules, section, source);
   }
   return config as TsuzuriConfig;
 }
 
 /**
- * Resolve settings by precedence: options passed in code, then `tsuzuri.toml`, then neutral defaults (ADR 0011). A
- * journal period with no setting stays unset, and using it raises `UnsupportedError`.
+ * Resolve settings by precedence: options passed in code, then `tsuzuri.toml`, then neutral defaults (ADR 0011).
  */
 export function resolveSettings(root: string, code: TsuzuriConfig = {}): VaultSettings {
   const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE) : {};
   checkConfig(code, "options");
   const capture = { ...file.capture, ...code.capture };
   const allowFile = capture.title_allowlist;
-
-  const journal: Partial<Record<Period, PeriodicSetting>> = {};
-  for (const period of PERIODS) {
-    const configured = code.journal?.[period] ?? file.journal?.[period];
-    const source = code.journal?.[period] ? "options" : CONFIG_FILE;
-    if (configured?.format) journal[period] = { folder: configured.folder ?? "", format: configured.format, source };
-  }
   const template = templates(file, code);
 
   return {
@@ -196,7 +170,6 @@ export function resolveSettings(root: string, code: TsuzuriConfig = {}): VaultSe
       requireTags: capture.require_tags ?? DEFAULT_CAPTURE.requireTags,
       rejectTags: capture.reject_tags ?? DEFAULT_CAPTURE.rejectTags,
     },
-    journal,
     ...(template ? { templates: template } : {}),
   };
 }

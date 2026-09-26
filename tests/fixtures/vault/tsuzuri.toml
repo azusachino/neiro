@@ -2,13 +2,5 @@
 [capture]
 folder = "Inbox"
 
-[journal.day]
-folder = "Daily"
-format = "YYYY-MM-DD"
-
-[journal.week]
-folder = "Weekly"
-format = "gggg-[W]ww"
-
 [templates]
 folder = "Templates"

@@ -14,11 +14,10 @@ import { TsuzuriError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
-import { journalPath } from "./journal.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
-import { type Period, resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
+import { resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 import { renderTemplate, templateFor, templateNames } from "./templates.ts";
 import { contentHash, splice, WriteConflictError, type WriteOptions, type WriteResult, writeNote } from "./write.ts";
@@ -326,13 +325,6 @@ export class Vault {
     });
   }
 
-  /** The periodic note for `date`'s day, week, month, quarter, or year, with `text` appended as `append` does. */
-  async appendJournal(period: Period, text: string, options: SectionWriteOptions & { date?: Date } = {}) {
-    const { path, note } = await this.journalFor(period, options.date);
-    if (!note) throw new NotFoundError(`${path} is not written yet; the ${period} note must exist to append to it`);
-    return this.append(path, text, options);
-  }
-
   /**
    * Set one frontmatter key, adding it after the others when new. Comments, key order, quoting, and every other
    * line of the frontmatter are kept; a note without frontmatter gains a block.
@@ -454,13 +446,6 @@ export class Vault {
         })),
       notes: direct.sort((a, b) => a.path.localeCompare(b.path)),
     };
-  }
-
-  /** The periodic note for the day, week, month, quarter, or year containing `date`, or `null` with the path it would have. */
-  async journalFor(period: Period, date: Date = new Date()): Promise<{ path: string; note: NoteContent | null }> {
-    const path = journalPath(period, date, this.settings.journal[period]);
-    const exists = (await this.notes()).some((note) => note.path === path);
-    return { path, note: exists ? await this.get(path) : null };
   }
 
   /**

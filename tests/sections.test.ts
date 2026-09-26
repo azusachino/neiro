@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { NotFoundError, SectionError, Vault, WriteConflictError } from "tsuzuri";
+import { SectionError, Vault, WriteConflictError } from "tsuzuri";
 import { copyVault } from "./git.ts";
 
 const CLI = join(import.meta.dir, "..", "src", "cli.ts");
@@ -75,14 +75,6 @@ describe("append", () => {
     expect(read()).toBe(PLAN);
     await vault.append("Plan", "- an idea", { heading: "Ideas", createHeading: true, level: 3 });
     expect(read().endsWith("- tail item\n\n### Ideas\n\n- an idea\n")).toBe(true);
-  });
-
-  test("appends to the journal note for a date, which must exist", async () => {
-    const root = copyVault();
-    const vault = new Vault(root, { config: { journal: { week: { folder: "Weekly", format: "GGGG-[W]WW" } } } });
-    await vault.appendJournal("week", "- from the journal", { heading: "plan", date: new Date(2026, 8, 16) });
-    expect(readFileSync(join(root, "Weekly", "2026-W38.md"), "utf8")).toContain("- from the journal");
-    await expect(vault.appendJournal("week", "x", { date: new Date(2026, 0, 5) })).rejects.toThrow(NotFoundError);
   });
 });
 

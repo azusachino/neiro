@@ -1,11 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { formatDate, isoWeek, localeWeek } from "./dateformat.ts";
-import { parseDate } from "./index.ts";
 
 describe("formatDate", () => {
   const date = new Date(2026, 8, 6, 9, 5, 7);
 
-  test("formats the tokens Obsidian's periodic notes use", () => {
+  test("formats the moment tokens templates use", () => {
     expect(formatDate(date, "YYYY-MM-DD")).toBe("2026-09-06");
     expect(formatDate(date, "YYYY-[Q]Q")).toBe("2026-Q3");
     expect(formatDate(date, "YY M D DDD DDDD")).toBe("26 9 6 249 249");
@@ -26,13 +25,5 @@ describe("formatDate", () => {
 
   test("keeps bracketed text and unknown letters literal", () => {
     expect(formatDate(date, "[Daily] YYYY x")).toBe("Daily 2026 x");
-  });
-});
-
-describe("parseDate", () => {
-  test("parses YYYY-MM-DD and rejects malformed dates", () => {
-    expect(parseDate("2026-09-16").getDate()).toBe(16);
-    expect(() => parseDate("2026-9-1")).toThrow();
-    expect(() => parseDate("2026-02-30")).toThrow();
   });
 });

@@ -22,22 +22,15 @@ describe("cli", () => {
     ]);
   });
 
-  test("reports a bad date or a malformed tsuzuri.toml in one line", () => {
-    const date = run("journal", "day", "--date", "2026-13-01");
-    expect(date.code).toBe(1);
-    expect(date.stderr.trim()).toBe('tsuzuri: not a calendar date: "2026-13-01"');
-    const root = mkdtempSync(join(tmpdir(), "tsuzuri-badtoml-"));
-    writeFileSync(join(root, "tsuzuri.toml"), "capture = [\n");
-    const result = Bun.spawnSync(["bun", CLI, "--vault", root, "list"], { stderr: "pipe" });
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr.toString()).toStartWith("tsuzuri: tsuzuri.toml: ");
-    expect(result.stderr.toString().trim().split("\n")).toHaveLength(1);
-  });
-
-  test("prints a journal note for a date", () => {
-    const { code, stdout } = run("journal", "day", "--date", "2026-09-16");
-    expect(code).toBe(0);
-    expect(stdout).toStartWith("Daily/2026-09-16.md");
+  test("reports a malformed or retired tsuzuri.toml in one line", () => {
+    for (const toml of ["capture = [\n", '[journal.day]\nformat = "YYYY-MM-DD"\n']) {
+      const root = mkdtempSync(join(tmpdir(), "tsuzuri-badtoml-"));
+      writeFileSync(join(root, "tsuzuri.toml"), toml);
+      const result = Bun.spawnSync(["bun", CLI, "--vault", root, "list"], { stderr: "pipe" });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr.toString()).toStartWith("tsuzuri: tsuzuri.toml: ");
+      expect(result.stderr.toString().trim().split("\n")).toHaveLength(1);
+    }
   });
 
   test("dry-runs a capture from stdin", () => {
@@ -50,8 +43,7 @@ describe("cli", () => {
 
   test("exits 1 for a missing note and 2 for bad usage", () => {
     expect(run("get", "nothing-here").code).toBe(1);
-    expect(run("journal", "month").code).toBe(1);
-    expect(run("journal", "fortnight").code).toBe(2);
+    expect(run("journal", "day").code).toBe(2);
     expect(run("nope").code).toBe(2);
     expect(run("list", "--bogus").code).toBe(2);
     expect(run("search").code).toBe(2);
@@ -171,7 +163,7 @@ describe("help", () => {
     expect(direct.stdout).toStartWith("usage: tsuzuri get <note>");
     expect(direct.stdout).toContain("--lines <a:b>");
     expect(direct.stdout).not.toContain("--limit");
-    expect(run("help", "journal").stdout).toContain("usage: tsuzuri journal append");
+    expect(run("help", "prop").stdout).toContain("usage: tsuzuri prop set");
   });
 
   test("lists every command with its options as JSON", () => {

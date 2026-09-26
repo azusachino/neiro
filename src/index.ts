@@ -6,7 +6,6 @@
 
 export type { CaptureInput, CaptureOptions, CaptureResult } from "./capture.ts";
 export { CaptureError, captureInputFromMarkdown } from "./capture.ts";
-export { parseDate } from "./dateformat.ts";
 export { ConfigError, InputError, TsuzuriError } from "./errors.ts";
 export type { Frontmatter } from "./frontmatter.ts";
 export { propertyValue } from "./frontmatter.ts";
@@ -16,13 +15,11 @@ export type { Resolution } from "./links.ts";
 export { SectionError } from "./sections.ts";
 export type {
   CaptureSettings,
-  Period,
-  PeriodicSetting,
   TemplateSettings,
   TsuzuriConfig,
   VaultSettings,
 } from "./settings.ts";
-export { PERIODS, UnsupportedError } from "./settings.ts";
+export { UnsupportedError } from "./settings.ts";
 export type { TagCount } from "./tags.ts";
 export type {
   Filter,

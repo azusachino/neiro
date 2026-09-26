@@ -2,7 +2,7 @@
  * Ready-made agent tools over a `Vault`: a name, a JSON Schema for the input, MCP-style hints, an exposure, and a
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
-import { InputError, PERIODS, type Period, parseDate, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
+import { InputError, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
 
 /** `direct`: an agent may call it; `confirm`: only after a human approves the call; `cli-only`: never offered. */
 export type Exposure = "direct" | "confirm" | "cli-only";
@@ -108,10 +108,6 @@ const filterOf = (input: Record<string, unknown>) => ({
   status: o<string>(input, "status"),
   under: o<string>(input, "under"),
 });
-const dateOf = (input: Record<string, unknown>) => {
-  const date = o<string>(input, "date");
-  return date ? parseDate(date) : new Date();
-};
 
 /** A write's guards, from the model's input. */
 function writeOf(input: Record<string, unknown>) {
@@ -275,20 +271,6 @@ export const TOOLS: ToolDefinition[] = [
     run: (vault, input) => vault.property(s(input, "note"), s(input, "key")),
   },
   {
-    name: "tsuzuri_journal",
-    description: "The periodic note for a date: its path, and its content when written.",
-    inputSchema: schema(
-      {
-        period: { type: "string", description: "Which note", enum: PERIODS },
-        date: str("YYYY-MM-DD; today by default"),
-      },
-      ["period"],
-    ),
-    annotations: READ,
-    exposure: "direct",
-    run: (vault, input) => vault.journalFor(s(input, "period") as Period, dateOf(input)),
-  },
-  {
     name: "tsuzuri_capture",
     description: "Create one new note in the vault's inbox or capture folder. Never edits an existing note.",
     inputSchema: schema(
@@ -308,28 +290,6 @@ export const TOOLS: ToolDefinition[] = [
         { text: s(input, "text"), title: o(input, "title"), tags: o(input, "tags"), source: o(input, "source") },
         { dryRun: o(input, "dryRun") },
       ),
-  },
-  {
-    name: "tsuzuri_journal_append",
-    description: "Add text to the periodic note for a date, at its end or under a heading. The note must exist.",
-    inputSchema: schema(
-      {
-        period: { type: "string", description: "Which note", enum: PERIODS },
-        text: str("Text to add, such as a bullet"),
-        heading: str("The section to add under"),
-        date: str("YYYY-MM-DD; today by default"),
-        ...GUARDS,
-      },
-      ["period", "text"],
-    ),
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
-    exposure: "direct",
-    run: (vault, input) =>
-      vault.appendJournal(s(input, "period") as Period, s(input, "text"), {
-        ...writeOf(input),
-        heading: o(input, "heading"),
-        date: dateOf(input),
-      }),
   },
   {
     name: "tsuzuri_append",

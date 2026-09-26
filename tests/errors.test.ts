@@ -5,7 +5,6 @@ import {
   InputError,
   LineRangeError,
   NotFoundError,
-  parseDate,
   SectionError,
   TsuzuriError,
   UnsupportedError,
@@ -28,5 +27,4 @@ test("every error tsuzuri raises is a TsuzuriError named after its class", () =>
     expect(error).toBeInstanceOf(TsuzuriError);
     expect(error.name).toBe(ErrorClass.name);
   }
-  expect(() => parseDate("2026-13-01")).toThrow(InputError);
 });

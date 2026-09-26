@@ -13,7 +13,6 @@ const RUNTIME = [
   "LineRangeError",
   "TsuzuriError",
   "NotFoundError",
-  "PERIODS",
   "SORT_KEYS",
   "SectionError",
   "UnsupportedError",
@@ -21,7 +20,6 @@ const RUNTIME = [
   "WriteConflictError",
   "captureInputFromMarkdown",
   "formatGrep",
-  "parseDate",
   "propertyValue",
 ];
 
@@ -45,8 +43,6 @@ const TYPES = [
   "NoteContent",
   "NoteSummary",
   "OutgoingLink",
-  "Period",
-  "PeriodicSetting",
   "Resolution",
   "SearchHit",
   "SectionWriteOptions",

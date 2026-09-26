@@ -259,22 +259,6 @@ With `--json`: the value as YAML parsed it.
 tsuzuri prop get "Cognitive load" tags --json
 ```
 
-### journal
-
-`tsuzuri journal <day|week|month|quarter|year>`
-
-The periodic note for a date, from the vault's journal settings.
-
-| Option | Meaning |
-| --- | --- |
-| `--date <YYYY-MM-DD>` | the date whose note to use (default: today) |
-
-With `--json`: `path`, and `note` as `get` returns it, or `null` when not written yet.
-
-```sh
-tsuzuri journal day --date 2026-09-16
-```
-
 ### help
 
 `tsuzuri help [command]`
@@ -400,25 +384,4 @@ With `--json`: a write result, as `append`.
 
 ```sh
 tsuzuri put "Inbox/Fresh.md" "A whole new note." --dry-run
-```
-
-### journal append
-
-`tsuzuri journal append <day|week|month|quarter|year> [text...]`
-
-Append to the periodic note for --date, which must exist.
-
-| Option | Meaning |
-| --- | --- |
-| `--date <YYYY-MM-DD>` | the date whose note to use (default: today) |
-| `--heading <heading>` | the section, by heading text |
-| `--create-heading` | add a missing heading at the end of the note instead of refusing |
-| `--level <1-6>` | the level of a created heading (default: 2) |
-| `--dry-run` | show the result, a diff for edits, without writing |
-| `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
-
-With `--json`: a write result, as `append`.
-
-```sh
-tsuzuri journal append day "- a line for the day" --date 2026-09-16 --dry-run
 ```

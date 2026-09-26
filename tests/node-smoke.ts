@@ -18,8 +18,6 @@ const COMMANDS = [
   ["links", "clt"],
   ["backlinks", "clt"],
   ["unresolved"],
-  ["journal", "day", "--date", "2026-09-16"],
-  ["journal", "week", "--date", "2026-09-16"],
 ];
 
 function run(runtime: string, args: string[]): string {
