@@ -15,6 +15,7 @@ import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
+import { type AllowRule, Mask, type OperationName, PermissionError } from "./operations.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
 import { resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
@@ -146,6 +147,12 @@ export interface VaultOptions {
    * `reload()`; 0 checks on every read.
    */
   watch?: number;
+  /**
+   * The operations this `Vault` allows, by kind or name, optionally limited to folders (ADR 0018). Unset, everything
+   * is allowed. A disallowed operation raises `PermissionError` before touching any file, and notes outside an
+   * operation's folders are invisible to it.
+   */
+  allow?: AllowRule[];
 }
 
 /** The notes as last read, their link index, and the fingerprint `watch` compares. */
@@ -195,11 +202,13 @@ export class Vault {
   private generation = 0;
   private readonly watch?: number;
   private checked = 0;
+  private readonly mask: Mask;
 
   constructor(root: string, options: VaultOptions = {}) {
     this.root = resolve(root);
     if (!existsSync(this.root) || !statSync(this.root).isDirectory())
       throw new NotFoundError(`no vault at ${this.root}`);
+    this.mask = new Mask(options.allow);
     this.settings = resolveSettings(this.root, options.config);
     this.exclude = ["node_modules", ...submodulePaths(this.root), ...(options.exclude ?? [])].map(folderPrefix);
     this.watch = options.watch;
@@ -213,11 +222,11 @@ export class Vault {
   }
 
   async notes(): Promise<Note[]> {
-    return (await this.load()).notes;
+    return this.reachable("notes");
   }
 
   async get(ref: string, options: GetOptions = {}): Promise<NoteContent> {
-    const note = await this.find(ref);
+    const note = await this.resolve("get", ref);
     const range = lineRange(note, options);
     const text = range ? range.text : note.body;
     const max = options.maxChars;
@@ -233,7 +242,7 @@ export class Vault {
   }
 
   async list(filter: Filter & ListOptions = {}): Promise<NoteSummary[]> {
-    const notes = (await this.filtered(filter)).map(summarize);
+    const notes = filtered(await this.reachable("list"), filter).map(summarize);
     if (filter.sort) {
       const key = filter.sort;
       const direction = filter.desc ? -1 : 1;
@@ -249,43 +258,58 @@ export class Vault {
   }
 
   async search(query: string, filter: Filter & { limit?: number } = {}): Promise<SearchHit[]> {
-    return rank(await this.filtered(filter), query, filter.limit ?? 10).map(({ note, score, snippet }) => ({
-      ...summarize(note),
-      score,
-      snippet,
-    }));
+    return rank(filtered(await this.reachable("search"), filter), query, filter.limit ?? 10).map(
+      ({ note, score, snippet }) => ({
+        ...summarize(note),
+        score,
+        snippet,
+      }),
+    );
   }
 
   /** Lines matching a regular expression (or literal text with `fixed`), with ripgrep's smart case. */
   async grep(pattern: string, options: Filter & GrepOptions = {}): Promise<GrepHit[]> {
-    return grep(await this.filtered(options), pattern, options);
+    return grep(filtered(await this.reachable("grep"), options), pattern, options);
   }
 
   /** Every tag in the filtered notes with its note count, so a writer can reuse a tag instead of inventing one. */
   async tags(filter: Filter = {}): Promise<TagCount[]> {
-    return countTags(await this.filtered(filter));
+    return countTags(filtered(await this.reachable("tags"), filter));
   }
 
+  /** A note's links, each resolved; under a mask, a link to a note the mask hides is left out. */
   async links(ref: string): Promise<OutgoingLink[]> {
-    const note = await this.find(ref);
-    return [...((await this.graph()).outgoing.get(note.path) ?? [])];
+    const note = await this.resolve("links", ref);
+    const outgoing = (await this.graph()).outgoing.get(note.path) ?? [];
+    return outgoing.flatMap((link) => {
+      const resolution = this.visibleResolution("links", link.resolution);
+      return resolution ? [{ ...link, resolution }] : [];
+    });
   }
 
   async backlinks(ref: string): Promise<NoteSummary[]> {
-    const target = await this.find(ref);
+    const target = await this.resolve("backlinks", ref);
     const sources = (await this.graph()).incoming.get(target.path) ?? new Set();
-    return (await this.notes()).filter((note) => sources.has(note.path)).map(summarize);
+    return (await this.reachable("backlinks")).filter((note) => sources.has(note.path)).map(summarize);
   }
 
-  /** Notes no other note links to or embeds, narrowed by the filters; a note linking only to itself is an orphan. */
+  /**
+   * Notes no other note links to or embeds, narrowed by the filters; a note linking only to itself is an orphan.
+   * Under a mask, only the links of notes the mask shows count.
+   */
   async orphans(filter: Filter = {}): Promise<NoteSummary[]> {
     const { incoming } = await this.graph();
-    return (await this.filtered(filter)).filter((note) => !incoming.has(note.path)).map(summarize);
+    const notes = await this.reachable("orphans");
+    const shown = new Set(notes.map((note) => note.path));
+    const linked = (note: Note) => [...(incoming.get(note.path) ?? [])].some((source) => shown.has(source));
+    return filtered(notes, filter)
+      .filter((note) => !linked(note))
+      .map(summarize);
   }
 
   /** A note's ATX headings with their line numbers, counted as `get --lines` counts; fenced code is skipped. */
   async outline(ref: string): Promise<Heading[]> {
-    const note = await this.find(ref);
+    const note = await this.resolve("outline", ref);
     return headingsOf(note.raw).map(({ level, text, line }) => ({ level, text, line }));
   }
 
@@ -294,7 +318,7 @@ export class Vault {
    * `createHeading` is set, which adds it at the end of the note.
    */
   async append(ref: string, text: string, options: SectionWriteOptions = {}): Promise<WriteResult> {
-    const note = await this.find(ref);
+    const note = await this.resolve("append", ref);
     return this.change(note.path, options, (current) => {
       const addition = text.replace(/\s+$/, "");
       if (options.heading === undefined) return `${withNewline(current)}${addition}\n`;
@@ -310,7 +334,7 @@ export class Vault {
 
   /** Replace section `heading`'s body, or add the section at the end of the note when it is missing. */
   async putSection(ref: string, heading: string, text: string, options: WriteOptions & { level?: number } = {}) {
-    const note = await this.find(ref);
+    const note = await this.resolve("putSection", ref);
     return this.change(note.path, options, (current) => {
       const body = text.replace(/^\s+|\s+$/g, "");
       const section = findSection(current, heading);
@@ -330,7 +354,7 @@ export class Vault {
    * line of the frontmatter are kept; a note without frontmatter gains a block.
    */
   async setProperty(ref: string, key: string, value: unknown, options: WriteOptions = {}): Promise<WriteResult> {
-    const note = await this.find(ref);
+    const note = await this.resolve("setProperty", ref);
     return this.change(note.path, options, (current) => {
       const range = frontmatterRange(current);
       if (!range) return `---\n${stringify({ [key]: value }, { lineWidth: 0 })}---\n${current}`;
@@ -354,6 +378,7 @@ export class Vault {
     if (target.startsWith("/") || target.startsWith("../") || !target.endsWith(".md")) {
       throw new WriteConflictError(`put takes a .md path inside the vault, not "${path}"`);
     }
+    this.mask.check("put", [target]);
     return this.recorded(
       writeNote(
         this.root,
@@ -393,26 +418,31 @@ export class Vault {
 
   /** One frontmatter value of a note, as parsed; a note without the property raises `NotFoundError`. */
   async property(ref: string, key: string): Promise<unknown> {
-    const note = await this.find(ref);
+    const note = await this.resolve("property", ref);
     if (!(key in note.frontmatter)) throw new NotFoundError(`${note.path} has no property "${key}"`);
     return note.frontmatter[key];
   }
 
-  /** Links that point at no note, or at more than one. Attachments are not checked. */
+  /**
+   * Links that point at no note, or at more than one. Attachments are not checked. Under a mask, only the notes it
+   * shows are checked, and an ambiguous link names only the candidates it shows.
+   */
   async unresolved(): Promise<{ from: string; target: string; resolution: Resolution }[]> {
-    const { notes } = await this.load();
+    const notes = await this.reachable("unresolved");
     const { outgoing } = await this.graph();
     return notes.flatMap((note) =>
-      (outgoing.get(note.path) ?? [])
-        .filter(({ resolution }) => resolution.status === "missing" || resolution.status === "ambiguous")
-        .map(({ target, resolution }) => ({ from: note.path, target, resolution })),
+      (outgoing.get(note.path) ?? []).flatMap(({ target, resolution }) => {
+        if (resolution.status !== "missing" && resolution.status !== "ambiguous") return [];
+        const shown = this.visibleResolution("unresolved", resolution) ?? resolution;
+        return [{ from: note.path, target, resolution: shown }];
+      }),
     );
   }
 
   /** A folder's own `index.md`, its subfolders, and its direct notes: the vault's navigation before any search. */
   async nav(folder = ""): Promise<NavView> {
     const prefix = folderPrefix(folder);
-    const notes = (await this.notes()).filter((note) => note.path.startsWith(prefix));
+    const notes = (await this.reachable("nav")).filter((note) => note.path.startsWith(prefix));
     const indexNote = notes.find((note) => note.path === `${prefix}index.md`);
     const folders = new Map<string, number>();
     const direct: NoteSummary[] = [];
@@ -457,11 +487,14 @@ export class Vault {
     title: string,
     options: CaptureOptions & { tags?: string[]; now?: Date } = {},
   ): Promise<CaptureResult> {
+    this.mask.check("create");
     const settings = this.settings.templates;
     if (!settings) {
       throw new UnsupportedError("no template folder: set [templates] folder in tsuzuri.toml");
     }
-    const paths = (await this.notes()).map((note) => note.path);
+    // Reading the template is part of creating from it, so the mask's read rules do not apply to it.
+    const { notes } = await this.load();
+    const paths = notes.map((note) => note.path);
     const path = templateFor(paths, settings.folder, type);
     if (!path) {
       const names = templateNames(paths, settings.folder);
@@ -470,13 +503,23 @@ export class Vault {
       );
     }
     const now = options.now ?? new Date();
-    const template = (await this.find(path)).raw;
+    const template = (notes.find((note) => note.path === path) as Note).raw;
     const input = captureInputFromMarkdown(renderTemplate(template, title, now, settings), path);
-    return this.capture({ ...input, title, tags: [...(input.tags ?? []), ...(options.tags ?? [])], now }, options);
+    const tags = [...(input.tags ?? []), ...(options.tags ?? [])];
+    return this.captureAs("create", { ...input, title, tags, now }, options);
   }
 
   async capture(input: CaptureInput, options: CaptureOptions = {}): Promise<CaptureResult> {
-    return this.recorded(capture(this.root, input, this.settings.capture, options));
+    return this.captureAs("capture", input, options);
+  }
+
+  /** Capture under `op`: the note's path is planned first, and written only when the mask reaches it. */
+  private async captureAs(op: OperationName, input: CaptureInput, options: CaptureOptions): Promise<CaptureResult> {
+    this.mask.check(op);
+    const planned = { ...input, now: input.now ?? new Date() };
+    const plan = await capture(this.root, planned, this.settings.capture, { dryRun: true });
+    this.mask.check(op, [plan.path]);
+    return options.dryRun ? plan : this.recorded(capture(this.root, planned, this.settings.capture, options));
   }
 
   /**
@@ -484,7 +527,7 @@ export class Vault {
    * frontmatter key. A field neither has is `null`.
    */
   async select(items: { path: string }[], fields: string[]): Promise<Record<string, unknown>[]> {
-    const byPath = new Map((await this.notes()).map((note) => [note.path, note]));
+    const byPath = new Map((await this.reachable("select")).map((note) => [note.path, note]));
     return items.map((item) =>
       Object.fromEntries(
         fields.map((field) => [
@@ -498,8 +541,28 @@ export class Vault {
 
   /** Resolve a reference: a vault path (with or without `.md`), a unique filename stem, title, or alias. */
   async find(ref: string): Promise<Note> {
-    const notes = await this.notes();
+    return this.resolve("find", ref);
+  }
+
+  /** Notes ranked by fuzzy match of the query over their path, title, and aliases, with fzf's scoring rules. */
+  async suggest(query: string, options: Filter & { limit?: number; anyTerm?: boolean } = {}): Promise<Suggestion[]> {
+    return suggestAmong(await this.reachable("suggest"), query, options);
+  }
+
+  /** The notes `op` may see: every note, or those in its folders. An operation the mask forbids is refused. */
+  private async reachable(op: OperationName): Promise<Note[]> {
+    this.mask.check(op);
+    const { notes } = await this.load();
+    return this.mask.scope(op).everywhere ? notes : notes.filter((note) => this.mask.reaches(op, note.path));
+  }
+
+  /** Resolve a reference among the notes `op` may see; a path outside them is refused by name, not reported missing. */
+  private async resolve(op: OperationName, ref: string): Promise<Note> {
+    const notes = await this.reachable(op);
     const wanted = ref.trim().replace(/^\.?\//, "");
+    if (/[/\\]/.test(wanted) && !this.mask.reaches(op, wanted)) {
+      throw new PermissionError(`this vault's mask does not allow ${op} on ${wanted}`);
+    }
     const lower = wanted.toLowerCase();
     const byPath = notes.find((note) => note.path.toLowerCase() === lower || note.path.toLowerCase() === `${lower}.md`);
     if (byPath) return byPath;
@@ -516,38 +579,21 @@ export class Vault {
       }
     }
     // A typo can break one word's subsequence; then any word that still matches is enough to suggest.
-    let closest = await this.suggest(wanted, { limit: 3 });
-    if (closest.length === 0) closest = await this.suggest(wanted, { limit: 3, anyTerm: true });
+    let closest = suggestAmong(notes, wanted, { limit: 3 });
+    if (closest.length === 0) closest = suggestAmong(notes, wanted, { limit: 3, anyTerm: true });
     throw new NotFoundError(
       `no note matches "${ref}"`,
       closest.map((hit) => hit.path),
     );
   }
 
-  /** Notes ranked by fuzzy match of the query over their path, title, and aliases, with fzf's scoring rules. */
-  async suggest(query: string, options: Filter & { limit?: number; anyTerm?: boolean } = {}): Promise<Suggestion[]> {
-    const candidates = (await this.filtered(options)).map((note) => ({
-      item: note,
-      texts: [note.path, note.title, ...note.aliases],
-    }));
-    const ranked = fuzzyRank(query, candidates, options.limit ?? 10, { anyTerm: options.anyTerm });
-    return ranked.map(({ item, score, matched }) => ({
-      ...summarize(item),
-      score,
-      matched,
-    }));
-  }
-
-  private async filtered(filter: Filter): Promise<Note[]> {
-    const prefix = filter.under ? folderPrefix(filter.under) : "";
-    return (await this.notes()).filter(
-      (note) =>
-        note.path.startsWith(prefix) &&
-        (!filter.type || note.type === filter.type) &&
-        (!filter.status || note.status === filter.status) &&
-        [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)) &&
-        Object.entries(filter.where ?? {}).every(([key, value]) => propertyMatches(note.frontmatter[key], value)),
-    );
+  /** A link's resolution as `op` may see it: a hidden note is not shown, and an ambiguous link names what is. */
+  private visibleResolution(op: OperationName, resolution: Resolution): Resolution | undefined {
+    if (resolution.status === "resolved") return this.mask.reaches(op, resolution.path) ? resolution : undefined;
+    if (resolution.status === "ambiguous") {
+      return { status: "ambiguous", candidates: resolution.candidates.filter((path) => this.mask.reaches(op, path)) };
+    }
+    return resolution;
   }
 
   private async load(): Promise<Scan> {
@@ -687,6 +733,31 @@ function createSection(current: string, options: SectionWriteOptions, body: stri
   const heading = `${"#".repeat(options.level ?? 2)} ${options.heading}`;
   const gap = current.trim() === "" ? "" : "\n";
   return `${withNewline(current)}${gap}${heading}\n\n${body}\n`;
+}
+
+function filtered(notes: Note[], filter: Filter): Note[] {
+  const prefix = filter.under ? folderPrefix(filter.under) : "";
+  return notes.filter(
+    (note) =>
+      note.path.startsWith(prefix) &&
+      (!filter.type || note.type === filter.type) &&
+      (!filter.status || note.status === filter.status) &&
+      [...(filter.tag ? [filter.tag] : []), ...(filter.tags ?? [])].every((tag) => tagMatches(note.tags, tag)) &&
+      Object.entries(filter.where ?? {}).every(([key, value]) => propertyMatches(note.frontmatter[key], value)),
+  );
+}
+
+function suggestAmong(
+  notes: Note[],
+  query: string,
+  options: Filter & { limit?: number; anyTerm?: boolean },
+): Suggestion[] {
+  const candidates = filtered(notes, options).map((note) => ({
+    item: note,
+    texts: [note.path, note.title, ...note.aliases],
+  }));
+  const ranked = fuzzyRank(query, candidates, options.limit ?? 10, { anyTerm: options.anyTerm });
+  return ranked.map(({ item, score, matched }) => ({ ...summarize(item), score, matched }));
 }
 
 function summarize(note: Note): NoteSummary {

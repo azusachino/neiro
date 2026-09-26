@@ -9,6 +9,7 @@ import {
   type Filter,
   formatGrep,
   type GrepHit,
+  type OperationName,
   propertyValue,
   type SectionWriteOptions,
   SORT_KEYS,
@@ -118,6 +119,8 @@ type OptionName = keyof typeof OPTIONS;
 /** One command: its arguments, the options it takes beyond the global ones, and an example that runs. */
 interface CommandSpec {
   name: string;
+  /** The vault operation the command runs; `help` runs none. */
+  operation?: OperationName;
   args: string;
   summary: string;
   writes?: boolean;
@@ -133,6 +136,7 @@ const SECTION: readonly OptionName[] = ["heading", "create-heading", "level"];
 const COMMANDS: readonly CommandSpec[] = [
   {
     name: "get",
+    operation: "get",
     args: "<note>",
     summary: "print one note by path, file name, title, or alias; the JSON carries its hash for --if-hash",
     options: ["lines", "around", "context", "max-chars", "fields"],
@@ -140,6 +144,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "search",
+    operation: "search",
     args: "<query...>",
     summary: "rank notes by relevance (BM25; CJK matches as substrings)",
     options: [...FILTERS, "limit", "fields"],
@@ -147,6 +152,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "grep",
+    operation: "grep",
     args: "<pattern>",
     summary: "matching lines as path:line:text, like rg -n (smart case)",
     options: [...FILTERS, "fixed-strings", "context"],
@@ -154,6 +160,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "find",
+    operation: "suggest",
     args: "<query...>",
     summary: "fuzzy match over paths, titles, and aliases, ranked as fzf ranks",
     options: [...FILTERS, "limit", "fields"],
@@ -161,6 +168,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "list",
+    operation: "list",
     args: "",
     summary: "notes matching the filters, optionally sorted",
     options: [...FILTERS, "sort", "desc", "limit", "fields"],
@@ -168,6 +176,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "tags",
+    operation: "tags",
     args: "",
     summary: "every tag with its note count, parents of nested tags included",
     options: FILTERS,
@@ -175,6 +184,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "nav",
+    operation: "nav",
     args: "[folder]",
     summary: "a folder's index note and headings, subfolders, and notes",
     options: ["fields"],
@@ -182,6 +192,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "links",
+    operation: "links",
     args: "<note>",
     summary: "a note's outgoing links and how each resolves",
     options: [],
@@ -189,6 +200,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "backlinks",
+    operation: "backlinks",
     args: "<note>",
     summary: "notes that link to a note",
     options: ["fields"],
@@ -196,6 +208,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "unresolved",
+    operation: "unresolved",
     args: "",
     summary: "links pointing at no note, or at several",
     options: [],
@@ -203,6 +216,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "orphans",
+    operation: "orphans",
     args: "",
     summary: "notes no other note links to or embeds",
     options: [...FILTERS, "fields"],
@@ -210,6 +224,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "outline",
+    operation: "outline",
     args: "<note>",
     summary: "a note's headings with their line numbers",
     options: [],
@@ -217,6 +232,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "prop get",
+    operation: "property",
     args: "<note> <key>",
     summary: "one frontmatter value",
     options: [],
@@ -224,6 +240,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "capture",
+    operation: "capture",
     args: "[text...]",
     summary: "create a new note in the capture folder from text, --file, or stdin; never edits a note",
     writes: true,
@@ -232,6 +249,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "new",
+    operation: "create",
     args: "<type> <title...>",
     summary: "create a note from the vault's template for type, placed as capture places it",
     writes: true,
@@ -240,6 +258,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "append",
+    operation: "append",
     args: "<note> [text...]",
     summary: "add text at the end of a note, or at the end of section --heading",
     writes: true,
@@ -248,6 +267,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "section put",
+    operation: "putSection",
     args: "<note> [text...]",
     summary: "replace the body of section --heading, or add the section",
     writes: true,
@@ -256,6 +276,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "prop set",
+    operation: "setProperty",
     args: "<note> <key> <value>",
     summary: "set one frontmatter key, the value read as YAML, keeping comments and order",
     writes: true,
@@ -264,6 +285,7 @@ const COMMANDS: readonly CommandSpec[] = [
   },
   {
     name: "put",
+    operation: "put",
     args: "<path> [text...]",
     summary: "create a note, or replace one only with --if-hash (text, --file, or stdin)",
     writes: true,
@@ -335,6 +357,7 @@ function helpJson(specs: readonly CommandSpec[]) {
       name: spec.name,
       args: spec.args,
       summary: spec.summary,
+      ...(spec.operation ? { operation: spec.operation } : {}),
       writes: spec.writes ?? false,
       options: spec.options.map(optionJson),
       example: spec.example,
