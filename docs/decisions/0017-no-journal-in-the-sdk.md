@@ -1,6 +1,6 @@
 # 0017 no journal in the SDK
 
-Status: accepted, 2026-09-26 (0.8.0). Supersedes the journal paths of [ADR 0004](0004-assume-no-layout-or-house-style.md) and [ADR 0011](0011-settings-from-neiro-toml-only.md). Where journals go is refined by [ADR 0019](0019-a-small-core-and-vault-extensions.md): a vault's own extension.
+Status: accepted, 2026-09-26 (0.8.0). Supersedes the journal paths of [ADR 0004](0004-assume-no-layout-or-house-style.md) and [ADR 0011](0011-settings-from-neiro-toml-only.md). Where journals go is refined by [ADR 0019](0019-a-small-core-and-vault-extensions.md) and [ADR 0020](0020-bundled-extensions-journal-first.md): an opt-in extension bundled with tsuzuri, whose `[journal]` tables are valid again when it is listed.
 
 ## context
 
