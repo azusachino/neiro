@@ -123,6 +123,18 @@ describe("the bundled journal", () => {
     });
   });
 
+  test("refuses a folder scope on an extension operation it cannot enforce", async () => {
+    const root = vaultWith(JOURNAL);
+    await expect(Vault.open(root, { allow: [{ ops: ["journal"], under: ["Inbox"] }, "get"] })).rejects.toThrow(
+      ConfigError,
+    );
+    await expect(Vault.open(root, { allow: [{ ops: ["read"], under: ["Inbox"] }] })).rejects.toThrow(ConfigError);
+    const scopedInnerRead = await Vault.open(root, { allow: ["journal", { ops: ["get"], under: ["Inbox"] }] });
+    await expect(scopedInnerRead.run("journal", { period: "day", date: "2026-09-16" })).rejects.toThrow(
+      PermissionError,
+    );
+  });
+
   test("becomes agent tools the mask filters", async () => {
     const vault = await Vault.open(vaultWith(JOURNAL), { allow: ["read", "capture"] });
     const tools = agentTools(vault);

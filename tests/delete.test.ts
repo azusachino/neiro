@@ -61,11 +61,14 @@ describe("delete", () => {
 
   test("under a mask, needs delete for the note's folder", async () => {
     const root = copyVault();
+    const before = readFileSync(join(root, "Inbox", "Existing idea.md"));
     await expect(new Vault(root, { allow: ["read", "edit"] }).delete("Existing idea")).rejects.toThrow(PermissionError);
     const inbox = new Vault(root, { allow: ["read", { ops: ["delete"], under: ["Inbox"] }] });
     await expect(inbox.delete("Topics/Working memory.md")).rejects.toThrow(PermissionError);
     expect(existsSync(join(root, "Topics", "Working memory.md"))).toBe(true);
-    expect((await inbox.delete("Existing idea")).written).toBe(true);
+    const deleted = await inbox.delete("Existing idea", { now: NOW });
+    expect(deleted.trashed).toBe(".trash/Inbox/Existing idea.md.20260926112233");
+    expect(readFileSync(join(root, deleted.trashed))).toEqual(before);
   });
 
   test("runs from the CLI and as a tool", async () => {

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, renameSync, statSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join, posix, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -576,9 +576,17 @@ export class Vault {
     const target = notePath(to, "move");
     if (target === note.path) throw new WriteConflictError(`${note.path} is already at ${target}`);
     this.mask.check("move", [note.path, target]);
-    // A change of case alone renames the same file on a case-insensitive disk.
-    if (target.toLowerCase() !== note.path.toLowerCase() && existsSync(join(this.root, target))) {
-      throw new WriteConflictError(`${target} exists; move does not overwrite`);
+    // A case-only target may be this file on one disk, but a different file on another.
+    const existing = lstatSync(join(this.root, target), { throwIfNoEntry: false });
+    if (existing) {
+      const original = lstatSync(join(this.root, note.path));
+      if (
+        existing.dev !== original.dev ||
+        existing.ino !== original.ino ||
+        realpathSync(join(this.root, target)) !== realpathSync(join(this.root, note.path))
+      ) {
+        throw new WriteConflictError(`${target} exists; move does not overwrite`);
+      }
     }
     const { notes } = await this.load();
     const plan = planMove(notes, note.path, target);
@@ -626,7 +634,8 @@ export class Vault {
   /**
    * Delete a note by moving it into the vault's `.trash` folder, keeping its path and adding a local timestamp:
    * `Topics/x.md` becomes `.trash/Topics/x.md.20260926112233`, with `-2` and on added when that name is taken. The
-   * file keeps every byte, and restoring it is a rename. Reads skip dot folders, and the name no longer ends in `.md`,
+   * file keeps every byte, and restoring it is a rename. A mask checks the source path; the fixed trash destination is
+   * part of that deletion (ADR 0021). Reads skip dot folders, and the name no longer ends in `.md`,
    * so nothing reads it as a note; links to it become unresolved. `ifHash` refuses a note changed since it was read.
    */
   async delete(ref: string, options: WriteOptions & { now?: Date } = {}): Promise<DeleteResult> {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { spawnSync } from "node:child_process";
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { type MoveResult, PermissionError, Vault, WriteConflictError } from "tsuzuri";
@@ -73,6 +73,56 @@ describe("move", () => {
     expect(read(root, "Topics/Points at rel.md")).toBe("[rel](../Notes/Deep/Rel.md#part)\n");
   });
 
+  test("rewrites parsed frontmatter links while leaving comments and other YAML intact", async () => {
+    const root = copyVault();
+    writeFileSync(join(root, "Target.md"), "target\n");
+    writeFileSync(
+      join(root, "Ref.md"),
+      [
+        "---",
+        'related: "[[\\x54arget]]" # keep',
+        "list:",
+        '  - "[[Target]]"',
+        "block: |",
+        "  [[Target]]",
+        "# [[Target]] is a comment",
+        "---",
+        "Body [[Target]]",
+        "",
+      ].join("\n"),
+    );
+    const vault = new Vault(root);
+    expect((await vault.links("Ref.md")).filter((link) => link.resolution.status === "resolved")).toHaveLength(4);
+    await vault.move("Target.md", "Renamed.md");
+    expect(read(root, "Ref.md")).toBe(
+      [
+        "---",
+        'related: "[[Renamed]]" # keep',
+        "list:",
+        '  - "[[Renamed]]"',
+        "block: |",
+        "  [[Renamed]]",
+        "# [[Target]] is a comment",
+        "---",
+        "Body [[Renamed]]",
+        "",
+      ].join("\n"),
+    );
+    expect((await vault.links("Ref.md")).filter((link) => link.resolution.status === "resolved")).toHaveLength(4);
+  });
+
+  test("refuses a move when YAML escapes hide a link's delimiters", async () => {
+    const root = copyVault();
+    writeFileSync(join(root, "Target.md"), "target\n");
+    const original = '---\nrelated: "\\x5b\\x5bTarget]]"\n---\n';
+    writeFileSync(join(root, "Ref.md"), original);
+    const vault = new Vault(root);
+    expect((await vault.links("Ref.md"))[0]?.resolution).toEqual({ status: "resolved", path: "Target.md" });
+    await expect(vault.move("Target.md", "Renamed.md")).rejects.toThrow(WriteConflictError);
+    expect(read(root, "Ref.md")).toBe(original);
+    expect(read(root, "Target.md")).toBe("target\n");
+  });
+
   test("writes a path wherever a name the move makes ambiguous would no longer find its note", async () => {
     const root = copyVault();
     await moveKeepingLinks(root, "Topics/Working memory.md", "Notes/Cognitive load.md");
@@ -106,6 +156,22 @@ describe("move", () => {
     await expect(vault.move("Working memory", "Topics/x.txt")).rejects.toThrow(WriteConflictError);
     await expect(vault.move("Working memory", "Topics/Elsewhere.md", { ifHash: "0" })).rejects.toThrow("changed");
     expect(existsSync(join(root, "Topics", "Working memory.md"))).toBe(true);
+  });
+
+  test.skipIf(process.platform !== "linux")("a case-only move cannot overwrite a different note", async () => {
+    const root = copyVault();
+    writeFileSync(join(root, "A.md"), "first\n");
+    writeFileSync(join(root, "a.md"), "second\n");
+    await expect(new Vault(root).move("A.md", "a.md")).rejects.toThrow(WriteConflictError);
+    expect(read(root, "A.md")).toBe("first\n");
+    expect(read(root, "a.md")).toBe("second\n");
+  });
+
+  test("a case-only move renames its own file", async () => {
+    const root = copyVault();
+    const result = await new Vault(root).move("Topics/Working memory.md", "Topics/WORKING MEMORY.md");
+    expect(result.written).toBe(true);
+    expect((await new Vault(root).get("Topics/WORKING MEMORY.md")).path).toBe("Topics/WORKING MEMORY.md");
   });
 
   test("refuses when a note it would rewrite changed since the scan", async () => {
@@ -145,6 +211,23 @@ describe("move", () => {
 });
 
 describe.skipIf(!kepanoPresent)("move on kepano-obsidian", () => {
+  test("keeps a real frontmatter link and the surrounding note intact", async () => {
+    const root = mkdtempSync(join(tmpdir(), "tsuzuri-kepano-frontmatter-"));
+    try {
+      cpSync(KEPANO, root, { recursive: true, filter: (path) => path !== join(KEPANO, ".git") });
+      await new Vault(root).move("Categories/Podcast episodes.md", "Categories/Podcast notes.md");
+      expect(read(root, "Categories/Podcasts.md")).toBe(
+        '---\ntags:\n  - categories\nrelated: "[[Podcast notes]]"\n---\n\n![[Podcasts.base]]\n',
+      );
+      expect((await new Vault(root).links("Categories/Podcasts.md"))[0]?.resolution).toEqual({
+        status: "resolved",
+        path: "Categories/Podcast notes.md",
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("renames the most linked note and moves another across folders, breaking no link", async () => {
     const root = mkdtempSync(join(tmpdir(), "tsuzuri-kepano-move-"));
     cpSync(KEPANO, root, { recursive: true, filter: (path) => path !== join(KEPANO, ".git") });
