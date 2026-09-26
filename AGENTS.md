@@ -8,33 +8,11 @@ tsuzuri is an SDK and CLI over an Obsidian-compatible Markdown vault, working on
 
 ## Layout
 
-```text
-packages/core/src/index.ts         The public SDK surface; everything a library consumer may import
-packages/core/src/vault.ts         Vault: scanning, lookup, list, links, nav, and journal
-packages/core/src/settings.ts      The settings chain: code options, tsuzuri.toml, then neutral defaults
-packages/core/src/errors.ts        TsuzuriError, the base of every error tsuzuri raises on purpose
-packages/core/src/chain.ts         Fallback chains: the first available provider serves a capability
-packages/core/src/providers.ts     The capability chains; the only place a Bun-only API may appear
-packages/core/src/links.ts         Link extraction (wikilinks, Markdown links, frontmatter) and Obsidian-style resolution
-packages/core/src/search.ts        BM25 ranking over a scan
-packages/core/src/capture.ts       Capture: one new note in the capture folder
-packages/core/src/title.ts         Title casing and Latin/CJK spacing
-packages/core/src/journal.ts       Periodic note paths from a folder and a format
-packages/core/src/dateformat.ts    The moment-style date tokens Obsidian's periodic notes use
-packages/core/src/frontmatter.ts   YAML frontmatter parsing and scalar quoting
-packages/core/src/cli.ts           The CLI, a thin front end over the prelude
-packages/core/src/*.test.ts        Unit tests of internals, beside the code they test
-packages/tests/                    Contract tests through the public entries and the CLIs, the fixture, and the corpora
-packages/tests/fixtures/vault      A small synthetic vault for edge cases; never copy personal notes into it
-packages/tests/vaults/             Public Obsidian vaults pinned as submodules; tests assert invariants on them
-skills/tsuzuri/                      SKILL.md for agents using the CLI; a test checks its commands and options against the CLI
-packages/core/src/tools.ts         The tsuzuri/tools entry: agent tool definitions over the prelude, and nothing else
-packages/core/src/tools-cli.ts     tsuzuri-tools --json, which prints the definitions
-docs/decisions/                    Architecture decision records: every rule below, with its reasons
-docs/roadmap.md                    Shipped, next, and not-planned work; update it with each change
-docs/cli.md                        Every CLI command, option, and JSON output; a test checks it against the CLI's command table
-docs/use-cases.md                  Terminal and agent use cases, each with its status and covering tests
-```
+One npm package at the repository root.
+
+- `src/` is the package. `index.ts` is the prelude, the SDK's public entry; `tools.ts` is the `tsuzuri/tools` entry; `cli.ts` and `tools-cli.ts` are the two commands. Unit tests of internals sit beside the code as `*.test.ts`.
+- `tests/` holds the contract tests, which import only `tsuzuri` and `tsuzuri/tools`, by the package's own name; `tests/fixtures/vault`, a small synthetic vault; and `tests/vaults/`, public Obsidian vaults pinned as submodules.
+- `docs/` holds the [decisions](docs/decisions/README.md), the [roadmap](docs/roadmap.md) (update it with each change), the [CLI reference](docs/cli.md), and the [use cases](docs/use-cases.md); tests check the CLI reference and `skills/tsuzuri/SKILL.md` against the CLI.
 
 ## Toolchain and tasks
 
@@ -54,5 +32,5 @@ Each rule below is a decision record in [`docs/decisions/`](docs/decisions/READM
 - **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
 - **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))
 - **Files only:** no Git and no server. ([0008](docs/decisions/0008-files-only-no-git-no-server.md))
-- **The CLI imports only the prelude** in `packages/core/src/index.ts`, the SDK's public entry. ([0009](docs/decisions/0009-the-core-contract-and-prelude.md))
+- **The CLI imports only the prelude** in `src/index.ts`, the SDK's public entry. ([0009](docs/decisions/0009-the-core-contract-and-prelude.md))
 - **Agent tools are the `tsuzuri/tools` entry of the one package,** which imports only the prelude. ([0010](docs/decisions/0010-agent-tools-as-an-extension-package.md), [0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md))

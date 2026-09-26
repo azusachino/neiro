@@ -215,14 +215,14 @@ Bun, Node, rumdl, and typos are pinned in `.mise.toml`; run `mise install`, then
 make install    # dependencies from bun.lock, plus the kepano-obsidian test vault
 make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build the CLI and run it against the fixture vault
-make build      # compile the CLI into one binary, and the SDK into dist/lib, in packages/core
+make build      # compile the CLI into one binary, and the SDK into dist/lib
 make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
 make pack       # pack the package into dist/pack, the tarball npm and a release carry
 make publish    # publish that tarball to npm, after a release is tagged (see CONTRIBUTING.md)
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
-Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/tests/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
+Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `tests/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
 
 ## Contributing
 

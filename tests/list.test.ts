@@ -7,7 +7,7 @@ import { Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const paths = (notes: { path: string }[]) => notes.map((note) => note.path);
 
 /** The fixture plus a shelf of books, so "latest books" has something to find. */

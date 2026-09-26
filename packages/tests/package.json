@@ -1,9 +1,0 @@
-{
-  "name": "tsuzuri-tests",
-  "private": true,
-  "type": "module",
-  "description": "Contract tests of tsuzuri and tsuzuri/tools through their public entries, with the fixture vault and public corpora",
-  "dependencies": {
-    "tsuzuri": "workspace:*"
-  }
-}

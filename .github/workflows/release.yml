@@ -42,9 +42,9 @@ jobs:
 
       - name: Check the tag matches the package version
         run: |
-          version=$(jq -r .version packages/core/package.json)
+          version=$(jq -r .version package.json)
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
-            echo "tag $GITHUB_REF_NAME does not match packages/core/package.json version $version" >&2
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version" >&2
             exit 1
           fi
 

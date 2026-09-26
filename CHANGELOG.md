@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- The repository is one package at its root: `src/` and `tests/` replace the Bun workspace of `packages/core` and `packages/tests`, and the contract tests import `tsuzuri` by the package's own name. The tarball no longer carries the unit tests. ([#101](https://github.com/azusachino/tsuzuri/issues/101))
 - `find` splits a CJK phrase written without spaces into its words with `Intl.Segmenter`, and each word must match as a space-separated word does, in any order: `find 事务分布式` now finds the notes titled `分布式事务`. Latin queries rank as before. ([#89](https://github.com/azusachino/tsuzuri/issues/89))
 - `links`, `backlinks`, `orphans`, and `unresolved` skip links in raw HTML blocks, following CommonMark's block rules, and in code spans of any backtick length, as Obsidian renders no links there. On a 10,248-page docs corpus, `unresolved` drops from 118 to 95; the rest are links Obsidian does render, in prose and paragraphs, except 10 in indented code blocks, which are still read. ([#90](https://github.com/azusachino/tsuzuri/issues/90))
 - `new` and `capture --file` keep a `title`, `tags`, or `source` the template or file declares, filled from the capture, even when `[capture] properties` leaves it out. Before, `title` was dropped and `tags` failed with "rendered frontmatter did not round-trip". ([#87](https://github.com/azusachino/tsuzuri/issues/87))
