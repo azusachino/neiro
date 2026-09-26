@@ -25,7 +25,7 @@ export interface ToolDefinition {
   /** `tsuzuri_` and a snake_case verb, valid for every major tool-calling API. */
   name: string;
   /** The vault operation the tool runs, so a mask's kinds and names apply to it. */
-  operation: OperationName;
+  operation: OperationName | (string & {});
   description: string;
   inputSchema: InputSchema;
   /** The Model Context Protocol's tool annotations. */
@@ -390,11 +390,43 @@ export const TOOLS: ToolDefinition[] = [
   },
 ];
 
+/** The tool for an extension's operation: `tsuzuri_` and its name in snake_case, run through `vault.run`. */
+function extensionTool(vault: Vault, name: string): ToolDefinition {
+  const definition = vault.definition(name);
+  if (!definition) throw new ToolInputError(`no extension operation ${name}`);
+  const entries = Object.entries(definition.input);
+  const properties = Object.fromEntries(
+    entries.map(([key, { required: _, ...property }]) => [
+      key,
+      property.type === "array" ? { ...property, items: { type: "string" as const } } : property,
+    ]),
+  );
+  const required = entries.filter(([, property]) => property.required).map(([key]) => key);
+  const { kind } = definition;
+  return {
+    name: `tsuzuri_${name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)}`,
+    operation: name,
+    description: definition.summary,
+    inputSchema: schema(properties, required),
+    annotations: {
+      readOnlyHint: kind === "read",
+      destructiveHint: kind === "move" || kind === "delete",
+      idempotentHint: kind === "read",
+    },
+    run: (target, input) => target.run(name, input),
+  };
+}
+
 /**
- * The tools to offer an agent for `vault`: each whose operation the vault's mask allows (ADR 0018). tsuzuri decides
- * no more than that; which of them to confirm with a human is the host's choice, and the hints say what each does.
- * Without a vault, every tool.
+ * The tools to offer an agent for `vault`: each whose operation the vault's mask allows (ADR 0018), the core's and
+ * then those of the extensions it loaded (ADR 0019). tsuzuri decides no more than that; which of them to confirm with
+ * a human is the host's choice, and the hints say what each does. Without a vault, every core tool.
  */
 export function agentTools(vault?: Vault): ToolDefinition[] {
-  return vault ? TOOLS.filter((tool) => vault.allows(tool.operation)) : [...TOOLS];
+  if (!vault) return [...TOOLS];
+  const extensions = vault
+    .operations()
+    .filter((operation) => operation.extension !== undefined && vault.allows(operation.name))
+    .map((operation) => extensionTool(vault, operation.name));
+  return [...TOOLS.filter((tool) => vault.allows(tool.operation)), ...extensions];
 }

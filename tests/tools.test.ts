@@ -43,7 +43,7 @@ describe("tool definitions", () => {
 
   test("hint consistently: a tool is read-only exactly when its operation reads, and reads are never destructive", () => {
     for (const { name, annotations, operation } of TOOLS) {
-      expect(annotations.readOnlyHint, name).toBe(OPERATIONS[operation] === "read");
+      expect(annotations.readOnlyHint, name).toBe(OPERATIONS[operation as keyof typeof OPERATIONS] === "read");
       if (annotations.readOnlyHint) expect(annotations.destructiveHint, name).toBe(false);
     }
   });

@@ -6,13 +6,21 @@
 
 export type { CaptureInput, CaptureOptions, CaptureResult } from "./capture.ts";
 export { CaptureError, captureInputFromMarkdown } from "./capture.ts";
+export { formatDate } from "./dateformat.ts";
 export { ConfigError, InputError, TsuzuriError } from "./errors.ts";
 export type { Frontmatter } from "./frontmatter.ts";
 export { propertyValue } from "./frontmatter.ts";
 export type { GrepHit, GrepLine, GrepOptions } from "./grep.ts";
 export { formatGrep } from "./grep.ts";
 export type { Resolution } from "./links.ts";
-export type { AllowRule, OperationKind, OperationName } from "./operations.ts";
+export type {
+  AllowRule,
+  Extension,
+  InputProperty,
+  OperationDefinition,
+  OperationKind,
+  OperationName,
+} from "./operations.ts";
 export { OPERATION_KINDS, OPERATIONS, PermissionError } from "./operations.ts";
 export { SectionError } from "./sections.ts";
 export type {
@@ -34,9 +42,11 @@ export type {
   Note,
   NoteContent,
   NoteSummary,
+  OpenOptions,
   OutgoingLink,
   SearchHit,
   SectionWriteOptions,
+  SkippedExtension,
   Suggestion,
   VaultOptions,
 } from "./vault.ts";

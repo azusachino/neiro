@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
 import { text } from "node:stream/consumers";
 import { parseArgs } from "node:util";
+import { parse as parseToml } from "smol-toml";
 import pkg from "../package.json" with { type: "json" };
 // The CLI uses only the public SDK surface, the same one library consumers import.
 import {
@@ -10,6 +13,7 @@ import {
   formatGrep,
   type GrepHit,
   type MoveResult,
+  type OperationDefinition,
   type OperationName,
   propertyValue,
   type SectionWriteOptions,
@@ -111,6 +115,10 @@ const OPTIONS = {
   level: { type: "string", value: "<1-6>", summary: "the level of a created heading (default: 2)" },
   "dry-run": { type: "boolean", summary: "show the result, a diff for edits, without writing" },
   "if-hash": { type: "string", value: "<sha256>", summary: "refuse unless the note still has the hash get returned" },
+  trust: {
+    type: "boolean",
+    summary: "run the extension modules the vault itself lists (bundled tsuzuri: extensions need no trust)",
+  },
   help: { type: "boolean", short: "h", summary: "show help, for one command when one is given" },
   version: { type: "boolean", short: "v", summary: "show the version" },
 } as const satisfies Record<string, OptionSpec>;
@@ -129,7 +137,7 @@ interface CommandSpec {
   example: string;
 }
 
-const GLOBAL: readonly OptionName[] = ["vault", "json", "format", "help", "version"];
+const GLOBAL: readonly OptionName[] = ["vault", "json", "format", "trust", "help", "version"];
 const FILTERS: readonly OptionName[] = ["type", "tag", "status", "under", "where"];
 const WRITE: readonly OptionName[] = ["dry-run", "if-hash"];
 const SECTION: readonly OptionName[] = ["heading", "create-heading", "level"];
@@ -418,7 +426,13 @@ function parse() {
   }
 }
 
-const parsed = parse();
+// A first, loose read finds the command: a core command is parsed strictly against the core options below, and an
+// extension's command, which brings options of its own, once its vault is open (see runExtension).
+const loose = parseArgs({ args: argv, allowPositionals: true, strict: false, options: OPTIONS });
+const firstWord = loose.positionals[0];
+const coreWords = new Set(["help", ...COMMANDS.map((spec) => spec.name.split(" ")[0])]);
+const extensionCommand = firstWord !== undefined && !coreWords.has(firstWord) && loose.values.version === undefined;
+const parsed = extensionCommand ? (loose as unknown as ReturnType<typeof parse>) : parse();
 const opts = parsed.values;
 const positionals = parsed.positionals.map((arg) => (arg.startsWith(BULLET) ? arg.slice(BULLET.length) : arg));
 
@@ -526,14 +540,182 @@ async function emitNotes(vault: Vault, notes: { path: string }[], value: unknown
   console.log(rows.map((row) => Object.values(row).map(cell).join("\t")).join("\n"));
 }
 
+/** The user's list of vaults trusted to run their own extension modules: `vaults = [...]` in this file. */
+const TRUST_FILE = join(process.env.XDG_CONFIG_HOME || join(homedir(), ".config"), "tsuzuri", "trust.toml");
+
+function trustedByUser(root: string): boolean {
+  if (!existsSync(TRUST_FILE)) return false;
+  const { vaults } = parseToml(readFileSync(TRUST_FILE, "utf8")) as { vaults?: unknown };
+  return Array.isArray(vaults) && vaults.some((vault) => typeof vault === "string" && resolve(vault) === root);
+}
+
+/** The vault with the extensions it lists, saying on stderr which it skipped and how to load them. */
+async function openVault(dir: string | undefined, trust: boolean): Promise<Vault> {
+  const root = resolve(dir ?? process.env.TSUZURI_VAULT ?? process.cwd());
+  const vault = await Vault.open(root, { trust: trust || trustedByUser(root) });
+  if (vault.skipped.length > 0) {
+    const skipped = vault.skipped.map((skip) => `${skip.extension} (${skip.reason})`).join(", ");
+    console.error(`tsuzuri: skipped extensions ${skipped}; pass --trust, or list the vault in ${TRUST_FILE}`);
+  }
+  return vault;
+}
+
+const kebab = (key: string) => key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+
+/** An extension's command in the shape `help` prints for a core one. */
+function extensionSpec(vault: Vault, name: string) {
+  const definition = vault.definition(name) as OperationDefinition;
+  const entries = Object.entries(definition.input);
+  return {
+    definition,
+    name: definition.command,
+    operation: definition.name,
+    args: entries
+      .filter(([, input]) => input.required)
+      .map(([key]) => `<${key}>`)
+      .join(" "),
+    summary: definition.summary,
+    writes: definition.kind !== "read",
+    options: entries
+      .filter(([, input]) => !input.required)
+      .map(([key, input]) => ({
+        name: `--${kebab(key)}`,
+        ...(input.type === "boolean" ? {} : { value: `<${input.enum?.join("|") ?? input.type}>` }),
+        ...(input.type === "array" ? { multiple: true } : {}),
+        summary: input.description,
+      })),
+  };
+}
+
+/** The commands a vault's loaded extensions add, or none when the vault cannot be opened. */
+async function extensionSpecs(): Promise<ReturnType<typeof extensionSpec>[]> {
+  let vault: Vault;
+  try {
+    vault = await openVault(opts.vault, opts.trust === true);
+  } catch {
+    return [];
+  }
+  return vault
+    .operations()
+    .filter((operation) => operation.extension !== undefined)
+    .map((operation) => extensionSpec(vault, operation.name));
+}
+
+function extensionHelp(spec: ReturnType<typeof extensionSpec>): string {
+  const options = spec.options.map(
+    (option) => `  ${`${option.name}${option.value ? ` ${option.value}` : ""}`.padEnd(30)} ${option.summary}`,
+  );
+  return [
+    `usage: tsuzuri ${spec.name} ${spec.args}`.trimEnd(),
+    spec.summary,
+    options.length > 0 ? `options:\n${options.join("\n")}` : "options: none beyond the global ones",
+    `global options: ${GLOBAL.map((name) => `--${name}`).join(", ")}`,
+  ].join("\n\n");
+}
+
+/**
+ * Run an extension's command. Its required inputs are the arguments, in order, the last taking the remaining words
+ * when it is text, or stdin; its other inputs are `--kebab-case` options.
+ */
+async function runExtension(): Promise<void> {
+  const vault = await openVault(loose.values.vault as string | undefined, loose.values.trust === true);
+  const words = loose.positionals;
+  const named = (count: number) =>
+    vault.operations().find((operation) => operation.command === words.slice(0, count).join(" "));
+  const operation = named(2) ?? named(1);
+  if (!operation?.command) {
+    const loaded = vault.operations().flatMap((each) => (each.command ? [each.command] : []));
+    throw new UsageError(
+      `unknown command "${firstWord}"${loaded.length > 0 ? `; extensions add: ${loaded.join(", ")}` : ""}`,
+    );
+  }
+  const spec = extensionSpec(vault, operation.name);
+  const { definition } = spec;
+  const inputs = Object.entries(definition.input);
+  let strict: ReturnType<typeof parseArgs>;
+  try {
+    strict = parseArgs({
+      args: argv,
+      allowPositionals: true,
+      strict: true,
+      options: {
+        ...Object.fromEntries(GLOBAL.map((name) => [name, OPTIONS[name]])),
+        ...Object.fromEntries(
+          inputs
+            .filter(([, input]) => !input.required)
+            .map(([key, input]) => [
+              kebab(key),
+              { type: input.type === "boolean" ? "boolean" : "string", multiple: input.type === "array" },
+            ]),
+        ),
+      } as Parameters<typeof parseArgs>[0] extends { options?: infer O } ? O : never,
+    });
+  } catch (error) {
+    throw new UsageError(`${(error as Error).message}; run tsuzuri help ${spec.name}`);
+  }
+  if (strict.values.help) return console.log(extensionHelp(spec));
+  const given = strict.positionals
+    .map((arg) => (arg.startsWith(BULLET) ? arg.slice(BULLET.length) : arg))
+    .slice(definition.command.split(" ").length);
+  const required = inputs.filter(([, input]) => input.required);
+  const input: Record<string, unknown> = {};
+  const value = (key: string, raw: unknown, type: string, allowed?: readonly string[]) => {
+    if (allowed && !allowed.includes(raw as string)) throw new UsageError(`${key} must be ${allowed.join(", ")}`);
+    if (type !== "integer") return raw;
+    const number = Number(raw);
+    if (!Number.isInteger(number)) throw new UsageError(`--${kebab(key)} must be a whole number`);
+    return number;
+  };
+  // Free text as the last argument takes the remaining words, or stdin; a choice such as a period takes one word.
+  const text = (property: { type: string; enum?: readonly string[] } | undefined) =>
+    property?.type === "string" && property.enum === undefined;
+  for (const [i, [key, property]] of required.entries()) {
+    if (i === required.length - 1 && text(property)) {
+      input[key] = await inputText(given.slice(i));
+    } else {
+      if (given[i] === undefined) throw new UsageError(`usage: tsuzuri ${spec.name} ${spec.args}`);
+      input[key] = value(key, given[i], property.type, property.enum);
+    }
+  }
+  if (!text(required.at(-1)?.[1]) && given.length > required.length) {
+    throw new UsageError(`usage: tsuzuri ${spec.name} ${spec.args}`);
+  }
+  for (const [key, property] of inputs.filter(([, each]) => !each.required)) {
+    const raw = strict.values[kebab(key)];
+    if (raw !== undefined) input[key] = Array.isArray(raw) ? raw : value(key, raw, property.type, property.enum);
+  }
+  const result = await vault.run(definition.name, input);
+  const json = strict.values.json === true || strict.values.format === "json";
+  console.log(json || !definition.format ? JSON.stringify(result, null, 2) : definition.format(result));
+}
+
 async function main(): Promise<void> {
   if (opts.version) return console.log(pkg.version);
+  if (extensionCommand) return runExtension();
   const [command, ...args] = positionals;
   if (!command) return console.log(usage());
   if (command === "help" || opts.help) {
     const words = command === "help" ? args : positionals;
-    if (words.length === 0)
-      return console.log(format === "json" ? JSON.stringify(helpJson(COMMANDS), null, 2) : usage());
+    if (words.length === 0) {
+      const extensions = await extensionSpecs();
+      const listed = extensions.map(({ definition: _, ...spec }) => spec);
+      if (format === "json") return console.log(JSON.stringify({ ...helpJson(COMMANDS), extensions: listed }, null, 2));
+      const lines = listed.map((spec) => `  ${`${spec.name} ${spec.args}`.padEnd(30)} ${spec.summary}`);
+      return console.log(lines.length > 0 ? `${usage()}\n\nextension commands:\n${lines.join("\n")}` : usage());
+    }
+    if (!coreWords.has(words[0] as string)) {
+      const found = (await extensionSpecs()).filter((spec) => spec.name.startsWith(words.join(" ")));
+      if (found.length === 0) throw new UsageError(`no command "${words.join(" ")}"; run tsuzuri help for the list`);
+      if (format === "json")
+        return console.log(
+          JSON.stringify(
+            found.map(({ definition: _, ...spec }) => spec),
+            null,
+            2,
+          ),
+        );
+      return console.log(found.map(extensionHelp).join("\n\n---\n\n"));
+    }
     const specs = command === "help" ? commandsNamed(words) : [commandFor(words) ?? commandsNamed(words)].flat();
     return console.log(
       format === "json" ? JSON.stringify(helpJson(specs), null, 2) : specs.map(commandHelp).join("\n\n---\n\n"),
@@ -550,7 +732,7 @@ async function main(): Promise<void> {
   }
 
   if (!FORMATS.includes(format)) throw new UsageError(`--format takes ${FORMATS.join(", ")}`);
-  const vault = new Vault(opts.vault ?? process.env.TSUZURI_VAULT ?? process.cwd());
+  const vault = await openVault(opts.vault, opts.trust === true);
   // capture reads --tag itself, as tags to write; everywhere else every --tag must match.
   const filter: Filter = {
     type: opts.type,

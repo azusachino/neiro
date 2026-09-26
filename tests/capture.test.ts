@@ -53,8 +53,8 @@ describe("settings shape", () => {
     expect(withToml('[journals.day]\nformat = "YYYY"\n')).toThrow(/unknown key journals/);
   });
 
-  test("refuses journal settings, which tsuzuri no longer has, from the file or code", () => {
-    expect(withToml('[journal.day]\nformat = "YYYY-MM-DD"\n')).toThrow(/no journal settings \(ADR 0017\)/);
+  test("refuses journal settings unless the journal extension is loaded, from the file or code", () => {
+    expect(withToml('[journal.day]\nformat = "YYYY-MM-DD"\n')).toThrow(/needs the journal extension/);
     const config = { journal: { day: { format: "YYYY" } } } as unknown as TsuzuriConfig;
     expect(() => new Vault(FIXTURE, { config })).toThrow(ConfigError);
   });

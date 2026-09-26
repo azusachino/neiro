@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { dirname, join, posix, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import ignore from "ignore";
 import { parseDocument, stringify } from "yaml";
 import {
@@ -10,16 +11,34 @@ import {
   capture,
   captureInputFromMarkdown,
 } from "./capture.ts";
-import { TsuzuriError } from "./errors.ts";
+import { ConfigError, TsuzuriError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
 import { type GrepHit, type GrepOptions, grep } from "./grep.ts";
 import { extractLinks, frontmatterLinks, LinkIndex, type Resolution, type WikiLink } from "./links.ts";
 import { planMove } from "./move.ts";
-import { type AllowRule, Mask, type OperationName, PermissionError } from "./operations.ts";
+import {
+  type AllowRule,
+  type Extension,
+  Mask,
+  OPERATION_KINDS,
+  OPERATIONS,
+  type OperationDefinition,
+  type OperationKind,
+  type OperationName,
+  PermissionError,
+  vaultPath,
+} from "./operations.ts";
 import { rank } from "./search.ts";
 import { findSection, headingsOf, SectionError, sectionContentEnd } from "./sections.ts";
-import { resolveSettings, type TsuzuriConfig, UnsupportedError, type VaultSettings } from "./settings.ts";
+import {
+  CONFIG_FILE,
+  listedExtensions,
+  resolveSettings,
+  type TsuzuriConfig,
+  UnsupportedError,
+  type VaultSettings,
+} from "./settings.ts";
 import { countTags, noteTags, type TagCount, tagMatches } from "./tags.ts";
 import { renderTemplate, templateFor, templateNames } from "./templates.ts";
 import {
@@ -174,7 +193,31 @@ export interface VaultOptions {
    * operation's folders are invisible to it.
    */
   allow?: AllowRule[];
+  /**
+   * Extensions a host passes in code (ADR 0019). `Vault.open` adds the ones the vault lists; `new Vault` loads none
+   * itself, and reports the vault's listed extensions it lacks in `skipped`.
+   */
+  extensions?: Extension[];
 }
+
+/** For `Vault.open`: whether to run the extension modules the vault itself holds, which only a caller can decide. */
+export interface OpenOptions extends VaultOptions {
+  trust?: boolean;
+}
+
+/** An extension the vault lists but this `Vault` did not load, and why. */
+export interface SkippedExtension {
+  extension: string;
+  reason: string;
+}
+
+/** The extensions shipped in the package (ADR 0020), loaded when a vault lists `tsuzuri:<name>`. */
+const BUNDLED: Record<string, () => Promise<{ default: Extension }>> = {
+  journal: () => import("./extensions/journal.ts"),
+};
+
+/** The vault-relative module each extension `Vault.open` loaded came from, to match it to the vault's list. */
+const SOURCES = new WeakMap<Extension, string>();
 
 /** The notes as last read, their link index, and the fingerprint `watch` compares. */
 interface Scan {
@@ -224,15 +267,114 @@ export class Vault {
   private readonly watch?: number;
   private checked = 0;
   private readonly mask: Mask;
+  private skips: SkippedExtension[];
+  private readonly defined = new Map<string, { definition: OperationDefinition; extension: string }>();
+  private readonly extensionSettings = new Map<string, unknown>();
 
   constructor(root: string, options: VaultOptions = {}) {
     this.root = resolve(root);
     if (!existsSync(this.root) || !statSync(this.root).isDirectory())
       throw new NotFoundError(`no vault at ${this.root}`);
-    this.mask = new Mask(options.allow);
-    this.settings = resolveSettings(this.root, options.config);
+    const provided = options.extensions ?? [];
+    const loads = (entry: string) =>
+      provided.some((extension) => entry === `tsuzuri:${extension.name}` || SOURCES.get(extension) === entry);
+    this.skips = listedExtensions(this.root, options.config)
+      .filter((entry) => !loads(entry))
+      .map((extension) => ({ extension, reason: "not loaded: open the vault with Vault.open to load it" }));
+    const tables = new Set(provided.flatMap((extension) => (extension.table ? [extension.table] : [])));
+    this.settings = resolveSettings(this.root, options.config, { tables, skipped: this.skips.length > 0 });
+    for (const extension of provided) {
+      const table = extension.table ? this.settings.tables[extension.table] : undefined;
+      this.extensionSettings.set(extension.name, extension.settings?.(table, CONFIG_FILE));
+      for (const definition of extension.operations) {
+        if (definition.name in OPERATIONS || this.defined.has(definition.name)) {
+          throw new ConfigError(`extension ${extension.name}: an operation named ${definition.name} already exists`);
+        }
+        if (!OPERATION_KINDS.includes(definition.kind)) {
+          throw new ConfigError(`extension ${extension.name}: ${definition.name} has no kind ${definition.kind}`);
+        }
+        this.defined.set(definition.name, { definition, extension: extension.name });
+      }
+    }
+    const extra = [...this.defined.values()].map(({ definition: { name, kind } }) => ({ name, kind }));
+    this.mask = new Mask(options.allow, extra);
     this.exclude = ["node_modules", ...submodulePaths(this.root), ...(options.exclude ?? [])].map(folderPrefix);
     this.watch = options.watch;
+  }
+
+  /**
+   * Open a vault with the extensions it lists (ADR 0019, 0020): a bundled `tsuzuri:<name>` always, and a module the
+   * vault holds only with `trust`, since loading it runs the vault's code. An extension not loaded is reported in
+   * `skipped`, and the vault opens with the rest.
+   */
+  static async open(root: string, options: OpenOptions = {}): Promise<Vault> {
+    const at = resolve(root);
+    const listed = existsSync(at) && statSync(at).isDirectory() ? listedExtensions(at, options.config) : [];
+    const loaded: Extension[] = [];
+    const untrusted: string[] = [];
+    for (const entry of listed) {
+      if (entry.startsWith("tsuzuri:")) {
+        const load = BUNDLED[entry.slice("tsuzuri:".length)];
+        if (!load) {
+          const known = Object.keys(BUNDLED).map((name) => `tsuzuri:${name}`);
+          throw new ConfigError(`${CONFIG_FILE}: no bundled extension ${entry}; there are: ${known.join(", ")}`);
+        }
+        loaded.push((await load()).default);
+      } else if (!options.trust) {
+        untrusted.push(entry);
+      } else {
+        if (vaultPath(entry) === undefined)
+          throw new ConfigError(`${CONFIG_FILE}: extension ${entry} leaves the vault`);
+        const extension = ((await import(pathToFileURL(join(at, entry)).href)) as { default?: Extension }).default;
+        if (!extension || typeof extension.name !== "string" || !Array.isArray(extension.operations)) {
+          throw new ConfigError(`${entry} does not export an extension as its default`);
+        }
+        SOURCES.set(extension, entry);
+        loaded.push(extension);
+      }
+    }
+    const vault = new Vault(root, { ...options, extensions: [...(options.extensions ?? []), ...loaded] });
+    vault.skips = vault.skips.map((skip) =>
+      untrusted.includes(skip.extension) ? { ...skip, reason: "the vault is not trusted to run its own code" } : skip,
+    );
+    return vault;
+  }
+
+  /** The extensions the vault lists that this `Vault` did not load, and why. */
+  get skipped(): readonly SkippedExtension[] {
+    return this.skips;
+  }
+
+  /** Every operation this vault offers: the core table's, then each loaded extension's, with its command. */
+  operations(): { name: string; kind: OperationKind; command?: string; extension?: string }[] {
+    return [
+      ...(Object.entries(OPERATIONS) as [string, OperationKind][]).map(([name, kind]) => ({ name, kind })),
+      ...[...this.defined.values()].map(({ definition: { name, kind, command }, extension }) => ({
+        name,
+        kind,
+        command,
+        extension,
+      })),
+    ];
+  }
+
+  /** A loaded extension's operation, by name. */
+  definition(name: string): OperationDefinition | undefined {
+    return this.defined.get(name)?.definition;
+  }
+
+  /**
+   * Run a loaded extension's operation. The mask must allow it, and every call it makes through this vault is checked
+   * by the mask too, so an extension never does more than the host allowed.
+   */
+  async run(name: string, input: Record<string, unknown>): Promise<unknown> {
+    const entry = this.defined.get(name);
+    if (!entry)
+      throw new NotFoundError(
+        `no extension operation ${name}; loaded: ${[...this.defined.keys()].join(", ") || "none"}`,
+      );
+    this.mask.check(name);
+    return entry.definition.run(this, input, { settings: this.extensionSettings.get(entry.extension) });
   }
 
   /** Forget the scanned notes, e.g. after a `git pull`. */
@@ -243,7 +385,7 @@ export class Vault {
   }
 
   /** Whether this vault's mask allows `op` anywhere, as `agentTools` asks before offering a tool. */
-  allows(op: OperationName): boolean {
+  allows(op: OperationName | (string & {})): boolean {
     return this.mask.allows(op);
   }
 

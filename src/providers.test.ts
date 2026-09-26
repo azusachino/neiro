@@ -89,9 +89,11 @@ describe("every provider returns the same result", () => {
 describe("portability", () => {
   test("uses Bun-only APIs only in chain providers", () => {
     const src = import.meta.dir;
-    const offenders = readdirSync(src)
+    // Recursive, so the bundled extensions are held to it too.
+    const offenders = readdirSync(src, { recursive: true, encoding: "utf8" })
       .filter(
         (file) =>
+          file.endsWith(".ts") &&
           file !== "providers.ts" &&
           !file.endsWith(".test.ts") &&
           /\bBun\./.test(readFileSync(join(src, file), "utf8")),

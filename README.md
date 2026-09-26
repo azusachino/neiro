@@ -17,7 +17,8 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 - **Obsidian's rules:** wikilinks resolve as Obsidian resolves them, including links in frontmatter; tags nest and match case-insensitively; aliases and titles find notes.
 - **Find:** BM25 search with CJK support, `rg`-style `grep`, fzf-style fuzzy `find`, and `list` filtered on any frontmatter property.
 - **Navigate:** a folder's index and notes, a note's outline, its links and backlinks, and the vault's orphans and unresolved links.
-- **Safe writes:** `capture` and `new` only create files; every edit targets one heading or property, shows a diff with `--dry-run`, and refuses a note changed since it was read.
+- **The whole vault:** create, edit a heading or property, replace, and move a note with its links rewritten; every write shows a diff with `--dry-run` and can refuse a note changed since it was read.
+- **Yours to extend and limit:** a vault adds its own operations as [extensions](docs/extensions.md), the journal bundled, and a host limits every operation with a permission mask.
 - **Built for agents:** JSON output and errors, ready-made tool definitions with MCP-style hints, and a skill for coding agents.
 - **Node and Bun:** one npm package, runnable with `npx` or `bunx`.
 
@@ -115,7 +116,7 @@ tsuzuri assumes no folder layout or house style. Each setting is resolved in thi
 
 tsuzuri reads nothing in `.obsidian/`: an Obsidian-compatible vault needs no Obsidian configuration, and a vault edited in Obsidian writes its conventions in `tsuzuri.toml` once ([ADR 0011](docs/decisions/0011-settings-from-neiro-toml-only.md)).
 
-An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. tsuzuri has no journal settings: a caller that keeps daily or weekly notes builds their path and reads or appends to it like any other note.
+An unknown key, or a value of the wrong type or choice, in `tsuzuri.toml` or code options raises `ConfigError` naming it. A vault's own conventions, such as daily and weekly notes, come from [extensions](docs/extensions.md) it lists: `extensions = ["tsuzuri:journal"]` enables the bundled journal and its `[journal.<period>]` tables.
 
 A `tsuzuri.toml` declaring a stricter house style:
 
@@ -185,6 +186,16 @@ const agent = new Vault(root, { allow: ["read", { ops: ["create", "edit"], under
 - A disallowed operation raises `PermissionError` before touching any file. Every path an operation would touch is checked first, compared without case after normalizing, so `Inbox/../Notes` or `INBOX/..` cannot leave a folder.
 - A read rule limited to folders hides the notes outside them from every read: lists, search, grep, `find`, `nav`, and links. A link to a hidden note is left out, and an ambiguous link names only the candidates shown. A path outside the folders raises `PermissionError`; a name that only a hidden note has is not found.
 - Reading a template is part of `create`, so read rules do not apply to it.
+
+### Extensions
+
+A vault lists [extensions](docs/extensions.md) in `tsuzuri.toml`, and `Vault.open` loads them: a bundled `tsuzuri:<name>` always, and a module the vault holds only with `trust`. Their operations run through `vault.run(name, input)`, appear in `vault.operations()`, and become agent tools and CLI commands; the mask covers them and every call they make.
+
+```ts
+const vault = await Vault.open(root, { allow: ["read", "capture"] }); // tsuzuri.toml: extensions = ["tsuzuri:journal"]
+const today = await vault.run("journal", { period: "day" });
+console.log(vault.skipped); // the listed extensions not loaded, and why
+```
 
 ### Agent tools
 

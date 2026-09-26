@@ -14,6 +14,16 @@
       "bun": "./src/tools.ts",
       "types": "./dist/lib/tools.d.ts",
       "default": "./dist/lib/tools.js"
+    },
+    "./extension": {
+      "bun": "./src/extension.ts",
+      "types": "./dist/lib/extension.d.ts",
+      "default": "./dist/lib/extension.js"
+    },
+    "./extensions/journal": {
+      "bun": "./src/extensions/journal.ts",
+      "types": "./dist/lib/extensions/journal.d.ts",
+      "default": "./dist/lib/extensions/journal.js"
     }
   },
   "bin": {
@@ -30,7 +40,7 @@
     "format": "biome check --write .",
     "test": "bun test",
     "build": "bun build --compile src/cli.ts --outfile dist/tsuzuri",
-    "build:lib": "tsc -p tsconfig.build.json && bun build src/cli.ts src/tools-cli.ts --target=node --packages=external --outdir dist/lib",
+    "build:lib": "rm -rf dist/lib && tsc -p tsconfig.build.json && bun build src/cli.ts src/tools-cli.ts --target=node --packages=external --outdir dist/lib",
     "prepack": "bun run build:lib"
   },
   "dependencies": {

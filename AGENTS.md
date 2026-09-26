@@ -10,9 +10,9 @@ tsuzuri is an SDK and CLI over an Obsidian-compatible Markdown vault, working on
 
 One npm package at the repository root.
 
-- `src/` is the package. `index.ts` is the prelude, the SDK's public entry; `tools.ts` is the `tsuzuri/tools` entry; `cli.ts` and `tools-cli.ts` are the two commands. Unit tests of internals sit beside the code as `*.test.ts`.
-- `tests/` holds the contract tests, which import only `tsuzuri` and `tsuzuri/tools`, by the package's own name; `tests/fixtures/vault`, a small synthetic vault; and `tests/vaults/`, public Obsidian vaults pinned as submodules.
-- `docs/` holds the [decisions](docs/decisions/README.md), the [roadmap](docs/roadmap.md) (update it with each change), the [CLI reference](docs/cli.md), and the [use cases](docs/use-cases.md); tests check the CLI reference and `skills/tsuzuri/SKILL.md` against the CLI.
+- `src/` is the package. `index.ts` is the prelude, the SDK's public entry; `tools.ts` is the `tsuzuri/tools` entry; `extension.ts` is the `tsuzuri/extension` entry, and `extensions/` holds the bundled extensions; `cli.ts` and `tools-cli.ts` are the two commands. Unit tests of internals sit beside the code as `*.test.ts`.
+- `tests/` holds the contract tests, which import only the package's public entries, by its own name; `tests/fixtures/vault`, a small synthetic vault; and `tests/vaults/`, public Obsidian vaults pinned as submodules.
+- `docs/` holds the [decisions](docs/decisions/README.md), the [roadmap](docs/roadmap.md) (update it with each change), the [CLI reference](docs/cli.md), [extensions](docs/extensions.md), and the [use cases](docs/use-cases.md); tests check the CLI reference and `skills/tsuzuri/SKILL.md` against the CLI.
 
 ## Toolchain and tasks
 
@@ -30,6 +30,7 @@ Each rule below is a decision record in [`docs/decisions/`](docs/decisions/READM
 - **Assume no layout or house style;** settings come from the settings chain, and test data is synthetic or public. ([0004](docs/decisions/0004-assume-no-layout-or-house-style.md))
 - **The SDK reads and writes the whole vault:** it creates at any path, edits a section or key, and replaces a note, with `--dry-run` and `--if-hash` as optional guards; which of these a caller may use is the host's mask, not tsuzuri's. ([0016](docs/decisions/0016-the-sdk-reads-and-writes-the-whole-vault.md))
 - **Every operation is in the operations table, with its kind;** a new `Vault` method that touches files, CLI command, or tool names its entry in `OPERATIONS`. A host limits them with a mask, and tsuzuri ships none. ([0018](docs/decisions/0018-operations-and-a-permission-mask.md))
+- **A small core; a vault's conventions are extensions,** which import only the public entries. tsuzuri bundles an extension only for a convention many vaults share, off until a vault lists it; a vault's own modules run only when the caller trusts it. ([0019](docs/decisions/0019-a-small-core-and-vault-extensions.md), [0020](docs/decisions/0020-bundled-extensions-journal-first.md))
 - **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
 - **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))
 - **Files only:** no Git and no server. ([0008](docs/decisions/0008-files-only-no-git-no-server.md))

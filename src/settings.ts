@@ -39,6 +39,16 @@ export interface VaultSettings {
   capture: CaptureSettings;
   /** Unset when no source names a template folder; `new` then raises `UnsupportedError`. */
   templates?: TemplateSettings;
+  /** The extensions the settings list, as written: `tsuzuri:<name>` for a bundled one, else a vault-relative module. */
+  extensions: string[];
+  /** The tables the loaded extensions read, as written, with code options' tables over the file's. */
+  tables: Record<string, Record<string, unknown>>;
+}
+
+/** Which extension tables a `Vault` accepts: those its loaded extensions read, and any at all when one was skipped. */
+export interface TableClaims {
+  tables: ReadonlySet<string>;
+  skipped: boolean;
 }
 
 /** The shape of `tsuzuri.toml`, also accepted in code. Every key is optional. */
@@ -57,6 +67,10 @@ export interface TsuzuriConfig {
     reject_tags?: string[];
   };
   templates?: { folder?: string; date_format?: string; time_format?: string };
+  /** Extensions to load: `tsuzuri:<name>` for a bundled one, or a module path relative to the vault root. */
+  extensions?: string[];
+  /** An extension's own table, such as `[journal]`, accepted when that extension is loaded. */
+  [table: string]: unknown;
 }
 
 const DEFAULT_CAPTURE: Omit<CaptureSettings, "folder"> = {
@@ -132,27 +146,58 @@ function checkTable(value: unknown, rules: Record<string, Rule>, path: string, s
 }
 
 /** Check settings against the shape of `tsuzuri.toml`, so a misspelled key or value fails instead of being ignored. */
-function checkConfig(config: unknown, source: string): TsuzuriConfig {
+function checkConfig(config: unknown, source: string, claims: TableClaims): TsuzuriConfig {
   if (!isTable(config)) throw new ConfigError(`${source}: settings must be a table`);
   for (const [section, value] of Object.entries(config)) {
-    if (section === "journal") {
-      throw new ConfigError(
-        `${source}: tsuzuri has no journal settings (ADR 0017); remove [journal] and build a periodic note's path in the caller`,
-      );
+    if (section === "extensions") {
+      if (!fits(value, "strings")) throw new ConfigError(`${source}: extensions must be a list of strings`);
+      continue;
     }
     const rules = RULES[section];
-    if (!rules) throw new ConfigError(`${source}: unknown key ${section}; settings take capture, templates`);
-    checkTable(value, rules, section, source);
+    if (rules) {
+      checkTable(value, rules, section, source);
+      continue;
+    }
+    if (claims.tables.has(section)) {
+      if (!isTable(value)) throw new ConfigError(`${source}: ${section} must be a table`);
+      continue;
+    }
+    // A table may belong to an extension that was listed but not loaded; that extension checks it once it loads.
+    if (claims.skipped) continue;
+    if (section === "journal") {
+      throw new ConfigError(
+        `${source}: [journal] needs the journal extension: add extensions = ["tsuzuri:journal"] (ADR 0020)`,
+      );
+    }
+    throw new ConfigError(`${source}: unknown key ${section}; settings take capture, templates, extensions`);
   }
   return config as TsuzuriConfig;
 }
 
+/** The extensions `tsuzuri.toml` and code options list, the file's first, before any are loaded. */
+export function listedExtensions(root: string, code: TsuzuriConfig = {}): string[] {
+  const file = existsSync(join(root, CONFIG_FILE)) ? readToml(root, CONFIG_FILE) : {};
+  const listed = [...((file as TsuzuriConfig).extensions ?? []), ...(code.extensions ?? [])];
+  if (!fits(listed, "strings")) throw new ConfigError(`${CONFIG_FILE}: extensions must be a list of strings`);
+  return [...new Set(listed)];
+}
+
 /**
  * Resolve settings by precedence: options passed in code, then `tsuzuri.toml`, then neutral defaults (ADR 0011).
+ * An extension's table is accepted only when a loaded extension reads it (ADR 0019).
  */
-export function resolveSettings(root: string, code: TsuzuriConfig = {}): VaultSettings {
-  const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE) : {};
-  checkConfig(code, "options");
+export function resolveSettings(
+  root: string,
+  code: TsuzuriConfig = {},
+  claims: TableClaims = { tables: new Set(), skipped: false },
+): VaultSettings {
+  const file = existsSync(join(root, CONFIG_FILE)) ? checkConfig(readToml(root, CONFIG_FILE), CONFIG_FILE, claims) : {};
+  checkConfig(code, "options", claims);
+  const tables: Record<string, Record<string, unknown>> = {};
+  for (const table of claims.tables) {
+    const value = code[table] ?? file[table];
+    if (isTable(value)) tables[table] = value;
+  }
   const capture = { ...file.capture, ...code.capture };
   const allowFile = capture.title_allowlist;
   const template = templates(file, code);
@@ -171,6 +216,8 @@ export function resolveSettings(root: string, code: TsuzuriConfig = {}): VaultSe
       rejectTags: capture.reject_tags ?? DEFAULT_CAPTURE.rejectTags,
     },
     ...(template ? { templates: template } : {}),
+    extensions: listedExtensions(root, code),
+    tables,
   };
 }
 

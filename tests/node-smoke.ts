@@ -76,6 +76,27 @@ const commands: [string, string[], string][] = [
     spawnSync("bun", [join(ROOT, "src", "tools-cli.ts"), "--json"], { encoding: "utf8" }).stdout,
   ],
 ];
+// The bundled journal, loaded by `Vault.open` from the installed package and by the bundled command.
+const journalVault = join(consumer, "journal-vault");
+cpSync(FIXTURE, journalVault, { recursive: true });
+writeFileSync(
+  join(journalVault, "tsuzuri.toml"),
+  'extensions = ["tsuzuri:journal"]\n[journal.day]\nfolder = "Daily"\nformat = "YYYY-MM-DD"\n',
+);
+const journalArgs = ["--vault", journalVault, "journal", "day", "--date", "2026-09-16", "--json"];
+const journalByBun = spawnSync("bun", [join(ROOT, "src", "cli.ts"), ...journalArgs], { encoding: "utf8" }).stdout;
+commands.push([join(installed, bins.tsuzuri as string), journalArgs, journalByBun]);
+writeFileSync(
+  probe,
+  `import { Vault } from "tsuzuri";\nconst vault = await Vault.open(process.argv[2]);\nconsole.log(JSON.stringify(await vault.run("journal", { period: "day", date: "2026-09-16" }), null, 2));\n`,
+);
+const opened = spawnSync("node", [probe, journalVault], { encoding: "utf8" });
+const journalOk = opened.status === 0 && opened.stdout === journalByBun && journalByBun.includes("Daily/2026-09-16.md");
+console.log(
+  `${journalOk ? "ok  " : "DIFF"} Vault.open with tsuzuri:journal on Node${journalOk ? "" : `: ${opened.stderr.trim()}`}`,
+);
+failed ||= !journalOk;
+
 for (const [bin, args, expected] of commands) {
   const ran = spawnSync("node", [bin, ...args], { encoding: "utf8" });
   const ok = ran.status === 0 && ran.stdout === expected;

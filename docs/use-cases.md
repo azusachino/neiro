@@ -43,7 +43,10 @@ What people and agents do with tsuzuri, the commands each case walks through, an
 
 ### T5. Open today's or this week's journal
 
-Removed in 0.8.0 ([ADR 0017](decisions/0017-no-journal-in-the-sdk.md)): tsuzuri has no journal. `get` opens a periodic note by the path the vault uses for it, as T2 does.
+`journal day|week|month|quarter|year [--date]` from the bundled journal extension, which a vault enables with `extensions = ["tsuzuri:journal"]` and its `[journal.<period>]` tables ([ADR 0020](decisions/0020-bundled-extensions-journal-first.md)). Shipped.
+
+- `extensions.test › opens with a vault that lists it, and reads the note for a date in either week convention`
+- `extensions.test › runs from the CLI, with its own options and help`
 
 ### T6. Capture a thought, or file a draft
 
@@ -122,9 +125,10 @@ The agent lists existing tags with their counts and picks from them instead of i
 
 ### A7. Summarize the week, then record the summary
 
-The host builds the week note's path, since tsuzuri has no journal ([ADR 0017](decisions/0017-no-journal-in-the-sdk.md)); then `get <path>` to read, and `append <path> <text> --heading <h>` to add to the note. Shipped.
+`journal week` to read, then `journal append week <text> --heading <h>` to add to the note, from the bundled journal extension; the agent tools are `tsuzuri_journal` and `tsuzuri_journal_append`, offered as the host's mask allows. Shipped.
 
-- `sections.test › adds to the end of a section with nested headings and fenced # lines, touching nothing else`
+- `extensions.test › appends to a note that exists, with a dry run, and refuses one not written yet`
+- `extensions.test › becomes agent tools the mask filters`
 
 ### A8. Edit a note without overwriting the owner's change
 
