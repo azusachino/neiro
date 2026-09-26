@@ -12,6 +12,8 @@ export { propertyValue } from "./frontmatter.ts";
 export type { GrepHit, GrepLine, GrepOptions } from "./grep.ts";
 export { formatGrep } from "./grep.ts";
 export type { Resolution } from "./links.ts";
+export type { AllowRule, OperationKind, OperationName } from "./operations.ts";
+export { OPERATION_KINDS, OPERATIONS, PermissionError } from "./operations.ts";
 export { SectionError } from "./sections.ts";
 export type {
   CaptureSettings,

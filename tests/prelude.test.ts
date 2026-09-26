@@ -13,6 +13,9 @@ const RUNTIME = [
   "LineRangeError",
   "TsuzuriError",
   "NotFoundError",
+  "OPERATIONS",
+  "OPERATION_KINDS",
+  "PermissionError",
   "SORT_KEYS",
   "SectionError",
   "UnsupportedError",
@@ -24,6 +27,7 @@ const RUNTIME = [
 ];
 
 const TYPES = [
+  "AllowRule",
   "CaptureInput",
   "CaptureOptions",
   "CaptureResult",
@@ -42,6 +46,8 @@ const TYPES = [
   "Note",
   "NoteContent",
   "NoteSummary",
+  "OperationKind",
+  "OperationName",
   "OutgoingLink",
   "Resolution",
   "SearchHit",

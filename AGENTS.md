@@ -29,6 +29,7 @@ Each rule below is a decision record in [`docs/decisions/`](docs/decisions/READM
 - **Obsidian semantics, never the Obsidian app.** ([0003](docs/decisions/0003-obsidian-semantics-without-the-app.md))
 - **Assume no layout or house style;** settings come from the settings chain, and test data is synthetic or public. ([0004](docs/decisions/0004-assume-no-layout-or-house-style.md))
 - **Capture creates; an edit targets one heading or key,** guarded by `--dry-run` and `--if-hash`. A new write verb needs the owner's agreement. ([0005](docs/decisions/0005-the-write-model.md))
+- **Every operation is in the operations table, with its kind;** a new `Vault` method that touches files, CLI command, or tool names its entry in `OPERATIONS`. A host limits them with a mask, and tsuzuri ships none. ([0018](docs/decisions/0018-operations-and-a-permission-mask.md))
 - **Portable by default;** a Bun-only API lives in a fallback-chain provider. ([0006](docs/decisions/0006-portable-core-and-fallback-chains.md))
 - **Maintained dependencies or own code.** ([0007](docs/decisions/0007-maintained-dependencies-or-own-code.md))
 - **Files only:** no Git and no server. ([0008](docs/decisions/0008-files-only-no-git-no-server.md))

@@ -169,6 +169,21 @@ await vault.capture({ text: "An idea", tags: ["learning"] });
 - Every error tsuzuri raises on purpose extends `TsuzuriError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
 
+### Permission mask
+
+Every operation is named in `OPERATIONS` with its kind: `read`, `create`, `edit`, `move`, or `delete`. A host limits a `Vault` with `allow`, a list of rules naming kinds or operations, each optionally limited to folders ([ADR 0018](docs/decisions/0018-operations-and-a-permission-mask.md)). Without `allow`, everything is allowed; tsuzuri ships no policy of its own.
+
+```ts
+// A bot sharing its owner's vault: every read, and new notes through capture only.
+const bot = new Vault(root, { allow: ["read", "capture"] });
+// An agent that reads everything but creates and edits only in the inbox.
+const agent = new Vault(root, { allow: ["read", { ops: ["create", "edit"], under: ["Inbox"] }] });
+```
+
+- A disallowed operation raises `PermissionError` before touching any file. Every path an operation would touch is checked first, compared without case after normalizing, so `Inbox/../Notes` or `INBOX/..` cannot leave a folder.
+- A read rule limited to folders hides the notes outside them from every read: lists, search, grep, `find`, `nav`, and links. A link to a hidden note is left out, and an ambiguous link names only the candidates shown. A path outside the folders raises `PermissionError`; a name that only a hidden note has is not found.
+- Reading a template is part of `create`, so read rules do not apply to it.
+
 ### Agent tools
 
 The `tsuzuri/tools` entry turns the SDK's operations into tool definitions for a tool-calling model. It imports only the prelude, so it can do nothing a consumer cannot ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)).

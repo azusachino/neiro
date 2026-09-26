@@ -2,7 +2,7 @@
  * Ready-made agent tools over a `Vault`: a name, a JSON Schema for the input, MCP-style hints, an exposure, and a
  * `run` bound to the SDK. A consumer registers `agentTools()` with its model and routes calls to `run`.
  */
-import { InputError, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
+import { InputError, type OperationName, propertyValue, SORT_KEYS, type Vault } from "./index.ts";
 
 /** `direct`: an agent may call it; `confirm`: only after a human approves the call; `cli-only`: never offered. */
 export type Exposure = "direct" | "confirm" | "cli-only";
@@ -27,6 +27,8 @@ export interface InputSchema {
 export interface ToolDefinition {
   /** `tsuzuri_` and a snake_case verb, valid for every major tool-calling API. */
   name: string;
+  /** The vault operation the tool runs, so a mask's kinds and names apply to it. */
+  operation: OperationName;
   description: string;
   inputSchema: InputSchema;
   /** The Model Context Protocol's tool annotations. */
@@ -117,6 +119,7 @@ function writeOf(input: Record<string, unknown>) {
 export const TOOLS: ToolDefinition[] = [
   {
     name: "tsuzuri_get",
+    operation: "get",
     description: "Read one note: its summary, frontmatter, body, and hash. lines or around read part of it by line.",
     inputSchema: schema(
       {
@@ -146,6 +149,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_search",
+    operation: "search",
     description: "Rank notes by relevance to words (BM25; CJK matches as substrings). Returns summaries with snippets.",
     inputSchema: schema({ query: str("Words to look for"), limit: int("Most results; 10 by default"), ...FILTERS }, [
       "query",
@@ -156,6 +160,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_grep",
+    operation: "grep",
     description:
       "Lines containing text, as path, line, and text; smart case. Literal unless regex is set. Read around a hit next.",
     inputSchema: schema(
@@ -190,6 +195,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_find",
+    operation: "suggest",
     description: "Fuzzy-match notes by path, title, or alias, for a loose reference such as a half-remembered name.",
     inputSchema: schema({ query: str("A loose name, abbreviation, or typo"), limit: int("Most results") }, ["query"]),
     annotations: READ,
@@ -198,6 +204,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_list",
+    operation: "list",
     description: "List note summaries, filtered on any frontmatter property and sorted, such as the latest books.",
     inputSchema: schema({
       ...FILTERS,
@@ -223,6 +230,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_nav",
+    operation: "nav",
     description: "A folder's index note and headings, subfolders, and notes: how the vault is laid out.",
     inputSchema: schema({ folder: str("A folder; the vault root by default") }),
     annotations: READ,
@@ -231,6 +239,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_links",
+    operation: "links",
     description:
       "A note's outgoing links (wikilinks, Markdown links, and frontmatter links) and what each resolves to.",
     inputSchema: schema({ note: NOTE }, ["note"]),
@@ -240,6 +249,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_backlinks",
+    operation: "backlinks",
     description: "Notes that link to a note.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
@@ -248,6 +258,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_tags",
+    operation: "tags",
     description: "Every tag with its note count. Reuse one of these instead of inventing a near-duplicate.",
     inputSchema: schema({ ...FILTERS }),
     annotations: READ,
@@ -256,6 +267,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_outline",
+    operation: "outline",
     description: "A note's headings with their levels and line numbers.",
     inputSchema: schema({ note: NOTE }, ["note"]),
     annotations: READ,
@@ -264,6 +276,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_prop_get",
+    operation: "property",
     description: "One frontmatter value of a note.",
     inputSchema: schema({ note: NOTE, key: str("The property") }, ["note", "key"]),
     annotations: READ,
@@ -272,6 +285,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_capture",
+    operation: "capture",
     description: "Create one new note in the vault's inbox or capture folder. Never edits an existing note.",
     inputSchema: schema(
       {
@@ -293,6 +307,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_append",
+    operation: "append",
     description: "Add text to the end of a note, or to the end of one section. Changes nothing else.",
     inputSchema: schema(
       {
@@ -315,6 +330,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_section_put",
+    operation: "putSection",
     description: "Replace one section's body, or add the section. Every other section stays byte-identical.",
     inputSchema: schema({ note: NOTE, heading: str("The section"), text: str("The new body"), ...GUARDS }, [
       "note",
@@ -327,6 +343,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_prop_set",
+    operation: "setProperty",
     description: "Set one frontmatter property, keeping comments, key order, and every other line.",
     inputSchema: schema(
       {
@@ -344,6 +361,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_new",
+    operation: "create",
     description: "Create a note from the vault's template for a type, placed as a capture is.",
     inputSchema: schema(
       {
@@ -364,6 +382,7 @@ export const TOOLS: ToolDefinition[] = [
   },
   {
     name: "tsuzuri_put",
+    operation: "put",
     description: "Write a whole note: create it, or replace it only with the hash get returned.",
     inputSchema: schema({ path: str("A vault path ending in .md"), content: str("The whole note"), ...GUARDS }, [
       "path",

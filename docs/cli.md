@@ -265,7 +265,7 @@ tsuzuri prop get "Cognitive load" tags --json
 
 This usage, one command's help, or every command as JSON with --json.
 
-With `--json`: `version`, the `global` options, and `commands` with their `options` and `example`.
+With `--json`: `version`, the `global` options, and `commands` with their `operation`, `options`, and `example`; `operation` names the entry of the SDK's `OPERATIONS` a command runs.
 
 ```sh
 tsuzuri help get
