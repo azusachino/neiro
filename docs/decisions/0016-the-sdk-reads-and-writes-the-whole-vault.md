@@ -1,6 +1,6 @@
 # 0016 the SDK reads and writes the whole vault; policy belongs to the host
 
-Status: accepted, 2026-09-26 (0.8.0). Supersedes [ADR 0005](0005-the-write-model.md), except its guards, and the exposure of [ADR 0010](0010-agent-tools-as-an-extension-package.md).
+Status: accepted, 2026-09-26 (0.8.0). Supersedes [ADR 0005](0005-the-write-model.md), except its guards, and the exposure of [ADR 0010](0010-agent-tools-as-an-extension-package.md). Its "no permission layer" rule is amended by [ADR 0018](0018-operations-and-a-permission-mask.md).
 
 ## context
 
