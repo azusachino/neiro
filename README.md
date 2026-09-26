@@ -17,7 +17,7 @@ The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli
 - **Obsidian's rules:** wikilinks resolve as Obsidian resolves them, including links in frontmatter; tags nest and match case-insensitively; aliases and titles find notes.
 - **Find:** BM25 search with CJK support, `rg`-style `grep`, fzf-style fuzzy `find`, and `list` filtered on any frontmatter property.
 - **Navigate:** a folder's index and notes, a note's outline, its links and backlinks, and the vault's orphans and unresolved links.
-- **The whole vault:** create, edit a heading or property, replace, and move a note with its links rewritten; every write shows a diff with `--dry-run` and can refuse a note changed since it was read.
+- **The whole vault:** create, edit a heading or property, replace, move a note with its links rewritten, and delete into `.trash`; every write shows a diff with `--dry-run` and can refuse a note changed since it was read.
 - **Yours to extend and limit:** a vault adds its own operations as [extensions](docs/extensions.md), the journal bundled, and a host limits every operation with a permission mask.
 - **Built for agents:** JSON output and errors, ready-made tool definitions with MCP-style hints, and a skill for coding agents.
 - **Node and Bun:** one npm package, runnable with `npx` or `bunx`.
@@ -83,6 +83,7 @@ tsuzuri capture --tag reading "Read: how agents plan"
 | `write <path> [text...]` | creates a note at any `.md` path; an existing file is refused |
 | `put <note> [text...]` | replaces a whole note; `--if-hash` refuses one changed since `get` |
 | `move <note> <path>` | moves or renames a note, rewriting every link the move would break |
+| `delete <note>` | moves a note into `.trash` under its path with a timestamp added, where it can be restored |
 
 `capture`, `new`, and `write` only create files, so they never touch a note the owner is editing. Every edit changes only its target and takes two guards: `--dry-run` shows a unified diff, and `--if-hash <hash>` refuses a note changed since `get` returned that hash. tsuzuri only writes files; committing and syncing them is the owner's, through Git or whatever else keeps the vault ([ADR 0008](docs/decisions/0008-files-only-no-git-no-server.md)). A text argument that starts with a dash and a space is a Markdown bullet, not an option.
 

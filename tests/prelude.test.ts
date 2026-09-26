@@ -46,6 +46,7 @@ const TYPES = [
   "GrepOptions",
   "Heading",
   "ListOptions",
+  "DeleteResult",
   "MoveResult",
   "NavEntry",
   "NavView",

@@ -32,6 +32,7 @@ export type {
 export { UnsupportedError } from "./settings.ts";
 export type { TagCount } from "./tags.ts";
 export type {
+  DeleteResult,
   Filter,
   GetOptions,
   Heading,

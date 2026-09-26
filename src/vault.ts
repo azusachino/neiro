@@ -11,6 +11,7 @@ import {
   capture,
   captureInputFromMarkdown,
 } from "./capture.ts";
+import { formatDate } from "./dateformat.ts";
 import { ConfigError, TsuzuriError } from "./errors.ts";
 import { type Frontmatter, frontmatterRange, splitFrontmatter, stringList } from "./frontmatter.ts";
 import { fuzzyRank } from "./fuzzy.ts";
@@ -141,6 +142,16 @@ export interface Heading {
   text: string;
   /** Counted from the top of the file, frontmatter included. */
   line: number;
+}
+
+export interface DeleteResult {
+  /** The note's path before the delete. */
+  path: string;
+  /** Where the note went, or would go on a dry run: under `.trash`, its path with a timestamp added. */
+  trashed: string;
+  /** The hash of the deleted content, which the file in `.trash` keeps. */
+  hash: string;
+  written: boolean;
 }
 
 export interface MoveResult {
@@ -610,6 +621,30 @@ export class Vault {
     if (moved !== note.raw) await writeNote(this.root, target, () => moved, {});
     this.reload();
     return { ...result, written: true, rewritten };
+  }
+
+  /**
+   * Delete a note by moving it into the vault's `.trash` folder, keeping its path and adding a local timestamp:
+   * `Topics/x.md` becomes `.trash/Topics/x.md.20260926112233`, with `-2` and on added when that name is taken. The
+   * file keeps every byte, and restoring it is a rename. Reads skip dot folders, and the name no longer ends in `.md`,
+   * so nothing reads it as a note; links to it become unresolved. `ifHash` refuses a note changed since it was read.
+   */
+  async delete(ref: string, options: WriteOptions & { now?: Date } = {}): Promise<DeleteResult> {
+    const note = await this.resolve("delete", ref);
+    this.mask.check("delete", [note.path]);
+    const file = join(this.root, note.path);
+    const hash = contentHash(new TextDecoder().decode(readFileSync(file)));
+    if (options.ifHash !== undefined && hash !== options.ifHash) {
+      throw new WriteConflictError(`${note.path} changed since it was read: its hash is now ${hash}`);
+    }
+    const stamp = formatDate(options.now ?? new Date(), "YYYYMMDDHHmmss");
+    let trashed = `.trash/${note.path}.${stamp}`;
+    for (let n = 2; existsSync(join(this.root, trashed)); n++) trashed = `.trash/${note.path}.${stamp}-${n}`;
+    if (options.dryRun) return { path: note.path, trashed, hash, written: false };
+    mkdirSync(dirname(join(this.root, trashed)), { recursive: true });
+    renameSync(file, join(this.root, trashed));
+    this.reload();
+    return { path: note.path, trashed, hash, written: true };
   }
 
   /** Replace a whole note. With `ifHash`, a note that changed since `get` returned that hash is refused. */

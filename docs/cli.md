@@ -388,6 +388,23 @@ With `--json`: a write result, as `append`, with `created: true`.
 tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run
 ```
 
+### delete
+
+`tsuzuri delete <note>`
+
+Move a note into .trash, keeping its path with a timestamp added; links to it become unresolved. `Topics/x.md` deleted at 11:22:33 on 2026-09-26 becomes `.trash/Topics/x.md.20260926112233`, in local time, with `-2` and on added when that name is taken. The file keeps every byte, and restoring it is renaming it back. tsuzuri reads nothing under a dot folder, and the name no longer ends in `.md`.
+
+| Option | Meaning |
+| --- | --- |
+| `--dry-run` | show the result, a diff for edits, without writing |
+| `--if-hash <sha256>` | refuse unless the note still has the hash get returned |
+
+With `--json`: `path`, `trashed`, the content's `hash`, and `written`. Without it, the two paths.
+
+```sh
+tsuzuri delete "Existing idea" --dry-run
+```
+
 ### move
 
 `tsuzuri move <note> <path>`
