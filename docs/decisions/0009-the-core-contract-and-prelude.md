@@ -1,6 +1,6 @@
 # 0009 the core contract and its prelude
 
-Status: accepted, 2026-09-25 (0.6.0).
+Status: accepted, 2026-09-25 (0.6.0). Its layers are extended by [ADR 0019](0019-a-small-core-and-vault-extensions.md).
 
 ## context
 

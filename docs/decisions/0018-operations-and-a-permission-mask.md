@@ -1,6 +1,6 @@
 # 0018 operations, and a permission mask the host sets
 
-Status: accepted, 2026-09-26 (0.8.0). Amends the "no permission layer" rule of [ADR 0016](0016-the-sdk-reads-and-writes-the-whole-vault.md).
+Status: accepted, 2026-09-26 (0.8.0). Amends the "no permission layer" rule of [ADR 0016](0016-the-sdk-reads-and-writes-the-whole-vault.md). Its table is opened to extensions by [ADR 0019](0019-a-small-core-and-vault-extensions.md).
 
 ## context
 
