@@ -388,6 +388,15 @@ export const TOOLS: ToolDefinition[] = [
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
     run: (vault, input) => vault.move(s(input, "note"), s(input, "to"), writeOf(input)),
   },
+  {
+    name: "tsuzuri_delete",
+    operation: "delete",
+    description:
+      "Delete a note by moving it into the vault's .trash folder, where it can be restored. Links to it become unresolved; check backlinks first.",
+    inputSchema: schema({ note: NOTE, ...GUARDS }, ["note"]),
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false },
+    run: (vault, input) => vault.delete(s(input, "note"), writeOf(input)),
+  },
 ];
 
 /** The tool for an extension's operation: `tsuzuri_` and its name in snake_case, run through `vault.run`. */

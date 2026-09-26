@@ -39,6 +39,7 @@ Reach for the narrowest verb:
 | create a note at a chosen path | `write <path> <text>` |
 | replace a whole note, only when asked to | `put <note> <text>` |
 | move or rename a note, keeping its links | `move <note> <path>`, after `--dry-run` shows every note it rewrites |
+| delete a note, only when asked to | `delete <note>`, after `backlinks <note>`; it goes to `.trash` and its links break |
 
 `capture`, `new`, and `write` only create files, so they need no hash. For every other write:
 

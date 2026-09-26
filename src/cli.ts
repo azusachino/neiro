@@ -302,6 +302,15 @@ const COMMANDS: readonly CommandSpec[] = [
     example: 'tsuzuri write "Inbox/Fresh.md" "A whole new note." --dry-run',
   },
   {
+    name: "delete",
+    operation: "delete",
+    args: "<note>",
+    summary: "move a note into .trash, keeping its path with a timestamp added; links to it become unresolved",
+    writes: true,
+    options: WRITE,
+    example: 'tsuzuri delete "Existing idea" --dry-run',
+  },
+  {
     name: "move",
     operation: "move",
     args: "<note> <path>",
@@ -856,6 +865,11 @@ async function main(): Promise<void> {
       }
       const value = await vault.property(ref, key);
       return emit(value, () => (typeof value === "string" ? value : JSON.stringify(value)));
+    }
+    case "delete": {
+      const note = one(args, "note");
+      const result = await vault.delete(note, writeOptions());
+      return emit(result, () => `${result.path}\t${result.trashed}${result.written ? "" : "\t(dry run)"}`);
     }
     case "move": {
       const [ref, to, ...rest] = args;

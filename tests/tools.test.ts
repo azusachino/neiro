@@ -55,7 +55,14 @@ describe("tool definitions", () => {
     const bot = names(agentTools(new Vault(FIXTURE, { allow: ["read", "capture"] })));
     expect(bot).toContain("tsuzuri_get");
     expect(bot).toContain("tsuzuri_capture");
-    for (const writer of ["tsuzuri_append", "tsuzuri_put", "tsuzuri_write", "tsuzuri_move", "tsuzuri_new"]) {
+    for (const writer of [
+      "tsuzuri_append",
+      "tsuzuri_put",
+      "tsuzuri_write",
+      "tsuzuri_move",
+      "tsuzuri_delete",
+      "tsuzuri_new",
+    ]) {
       expect(bot).not.toContain(writer);
     }
     expect(names(agentTools(new Vault(FIXTURE, { allow: [] })))).toEqual([]);

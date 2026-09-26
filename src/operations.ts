@@ -31,6 +31,7 @@ export const OPERATIONS = {
   capture: "create",
   write: "create",
   move: "move",
+  delete: "delete",
   create: "create",
   append: "edit",
   putSection: "edit",
