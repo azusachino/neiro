@@ -7,7 +7,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-const CORE = join(import.meta.dirname, "..", "core");
+const ROOT = join(import.meta.dirname, "..");
 const FIXTURE = join(import.meta.dirname, "fixtures", "vault");
 const COMMANDS = [
   ["nav"],
@@ -24,7 +24,7 @@ const COMMANDS = [
 
 function run(runtime: string, args: string[]): string {
   const result = spawnSync(runtime, ["src/cli.ts", "--vault", FIXTURE, ...args, "--json"], {
-    cwd: CORE,
+    cwd: ROOT,
     encoding: "utf8",
   });
   if (result.status !== 0) {
@@ -40,13 +40,13 @@ for (const args of COMMANDS) {
   failed ||= !same;
 }
 
-// Inside the core package, so tsuzuri's own dependencies resolve from its node_modules as they would once installed.
-const consumer = join(CORE, ".tmp", "node-consumer");
+// Inside the package, so tsuzuri's own dependencies resolve from its node_modules as they would once installed.
+const consumer = join(ROOT, ".tmp", "node-consumer");
 const installed = join(consumer, "node_modules", "tsuzuri");
 rmSync(consumer, { recursive: true, force: true });
 mkdirSync(installed, { recursive: true });
-cpSync(join(CORE, "package.json"), join(installed, "package.json"));
-cpSync(join(CORE, "dist", "lib"), join(installed, "dist", "lib"), { recursive: true });
+cpSync(join(ROOT, "package.json"), join(installed, "package.json"));
+cpSync(join(ROOT, "dist", "lib"), join(installed, "dist", "lib"), { recursive: true });
 // Its own package scope, so nothing above it can answer the import by self-reference.
 writeFileSync(join(consumer, "package.json"), '{ "private": true, "type": "module" }\n');
 const probe = join(consumer, "probe.mjs");
@@ -75,7 +75,7 @@ const commands: [string, string[], string][] = [
   [
     join(installed, bins["tsuzuri-tools"] as string),
     ["--json"],
-    spawnSync("bun", [join(CORE, "src", "tools-cli.ts"), "--json"], { encoding: "utf8" }).stdout,
+    spawnSync("bun", [join(ROOT, "src", "tools-cli.ts"), "--json"], { encoding: "utf8" }).stdout,
   ],
 ];
 for (const [bin, args, expected] of commands) {

@@ -64,7 +64,7 @@ test("exports exactly the prelude's runtime names", async () => {
 });
 
 test("exports exactly the prelude's types", () => {
-  const entry = readFileSync(join(import.meta.dir, "..", "core", "src", "index.ts"), "utf8");
+  const entry = readFileSync(join(import.meta.dir, "..", "src", "index.ts"), "utf8");
   const types = [...entry.matchAll(/export type \{([^}]*)\}/g)].flatMap((match) =>
     (match[1] ?? "")
       .split(",")

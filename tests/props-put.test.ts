@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { propertyValue, Vault, WriteConflictError } from "tsuzuri";
 import { copyVault } from "./git.ts";
 
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const COMMENTED = [
   "---",
   "# kept by the owner",

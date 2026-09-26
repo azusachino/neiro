@@ -7,7 +7,7 @@ import { NotFoundError, Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const run = (root: string, ...args: string[]) =>
   spawnSync("bun", [CLI, "--vault", root, ...args], { encoding: "utf8" });
 

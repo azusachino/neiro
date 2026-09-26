@@ -1,6 +1,6 @@
 [files]
 # Corpus vaults are third-party test data.
-extend-exclude = ["packages/tests/vaults", "bun.lock"]
+extend-exclude = ["tests/vaults", "bun.lock"]
 
 [default.extend-words]
 # Ordinal suffixes, as in 1st, 2nd, 3rd.

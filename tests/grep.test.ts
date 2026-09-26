@@ -5,7 +5,7 @@ import { Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 const hasRipgrep = spawnSync("rg", ["--version"]).status === 0;
 
 /** ripgrep over the fixture with tsuzuri's exclusions: dot folders are hidden by default, submodule paths excluded. */

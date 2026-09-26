@@ -20,9 +20,9 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 ## Tests
 
-- Contract tests live in `packages/tests` and import only `tsuzuri` and `tsuzuri/tools`, as a consumer would. Unit tests of internals sit beside their code in `packages/core/src/*.test.ts`, with their own temporary files rather than the fixture vault.
-- `packages/tests/fixtures/vault` is a small synthetic vault for edge cases. Never copy real personal notes into it.
-- `packages/tests/vaults/` holds real public Obsidian vaults, pinned as submodules. Their tests assert invariants any correct reader must hold rather than exact counts.
+- Contract tests live in `tests/` and import only `tsuzuri` and `tsuzuri/tools`, by the package's own name, as a consumer would. Unit tests of internals sit beside their code in `src/*.test.ts`, with their own temporary files rather than the fixture vault.
+- `tests/fixtures/vault` is a small synthetic vault for edge cases. Never copy real personal notes into it.
+- `tests/vaults/` holds real public Obsidian vaults, pinned as submodules. Their tests assert invariants any correct reader must hold rather than exact counts.
 - Behaviour that depends on a vault's own conventions is tested through `tsuzuri.toml` or `VaultOptions.config`, never built in as a default.
 
 ## Code style
@@ -34,12 +34,12 @@ CI runs `make validate` on every push and pull request; a red run blocks merge. 
 
 ## Releasing
 
-1. Update `CHANGELOG.md` and the `version` in `packages/core/package.json`, and merge.
+1. Update `CHANGELOG.md` and the `version` in `package.json`, and merge.
 2. Tag the merge commit `v<version>` and push the tag. The [release workflow](.github/workflows/release.yml) checks the tag against the version, runs `make validate`, publishes the package to npm with provenance, and creates the GitHub release with the tarball and the version's changelog section.
 
 npm trusts that workflow by OIDC, so no npm token is stored: on npmjs.com, the package's settings name `azusachino/tsuzuri` and `release.yml` as its trusted publisher. `make publish` remains for a manual release from a maintainer's machine, after `npm login`.
 
-Consumers install from npm, as the [README](README.md#install) shows. A Git dependency on the repository does not work: it installs the workspace root, not the package.
+Consumers install from npm, as the [README](README.md#install) shows. A Git dependency on the repository installs the package without its built `dist/lib`, which Node needs; install from npm.
 
 ## Reporting a security issue
 

@@ -12,7 +12,7 @@ import { splitFrontmatter } from "./frontmatter.ts";
 import { parseToml, parseYaml } from "./providers.ts";
 import { Vault } from "./vault.ts";
 
-const VAULTS = join(import.meta.dir, "..", "..", "tests");
+const VAULTS = join(import.meta.dir, "..", "tests");
 const FIXTURE = join(VAULTS, "fixtures", "vault");
 
 /** Run `read` with each provider of `chain` forced in turn, and return every output by provider name. */

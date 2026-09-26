@@ -31,6 +31,6 @@
     }
   },
   "files": {
-    "includes": ["**", "!packages/tests/vaults"]
+    "includes": ["**", "!tests/vaults"]
   }
 }

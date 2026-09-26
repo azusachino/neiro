@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { NotFoundError, Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 
 /**
  * A copy of the fixture with a .gitignore. It is built per test rather than checked in: a .gitignore inside the

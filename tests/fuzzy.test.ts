@@ -5,7 +5,7 @@ import { NotFoundError, Vault } from "tsuzuri";
 import { FIXTURE } from "./vault.test.ts";
 
 const vault = new Vault(FIXTURE);
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 
 describe("find", () => {
   test("ranks Latin titles, aliases, and paths", async () => {

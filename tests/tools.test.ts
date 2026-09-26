@@ -123,7 +123,7 @@ describe("running tools", () => {
 });
 
 describe("the tsuzuri-tools command", () => {
-  const CLI = join(import.meta.dir, "..", "core", "src", "tools-cli.ts");
+  const CLI = join(import.meta.dir, "..", "src", "tools-cli.ts");
   const run = (...args: string[]) => spawnSync("bun", [CLI, ...args], { encoding: "utf8" });
 
   test("prints the definitions, the SDK's without run", () => {

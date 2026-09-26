@@ -6,5 +6,3 @@ coverage
 .env.*
 .DS_Store
 .tmp/
-packages/core/README.md
-packages/core/LICENSE

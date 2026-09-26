@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { copyVault } from "./git.ts";
 import { FIXTURE } from "./vault.test.ts";
 
-const CLI = join(import.meta.dir, "..", "core", "src", "cli.ts");
+const CLI = join(import.meta.dir, "..", "src", "cli.ts");
 
 function run(...args: string[]): { code: number; stdout: string; stderr: string } {
   const result = Bun.spawnSync(["bun", CLI, "--vault", FIXTURE, ...args], { stdout: "pipe", stderr: "pipe" });
@@ -183,7 +183,7 @@ describe("help", () => {
   });
 
   test("docs/cli.md names every command and each of its options, and nothing else", () => {
-    const page = readFileSync(join(import.meta.dir, "..", "..", "docs", "cli.md"), "utf8");
+    const page = readFileSync(join(import.meta.dir, "..", "docs", "cli.md"), "utf8");
     const sections = new Map(
       page
         .split(/^### /m)
@@ -198,7 +198,7 @@ describe("help", () => {
   });
 
   test("the skill names only commands and options the CLI takes", () => {
-    const skill = readFileSync(join(import.meta.dir, "..", "..", "skills", "tsuzuri", "SKILL.md"), "utf8");
+    const skill = readFileSync(join(import.meta.dir, "..", "skills", "tsuzuri", "SKILL.md"), "utf8");
     const commands = new Map(help().commands.map((command) => [command.name, command] as const));
     const global = ["--json", "--vault", "--format", "--help", "--version"];
     // A code span naming a command: its first two words when they are one, such as `prop set`, else its first.
