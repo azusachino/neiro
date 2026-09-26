@@ -2,9 +2,35 @@
 
 ![tsuzuri](https://raw.githubusercontent.com/azusachino/tsuzuri/main/docs/assets/tsuzuri.png)
 
+[![npm](https://img.shields.io/npm/v/tsuzuri)](https://www.npmjs.com/package/tsuzuri)
+[![CI](https://github.com/azusachino/tsuzuri/actions/workflows/ci.yml/badge.svg)](https://github.com/azusachino/tsuzuri/actions/workflows/ci.yml)
+[![Node](https://img.shields.io/node/v/tsuzuri)](package.json)
+[![License: MIT](https://img.shields.io/npm/l/tsuzuri)](LICENSE)
+
 An SDK and CLI for reading and writing an Obsidian-compatible Markdown vault. It works on the files directly: Obsidian does not need to be installed or running. It is built for a personal vault that is used from the terminal and by a Telegram bot, which imports the SDK in-process.
 
 The command vocabulary follows [Obsidian's own CLI](https://obsidian.md/help/cli), but the model follows [notesmd-cli](https://github.com/Yakitrak/notesmd-cli): files are the only source of truth, and there is no index to build or keep fresh. A full scan of a 1,837-note vault answers a search in about 200 ms, including process start-up.
+
+## Features
+
+- **Files only:** no app, no index, no server, and no Git; tsuzuri reads and writes the Markdown files and nothing else.
+- **Obsidian's rules:** wikilinks resolve as Obsidian resolves them, including links in frontmatter; tags nest and match case-insensitively; aliases and titles find notes.
+- **Find:** BM25 search with CJK support, `rg`-style `grep`, fzf-style fuzzy `find`, and `list` filtered on any frontmatter property.
+- **Navigate:** a folder's index and notes, a note's outline, its links and backlinks, and the vault's orphans and unresolved links.
+- **Journals:** the day, week, month, quarter, or year note for any date.
+- **Safe writes:** `capture` and `new` only create files; every edit targets one heading or property, shows a diff with `--dry-run`, and refuses a note changed since it was read.
+- **Built for agents:** JSON output and errors, ready-made tool definitions with MCP-style hints, and a skill for coding agents.
+- **Node and Bun:** one npm package, runnable with `npx` or `bunx`.
+
+## Install
+
+```sh
+npm install -g tsuzuri    # the tsuzuri and tsuzuri-tools commands
+npm install tsuzuri       # the SDK, in a project; or bun add tsuzuri
+npx tsuzuri --help        # or bunx tsuzuri, without installing
+```
+
+One package holds the SDK, the agent tools at `tsuzuri/tools`, and both commands. It needs Node 24 or later, or Bun 1.4 or later.
 
 ## Quick start
 
@@ -151,10 +177,6 @@ await vault.capture({ text: "An idea", tags: ["learning"] });
 - Every error tsuzuri raises on purpose extends `TsuzuriError`, so one `instanceof` check separates them from bugs.
 - A `Vault` scans once and caches the notes. Call `vault.reload()` after the files change underneath it, or, in a long-running process, pass `watch: 1000` to have reads rescan, at most once a second, when the notes' paths, modification times, or sizes change.
 
-### Installing
-
-tsuzuri is one package on npm: `npm install tsuzuri`, or `bun add tsuzuri`. It holds the SDK, the agent tools at `tsuzuri/tools`, and the `tsuzuri` and `tsuzuri-tools` commands. `npx tsuzuri` and `bunx tsuzuri` run the CLI without installing it; `npx -p tsuzuri tsuzuri-tools --json` prints the tool definitions.
-
 ### Agent tools
 
 The `tsuzuri/tools` entry turns the SDK's operations into tool definitions for a tool-calling model. It imports only the prelude, so it can do nothing a consumer cannot ([ADR 0012](docs/decisions/0012-one-npm-package-named-tsuzuri.md)).
@@ -195,11 +217,30 @@ make check      # Biome lint and format, tsc, rumdl, typos, and tests
 make validate   # check, then build the CLI and run it against the fixture vault
 make build      # compile the CLI into one binary, and the SDK into dist/lib, in packages/core
 make node-smoke # run the read commands on Node, and import the built SDK there, comparing with Bun
-make pack       # pack both packages into dist/pack, the tarballs a release carries
+make pack       # pack the package into dist/pack, the tarball npm and a release carry
+make publish    # publish that tarball to npm, after a release is tagged (see CONTRIBUTING.md)
 make corpus     # fetch the opt-in obsidian-help vault (about 635 MB), which the tests then include
 ```
 
 Tests run against a small synthetic vault and against real public Obsidian vaults pinned under `packages/tests/vaults/`: [kepano-obsidian](https://github.com/kepano/kepano-obsidian) in CI, and Obsidian's own [help vault](https://github.com/obsidianmd/obsidian-help) on request. See [CONTRIBUTING.md](CONTRIBUTING.md), the [use cases](docs/use-cases.md), and the [roadmap](docs/roadmap.md).
+
+## Contributing
+
+Issues and pull requests are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) and [AGENTS.md](AGENTS.md) first: the [decision records](docs/decisions/README.md) explain the rules a change has to keep, and the [roadmap](docs/roadmap.md) says what is planned. Please follow the [code of conduct](CODE_OF_CONDUCT.md).
+
+## Security
+
+Report a vulnerability privately, as [SECURITY.md](SECURITY.md) describes, not in a public issue.
+
+## Changelog
+
+Every release and its breaking changes are in [CHANGELOG.md](CHANGELOG.md) and on the [releases page](https://github.com/azusachino/tsuzuri/releases). tsuzuri was named neiro before 0.7.0.
+
+## Acknowledgements
+
+- [notesmd-cli](https://github.com/Yakitrak/notesmd-cli), whose files-only model tsuzuri follows.
+- [Obsidian's CLI](https://obsidian.md/help/cli), whose command vocabulary it borrows.
+- [kepano-obsidian](https://github.com/kepano/kepano-obsidian) and Obsidian's [help vault](https://github.com/obsidianmd/obsidian-help), the public vaults its tests run against.
 
 ## License
 
